@@ -10,9 +10,10 @@ Output is always a single JSON object:
     {"ok": true,  "results": [...], "next": {...}|null, "backend": "duckduckgo"|"exa"}
     {"ok": false, "error": "network"|"blocked"|"http"|"usage", "message": "..."}
 
-DuckDuckGo is free and needs no key, but blocks under load. When it does and an
-Exa key is configured, the query silently falls through to Exa instead of
-failing. Configure with EXA_API_KEY, or:
+DuckDuckGo is free and needs no key, but blocks under load. When it does the
+query falls through to Exa's MCP endpoint, which also answers without a key —
+so the fallback needs no configuration at all. An optional key raises the
+limits, via EXA_API_KEY or:
 
     ~/.config/jonas.search/config.json   {"exa_api_key": "..."}
 
@@ -56,12 +57,16 @@ CONFIG_PATH = os.path.join(
     "jonas.search", "config.json",
 )
 
-EXA_ENDPOINT = "https://api.exa.ai/search"
-# Exa has no offset parameter, so one call is paged locally from a cache.
-# Three pages per request keeps a small free quota going much further.
+# Exa's MCP endpoint answers without an API key — this is the same endpoint
+# opencode uses, and it is why its web search costs nothing. A key is optional
+# and only raises the limits.
+EXA_ENDPOINT = "https://mcp.exa.ai/mcp"
+# The endpoint has no offset parameter, so one call is paged locally from a
+# cache: one request serves several pages.
 EXA_PAGE_SIZE = 10
-EXA_BATCH = 30
+EXA_BATCH = 25
 TIMEOUT = 12
+EXA_TIMEOUT = 25   # the MCP endpoint is slower than scraping a page
 MAX_RESULTS = 25
 
 # A plain urllib UA gets a challenge page; a browser UA gets results.
@@ -233,58 +238,131 @@ def exa_cache_path(query):
     return os.path.join(CACHE_DIR, f"exa-{digest}.json")
 
 
-def exa_fetch(query, key):
-    body = json.dumps({
-        "query": query,
-        "numResults": EXA_BATCH,
-        "type": "auto",
-        "contents": {"highlights": {"numSentences": 2}},
-    }).encode()
-    request = urllib.request.Request(
-        EXA_ENDPOINT,
-        data=body,
-        headers={
-            "x-api-key": key,
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        },
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
-            payload = json.load(response)
-    except urllib.error.HTTPError as exc:
-        if exc.code in (401, 403):
-            raise SearchError("auth", "Exa rejected the API key")
-        raise SearchError("http", f"Exa returned HTTP {exc.code}")
-    except urllib.error.URLError as exc:
-        raise SearchError("network", str(exc.reason))
-    except (TimeoutError, ValueError):
-        raise SearchError("network", "Exa request failed")
+# A record is a Title line immediately followed by a URL line; requiring both
+# avoids mistaking a "Title:" inside highlight prose for a new result.
+EXA_RECORD_RE = re.compile(r"^Title:\s*(?P<title>.*)\nURL:\s*(?P<url>\S+)", re.M)
 
+
+def exa_url(key):
+    if not key:
+        return EXA_ENDPOINT
+    return EXA_ENDPOINT + "?exaApiKey=" + urllib.parse.quote(key, safe="")
+
+
+def exa_payload_text(body):
+    """The endpoint replies as JSON or as SSE; both wrap the same envelope."""
+
+    def extract(chunk):
+        try:
+            data = json.loads(chunk)
+        except ValueError:
+            return None
+        content = (data.get("result") or {}).get("content") or []
+        for item in content:
+            if item.get("text"):
+                return item["text"]
+        return None
+
+    stripped = body.strip()
+    if stripped.startswith("{"):
+        direct = extract(stripped)
+        if direct:
+            return direct
+
+    for line in body.split("\n"):
+        if line.startswith("data: "):
+            found = extract(line[6:])
+            if found:
+                return found
+    return None
+
+
+def parse_exa_text(text):
+    """Exa returns prose records for an LLM, not JSON. Recover the fields.
+
+    De-duplication happens here rather than downstream because Exa returns the
+    same document under several canonical paths (/book/ and /stable/book/), and
+    the batch is sliced into pages later — a duplicate pair straddling a page
+    boundary would survive any per-page filtering.
+    """
     rows = []
-    for item in payload.get("results", []):
-        url = item.get("url") or ""
+    seen_urls = set()
+    seen_docs = set()
+    matches = list(EXA_RECORD_RE.finditer(text))
+    for index, match in enumerate(matches):
+        url = match.group("url").strip()
         if not url.startswith("http"):
             continue
-        highlights = item.get("highlights") or []
-        snippet = " ".join(highlights).strip() or (item.get("text") or "").strip()
+
+        body_end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        body = text[match.end():body_end]
+        snippet = body.split("Highlights:", 1)[1] if "Highlights:" in body else body
+        snippet = " ".join(snippet.split()).strip(". ")
+
         netloc = urllib.parse.urlparse(url).netloc
+        title = match.group("title").strip() or netloc
+        document = (netloc, title.lower())
+        if url in seen_urls or document in seen_docs:
+            continue
+        seen_urls.add(url)
+        seen_docs.add(document)
+
         rows.append({
-            "title": (item.get("title") or netloc).strip(),
+            "title": title,
             "url": url,
-            "snippet": " ".join(snippet.split())[:300],
+            "snippet": snippet[:300],
             "display_url": netloc,
             "icon": ICON_ENDPOINT + netloc + ".ico" if netloc else "",
         })
     return rows
 
 
+def exa_fetch(query, key):
+    body = json.dumps({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+            "name": "web_search_exa",
+            "arguments": {
+                "query": query,
+                "type": "auto",
+                "numResults": EXA_BATCH,
+                "livecrawl": "fallback",
+            },
+        },
+    }).encode()
+
+    request = urllib.request.Request(
+        exa_url(key),
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
+            "User-Agent": UA,
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=EXA_TIMEOUT) as response:
+            raw = response.read().decode("utf-8", "replace")
+    except urllib.error.HTTPError as exc:
+        if exc.code in (401, 403):
+            raise SearchError("auth", "Exa rejected the request")
+        raise SearchError("http", f"Exa returned HTTP {exc.code}")
+    except urllib.error.URLError as exc:
+        raise SearchError("network", str(exc.reason))
+    except TimeoutError:
+        raise SearchError("network", "Exa request timed out")
+
+    text = exa_payload_text(raw)
+    if not text:
+        raise SearchError("http", "Exa returned an unreadable response")
+    return parse_exa_text(text)
+
+
 def search_exa(query, offset=0):
     """Exa has no offset parameter, so one batch is fetched and paged locally."""
-    key = exa_key()
-    if not key:
-        raise SearchError("unconfigured", "no Exa API key")
-
+    key = exa_key()          # optional: the endpoint answers without one
     path = exa_cache_path(query)
     rows = None
     if offset > 0:
@@ -369,9 +447,7 @@ def main():
     try:
         results, following = search_exa(query, 0)
     except SearchError as fallback:
-        if fallback.kind == "unconfigured":
-            fail(primary.kind, primary.message)      # report the real failure
-        fail(fallback.kind, f"{primary.message}; Exa fallback failed: {fallback.message}")
+        fail(primary.kind, f"{primary.message}; Exa fallback also failed: {fallback.message}")
 
     emit({"ok": True, "results": results, "next": following, "backend": "exa"})
 

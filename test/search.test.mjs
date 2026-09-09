@@ -40,6 +40,22 @@ test('merging de-duplicates within the incoming page too', () => {
   assert.equal(added.length, 1)
 })
 
+test('the same page under different canonical urls collapses', () => {
+  const added = mergeResults([], [
+    { url: 'https://doc.rust-lang.org/book/ch04.html', title: 'What is Ownership?', display_url: 'doc.rust-lang.org' },
+    { url: 'https://doc.rust-lang.org/stable/book/ch04.html', title: 'What is Ownership?', display_url: 'doc.rust-lang.org' }
+  ])
+  assert.equal(added.length, 1, 'Exa returns /book/ and /stable/book/ as separate hits')
+})
+
+test('the same title on a different domain is kept', () => {
+  const added = mergeResults([], [
+    { url: 'https://a.com/x', title: 'Ownership', display_url: 'a.com' },
+    { url: 'https://b.com/x', title: 'Ownership', display_url: 'b.com' }
+  ])
+  assert.equal(added.length, 2)
+})
+
 test('rows without a url are dropped', () => {
   assert.equal(mergeResults([], [{ title: 'no url' }]).length, 0)
 })

@@ -26,22 +26,43 @@ export function normalizeRow ({ title, url, snippet, display_url: displayUrl, ic
   }
 }
 
+/** Same page, different URL — /book/ and /stable/book/, http and https, ?utm=. */
+function identity (row) {
+  return `${row.display_url}|${row.title.toLowerCase()}`
+}
+
 /**
  * Merges a freshly fetched page into rows already on screen.
  *
- * DuckDuckGo repeats a few hits either side of a page boundary, so rows are
- * de-duplicated on URL. Returns the additions rather than a whole new list:
- * the caller appends to a live ListModel and needs to know whether the page
- * actually advanced anything.
+ * Rows are de-duplicated twice over: on URL, because engines repeat hits
+ * either side of a page boundary, and on domain+title, because Exa in
+ * particular returns the same document under several canonical paths and a
+ * URL comparison never catches those.
+ *
+ * Returns the additions rather than a whole new list: the caller appends to a
+ * live ListModel and needs to know whether the page advanced anything.
  */
-export function mergeResults (existingUrls, incoming = []) {
-  const seen = new Set(existingUrls)
-  const added = []
+export function mergeResults (existing = [], incoming = []) {
+  const urls = new Set()
+  const identities = new Set()
 
+  for (const row of existing) {
+    if (typeof row === 'string') {
+      urls.add(row)                       // callers may pass URLs alone
+      continue
+    }
+    urls.add(row.url)
+    identities.add(identity(normalizeRow(row)))
+  }
+
+  const added = []
   for (const row of incoming) {
     const normalized = normalizeRow(row)
-    if (!normalized.url || seen.has(normalized.url)) continue
-    seen.add(normalized.url)
+    if (!normalized.url || urls.has(normalized.url)) continue
+    const key = identity(normalized)
+    if (identities.has(key)) continue
+    urls.add(normalized.url)
+    identities.add(key)
     added.push(normalized)
   }
   return added

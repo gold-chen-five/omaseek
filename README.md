@@ -122,22 +122,40 @@ rather than a stream of cookieless strangers.
 
 ### Exa fallback
 
-DuckDuckGo needs no key but blocks under load. Configure an Exa key and a
-blocked query falls through to Exa instead of failing — results still appear,
-and the status line says `· via Exa` so a swapped engine is never silent.
+DuckDuckGo needs no key but blocks under load. When it does, the query falls
+through to **Exa's MCP endpoint** (`mcp.exa.ai/mcp`), which answers without an
+API key — so the fallback needs no configuration at all. The status line shows
+`· via Exa` so a swapped engine is never silent.
+
+This is the same endpoint [opencode](https://github.com/anomalyco/opencode)
+uses, and it is why its web search costs nothing:
+
+```ts
+export const EXA_URL = process.env.EXA_API_KEY
+  ? `https://mcp.exa.ai/mcp?exaApiKey=${...}`
+  : "https://mcp.exa.ai/mcp"
+```
+
+An API key is **optional** and only raises the limits. Exa's metered API
+(`api.exa.ai`, $7 per 1,000 searches after free credits) is a different
+product; the MCP endpoint is not on its pricing page:
 
 ```bash
 mkdir -p ~/.config/jonas.search
 echo '{"exa_api_key": "YOUR_KEY"}' > ~/.config/jonas.search/config.json
 ```
 
-`EXA_API_KEY` in the environment overrides the file. The config lives outside
-the plugin directory so a key is never committed. Without a key nothing
-changes — a block is reported as a block.
+`EXA_API_KEY` overrides the file. The config lives outside the plugin
+directory so a key is never committed.
 
-Exa has no offset parameter, so one call fetches 30 results and pages them
-from `~/.cache/jonas.search/`. One request covers three pages, which matters
-against a free tier of roughly 1,400 searches a month.
+> The keyless endpoint is undocumented and carries no guarantee. It could gain
+> auth or rate limits at any time — it is a fallback, not a foundation.
+
+The endpoint has no offset parameter, so one call fetches 25 results and pages
+them from `~/.cache/jonas.search/`. Paging back and forth costs no further
+requests. Exa returns the same document under several canonical paths
+(`/book/` and `/stable/book/`), so the batch is de-duplicated on domain+title
+before caching.
 
 ### Rate limiting
 
