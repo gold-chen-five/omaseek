@@ -53,11 +53,19 @@ COOKIE_PATH = os.path.join(CACHE_DIR, "cookies.txt")
 EXA_ENDPOINT = "https://mcp.exa.ai/mcp"
 # The endpoint has no offset parameter, so one call is paged locally from a
 # cache: one request serves several pages.
-EXA_PAGE_SIZE = 10
-EXA_BATCH = 25
+EXA_BATCH = 30
 TIMEOUT = 12
 EXA_TIMEOUT = 25   # the MCP endpoint is slower than scraping a page
-MAX_RESULTS = 25
+MAX_RESULTS = 30
+
+# Every page shows the same number of results regardless of backend. Engines
+# disagree wildly about page size — DuckDuckGo returns 10 for the first
+# request and 15 for later offsets — so chunks are accumulated in a session
+# buffer and sliced evenly. A 15-result fetch covers one and a half pages,
+# which means fewer requests and less chance of being rate limited.
+PAGE_SIZE = 10
+# Never burst: a single page turn may top the buffer up at most this many times.
+MAX_FETCHES_PER_PAGE = 3
 
 # A plain urllib UA gets a challenge page; a browser UA gets results.
 UA = (
@@ -334,32 +342,6 @@ def exa_fetch(query):
     return parse_exa_text(text)
 
 
-def search_exa(query, offset=0):
-    """Exa has no offset parameter, so one batch is fetched and paged locally."""
-    path = exa_cache_path(query)
-    rows = None
-    if offset > 0:
-        try:
-            with open(path, encoding="utf-8") as handle:
-                rows = json.load(handle)
-        except (OSError, ValueError):
-            rows = None
-
-    if rows is None:
-        rows = exa_fetch(query)
-        try:
-            os.makedirs(CACHE_DIR, exist_ok=True)
-            with open(path, "w", encoding="utf-8") as handle:
-                json.dump(rows, handle)
-        except OSError:
-            pass  # paging will just refetch
-
-    page = rows[offset:offset + EXA_PAGE_SIZE]
-    has_more = offset + EXA_PAGE_SIZE < len(rows)
-    following = {"backend": "exa", "query": query, "s": offset + EXA_PAGE_SIZE} if has_more else None
-    return page, following
-
-
 def search_duckduckgo(fields, offset):
     page = fetch(fields)
     if "challenge" in page or "confirm this search was made by a human" in page:
@@ -373,6 +355,111 @@ def search_duckduckgo(fields, offset):
     return results, extract_next(page, offset)
 
 
+def session_path(query):
+    digest = hashlib.sha256(query.encode("utf-8")).hexdigest()[:16]
+    return os.path.join(CACHE_DIR, f"session-{digest}.json")
+
+
+def load_session(query):
+    try:
+        with open(session_path(query), encoding="utf-8") as handle:
+            session = json.load(handle)
+    except (OSError, ValueError):
+        return None
+    return session if isinstance(session, dict) and session.get("rows") else None
+
+
+def save_session(session):
+    try:
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        with open(session_path(session["query"]), "w", encoding="utf-8") as handle:
+            json.dump(session, handle)
+    except OSError:
+        pass  # paging will just refetch
+
+
+def absorb(session, incoming):
+    """Append new rows, dropping ones already buffered. Returns how many stuck.
+
+    Engines repeat hits across page boundaries, and Exa returns the same
+    document under several canonical paths, so identity is domain+title as
+    well as URL.
+    """
+    urls = {row["url"] for row in session["rows"]}
+    documents = {(row["display_url"], row["title"].lower()) for row in session["rows"]}
+
+    added = 0
+    for row in incoming:
+        document = (row["display_url"], row["title"].lower())
+        if row["url"] in urls or document in documents:
+            continue
+        urls.add(row["url"])
+        documents.add(document)
+        session["rows"].append(row)
+        added += 1
+    return added
+
+
+def start_session(query):
+    """A fresh query: DuckDuckGo first, Exa if it refuses."""
+    session = {"query": query, "rows": [], "next": None, "backend": "duckduckgo"}
+    try:
+        rows, following = search_duckduckgo({"q": query}, 0)
+        absorb(session, rows)
+        session["next"] = following
+        return session
+    except SearchError as primary:
+        pass
+
+    session["backend"] = "exa"
+    try:
+        absorb(session, exa_fetch(query))
+    except SearchError as fallback:
+        fail(primary.kind, f"{primary.message}; Exa fallback also failed: {fallback.message}")
+    session["next"] = None       # Exa has no offset; one batch is all of it
+    return session
+
+
+def grow_session(session, target):
+    """Top the buffer up to `target` rows, within the burst limit."""
+    fetches = 0
+    while len(session["rows"]) < target and session["next"] and fetches < MAX_FETCHES_PER_PAGE:
+        fetches += 1
+        offset = int(session["next"].get("s") or 0)
+        try:
+            rows, following = search_duckduckgo(session["next"], offset)
+        except SearchError:
+            session["next"] = None       # stop offering more; keep what we have
+            break
+        added = absorb(session, rows)
+        session["next"] = following
+        if added == 0:
+            # The engine is repeating itself — it has run out of useful
+            # results. Stop rather than spending the remaining budget.
+            session["next"] = None
+            break
+    return session
+
+
+def emit_page(session, offset):
+    # One row beyond the page, so "is there a next page" is answered by what is
+    # actually buffered rather than by whether the engine still offers a link.
+    # Without the lookahead the last page advertises a successor that turns out
+    # to be empty.
+    grow_session(session, offset + PAGE_SIZE + 1)
+    save_session(session)
+
+    rows = session["rows"]
+    page = rows[offset:offset + PAGE_SIZE]
+    has_more = len(rows) > offset + PAGE_SIZE
+    following = {"query": session["query"], "s": offset + PAGE_SIZE} if has_more else None
+
+    if not page and offset == 0:
+        emit({"ok": True, "results": [], "next": None, "backend": session["backend"]})
+        return
+    emit({"ok": True, "results": page, "next": following, "backend": session["backend"]})
+
+
 def main():
     argv = sys.argv[1:]
 
@@ -383,46 +470,23 @@ def main():
             payload = json.loads(argv[1])
         except ValueError:
             fail("usage", "--next payload is not valid JSON")
-        if not isinstance(payload, dict) or "q" not in payload and "query" not in payload:
-            fail("usage", "--next payload must be the form object")
+        if not isinstance(payload, dict) or not payload.get("query"):
+            fail("usage", "--next payload must name the query")
 
-        offset = int(payload.get("s") or 0)
+        query = str(payload["query"])
+        offset = max(0, int(payload.get("s") or 0))
 
-        # Paging stays on whichever backend produced the page.
-        if payload.get("backend") == "exa":
-            try:
-                results, following = search_exa(payload["query"], offset)
-            except SearchError as error:
-                fail(error.kind, error.message)
-            emit({"ok": True, "results": results, "next": following, "backend": "exa"})
-            return
-
-        try:
-            results, following = search_duckduckgo(payload, offset)
-        except SearchError as error:
-            fail(error.kind, error.message)
-        emit({"ok": True, "results": results, "next": following, "backend": "duckduckgo"})
+        # Paging back is free: the buffer already holds those rows.
+        session = load_session(query) or start_session(query)
+        emit_page(session, offset)
         return
 
     query = " ".join(argv).strip()
     if not query:
         fail("usage", "no query given")
 
-    try:
-        results, following = search_duckduckgo({"q": query}, 0)
-        emit({"ok": True, "results": results, "next": following, "backend": "duckduckgo"})
-        return
-    except SearchError as error:
-        primary = error
-
-    # DuckDuckGo gave up. Fall through to Exa when a key is configured, so a
-    # block degrades to a different backend rather than to a dead panel.
-    try:
-        results, following = search_exa(query, 0)
-    except SearchError as fallback:
-        fail(primary.kind, f"{primary.message}; Exa fallback also failed: {fallback.message}")
-
-    emit({"ok": True, "results": results, "next": following, "backend": "exa"})
+    # Enter always searches afresh rather than serving a stale buffer.
+    emit_page(start_session(query), 0)
 
 
 if __name__ == "__main__":

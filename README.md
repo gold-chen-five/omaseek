@@ -52,10 +52,10 @@ The cursor shows the mode: a block in NORMAL/VISUAL, a thin bar in INSERT.
 Each result shows the site's favicon, falling back to the domain's initial.
 
 Results are **paged, not scrolled**: `j` and `k` stay inside the current page,
-and `l` and `h` step between pages. The status line names the page you are on
-and marks `· end` on the last one. Pages you have already visited are cached,
-so `h` never refetches — only `l` past the furthest page hits the network,
-which also keeps request bursts down.
+and `l` and `h` step between pages. Every page holds the same number of
+results, and the status line names the page you are on and marks `· end` on
+the last one. Pages you have already visited are cached, so `h` never
+refetches — only `l` past the furthest page hits the network.
 
 Results open with `omarchy-launch-browser`, which respects your default browser.
 
@@ -143,11 +143,24 @@ so nothing here can ever bill you.
 > The keyless endpoint is undocumented and carries no guarantee. It could gain
 > auth or rate limits at any time — it is a fallback, not a foundation.
 
-The endpoint has no offset parameter, so one call fetches 25 results and pages
-them from `~/.cache/jonas.search/`. Paging back and forth costs no further
-requests. Exa returns the same document under several canonical paths
-(`/book/` and `/stable/book/`), so the batch is de-duplicated on domain+title
-before caching.
+### Uniform pages
+
+Engines disagree about page size. DuckDuckGo returns 10 results for the first
+request and 15 for every offset after it; Exa returns one batch of 30 and has
+no offset parameter at all. Paging straight off either would give ragged pages.
+
+So neither is paged directly. Whatever a chunk contains is accumulated in a
+session buffer under `~/.cache/jonas.search/`, and pages are sliced from that
+at a fixed size — every page holds 10, except the last.
+
+That also means fewer requests: a 15-result fetch covers one and a half pages,
+paging backwards costs nothing, and a page turn tops the buffer up at most
+three times so it can never burst. Rows are de-duplicated on URL *and* on
+domain+title as they land, because engines repeat hits across page boundaries
+and Exa returns the same document under several canonical paths (`/book/` and
+`/stable/book/`).
+
+The buffer is read only while paging. Pressing Enter always searches afresh.
 
 ### Rate limiting
 
