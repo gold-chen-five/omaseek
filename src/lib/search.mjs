@@ -7,7 +7,7 @@
 const ERROR_MESSAGES = {
   network: 'No network connection',
   blocked: 'DuckDuckGo declined the request — try again shortly',
-  auth: 'Exa rejected the API key'
+  auth: 'Exa now requires authentication — the free endpoint has changed'
 }
 
 /** Backend failure payload -> one line a person can act on. */

@@ -11,13 +11,8 @@ Output is always a single JSON object:
     {"ok": false, "error": "network"|"blocked"|"http"|"usage", "message": "..."}
 
 DuckDuckGo is free and needs no key, but blocks under load. When it does the
-query falls through to Exa's MCP endpoint, which also answers without a key —
-so the fallback needs no configuration at all. An optional key raises the
-limits, via EXA_API_KEY or:
-
-    ~/.config/jonas.search/config.json   {"exa_api_key": "..."}
-
-kept outside the plugin directory so a key is never committed.
+query falls through to Exa's MCP endpoint, which also answers without a key.
+Neither backend costs anything and neither needs configuring.
 
 The ok/false cases are distinguished on purpose: a blocked request and a
 query with genuinely zero hits look identical to a naive parser, and the
@@ -52,14 +47,9 @@ CACHE_DIR = os.path.join(
 )
 COOKIE_PATH = os.path.join(CACHE_DIR, "cookies.txt")
 
-CONFIG_PATH = os.path.join(
-    os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"),
-    "jonas.search", "config.json",
-)
-
-# Exa's MCP endpoint answers without an API key — this is the same endpoint
-# opencode uses, and it is why its web search costs nothing. A key is optional
-# and only raises the limits.
+# Exa's MCP endpoint answers without an API key — the same endpoint opencode
+# uses, and why its web search costs nothing. Exa's metered API at api.exa.ai
+# is a separate product this deliberately does not touch.
 EXA_ENDPOINT = "https://mcp.exa.ai/mcp"
 # The endpoint has no offset parameter, so one call is paged locally from a
 # cache: one request serves several pages.
@@ -221,18 +211,6 @@ def extract_next(page, current_offset):
     return best
 
 
-def exa_key():
-    """Env first so a key can be supplied for one run without touching config."""
-    key = os.environ.get("EXA_API_KEY", "").strip()
-    if key:
-        return key
-    try:
-        with open(CONFIG_PATH, encoding="utf-8") as handle:
-            return str(json.load(handle).get("exa_api_key", "")).strip()
-    except (OSError, ValueError):
-        return ""
-
-
 def exa_cache_path(query):
     digest = hashlib.sha256(query.encode("utf-8")).hexdigest()[:16]
     return os.path.join(CACHE_DIR, f"exa-{digest}.json")
@@ -241,12 +219,6 @@ def exa_cache_path(query):
 # A record is a Title line immediately followed by a URL line; requiring both
 # avoids mistaking a "Title:" inside highlight prose for a new result.
 EXA_RECORD_RE = re.compile(r"^Title:\s*(?P<title>.*)\nURL:\s*(?P<url>\S+)", re.M)
-
-
-def exa_url(key):
-    if not key:
-        return EXA_ENDPOINT
-    return EXA_ENDPOINT + "?exaApiKey=" + urllib.parse.quote(key, safe="")
 
 
 def exa_payload_text(body):
@@ -317,7 +289,7 @@ def parse_exa_text(text):
     return rows
 
 
-def exa_fetch(query, key):
+def exa_fetch(query):
     body = json.dumps({
         "jsonrpc": "2.0",
         "id": 1,
@@ -334,7 +306,7 @@ def exa_fetch(query, key):
     }).encode()
 
     request = urllib.request.Request(
-        exa_url(key),
+        EXA_ENDPOINT,
         data=body,
         headers={
             "Content-Type": "application/json",
@@ -347,7 +319,9 @@ def exa_fetch(query, key):
             raw = response.read().decode("utf-8", "replace")
     except urllib.error.HTTPError as exc:
         if exc.code in (401, 403):
-            raise SearchError("auth", "Exa rejected the request")
+            # The keyless endpoint is undocumented; this is how it would look
+            # if Exa ever put it behind authentication.
+            raise SearchError("auth", "Exa now requires authentication")
         raise SearchError("http", f"Exa returned HTTP {exc.code}")
     except urllib.error.URLError as exc:
         raise SearchError("network", str(exc.reason))
@@ -362,7 +336,6 @@ def exa_fetch(query, key):
 
 def search_exa(query, offset=0):
     """Exa has no offset parameter, so one batch is fetched and paged locally."""
-    key = exa_key()          # optional: the endpoint answers without one
     path = exa_cache_path(query)
     rows = None
     if offset > 0:
@@ -373,7 +346,7 @@ def search_exa(query, offset=0):
             rows = None
 
     if rows is None:
-        rows = exa_fetch(query, key)
+        rows = exa_fetch(query)
         try:
             os.makedirs(CACHE_DIR, exist_ok=True)
             with open(path, "w", encoding="utf-8") as handle:

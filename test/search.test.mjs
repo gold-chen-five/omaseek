@@ -72,8 +72,8 @@ test('status line reflects each state', () => {
   assert.match(statusText({ status: 'idle' }), /enter searches/)
 })
 
-test('a rejected Exa key gets a human message', () => {
-  assert.equal(describeError({ error: 'auth' }), 'Exa rejected the API key')
+test('a locked-down Exa endpoint is reported plainly', () => {
+  assert.match(describeError({ error: 'auth' }), /requires authentication/)
 })
 
 test('results served by the fallback say so', () => {

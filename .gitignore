@@ -1,3 +1,6 @@
 *.swp
 *~
 __pycache__/
+
+# Claude Code worktrees — other sessions' in-flight work
+.claude/

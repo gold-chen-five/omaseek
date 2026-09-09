@@ -136,17 +136,9 @@ export const EXA_URL = process.env.EXA_API_KEY
   : "https://mcp.exa.ai/mcp"
 ```
 
-An API key is **optional** and only raises the limits. Exa's metered API
-(`api.exa.ai`, $7 per 1,000 searches after free credits) is a different
-product; the MCP endpoint is not on its pricing page:
-
-```bash
-mkdir -p ~/.config/jonas.search
-echo '{"exa_api_key": "YOUR_KEY"}' > ~/.config/jonas.search/config.json
-```
-
-`EXA_API_KEY` overrides the file. The config lives outside the plugin
-directory so a key is never committed.
+There is no API key and no configuration. Exa's metered API (`api.exa.ai`,
+$7 per 1,000 searches) is a separate product this deliberately does not use,
+so nothing here can ever bill you.
 
 > The keyless endpoint is undocumented and carries no guarantee. It could gain
 > auth or rate limits at any time — it is a fallback, not a foundation.
