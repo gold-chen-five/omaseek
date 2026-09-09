@@ -46,8 +46,16 @@ export function mergeResults (existingUrls, incoming = []) {
   return added
 }
 
-/** Right-hand side of the status strip. */
-export function statusText ({ status, count = 0, query = '', hasMore = false, loadingMore = false, errorMessage = '' } = {}) {
+/**
+ * Right-hand side of the status strip.
+ *
+ * Results are paged rather than scrolled, so this always names the page the
+ * cursor is on and whether another one exists.
+ */
+export function statusText ({
+  status, count = 0, query = '', page = 1,
+  hasNext = false, loadingPage = false, errorMessage = ''
+} = {}) {
   switch (status) {
     case 'loading':
       return 'Searching…'
@@ -56,9 +64,9 @@ export function statusText ({ status, count = 0, query = '', hasMore = false, lo
     case 'empty':
       return `No results for “${query}”`
     case 'ok':
-      if (loadingMore) return `${count} results · loading more…`
+      if (loadingPage) return `page ${page + 1} · loading…`
       if (errorMessage) return errorMessage
-      return `${count} results${hasMore ? '' : ' · end'} · j/k move · enter opens`
+      return `page ${page} · ${count} results${hasNext ? '' : ' · end'} · h/l pages · enter opens`
     default:
       return 'enter searches · esc for normal mode'
   }

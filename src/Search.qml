@@ -29,13 +29,17 @@ Item {
   property string lastQuery: ""
   property bool pendingG: false             // first half of a gg
 
-  // Paging. `nextPage` is DuckDuckGo's forward nav form, kept verbatim because
-  // it only serves the next page when the whole form is echoed back.
-  property var nextPage: null
-  property bool appending: false
-  property bool loadingMore: false
+  // Results are paged, not scrolled. `pages` caches every page fetched for this
+  // query as { rows, next }, where `next` is DuckDuckGo's forward nav form kept
+  // verbatim — it only serves the next page when the whole form is echoed back.
+  // Caching means h walks back without refetching.
+  property var pages: []
+  property int pageIndex: 0
+  property bool loadingPage: false
 
-  readonly property bool hasMore: nextPage !== null
+  readonly property var currentPage: pages.length > 0 ? pages[pageIndex] : null
+  readonly property bool hasNext: currentPage ? (pageIndex + 1 < pages.length || currentPage.next !== null) : false
+  readonly property bool hasPrevious: pageIndex > 0
 
   // Resolved so the backend is found through the dev symlink.
   readonly property string backend: Qt.resolvedUrl("../bin/ddg-search").toString().replace(/^file:\/\//, "")
@@ -80,9 +84,9 @@ Item {
   }
 
   function resetPaging () {
-    nextPage = null
-    appending = false
-    loadingMore = false
+    pages = []
+    pageIndex = 0
+    loadingPage = false
     pendingG = false
   }
 
@@ -98,11 +102,29 @@ Item {
     fetch([backend, query])
   }
 
-  function loadMore () {
-    if (!hasMore || loadingMore || status === "loading") return
-    loadingMore = true
-    appending = true
-    fetch([backend, "--next", JSON.stringify(nextPage)])
+  // `l` — forward a page, from cache when we have already been there.
+  function nextPageView () {
+    if (loadingPage || status === "loading") return
+    if (pageIndex + 1 < pages.length) {
+      showPage(pageIndex + 1)
+      return
+    }
+    if (!currentPage || !currentPage.next) return
+    loadingPage = true
+    fetch([backend, "--next", JSON.stringify(currentPage.next)])
+  }
+
+  // `h` — back a page. Always cached, so this never hits the network.
+  function previousPageView () {
+    if (hasPrevious) showPage(pageIndex - 1)
+  }
+
+  function showPage (index) {
+    if (index < 0 || index >= pages.length) return
+    pageIndex = index
+    resultsModel.clear()
+    for (const row of pages[index].rows) resultsModel.append(row)
+    resultsList.moveCursorTo(0)
   }
 
   function fetch (command) {
@@ -111,27 +133,15 @@ Item {
     searchProcess.running = true
   }
 
-  // Pull the next page in before the cursor actually lands on the last row, so
-  // paging down stays continuous instead of stalling at the boundary.
-  function prefetchIfNearEnd () {
-    if (resultsList.currentIndex >= resultsModel.count - 3) loadMore()
-  }
-
-  function currentUrls () {
-    const urls = []
-    for (let i = 0; i < resultsModel.count; i++) urls.push(resultsModel.get(i).url)
-    return urls
-  }
-
   function applyResults (payload) {
-    const append = appending
-    appending = false
-    loadingMore = false
+    const wasPaging = loadingPage
+    loadingPage = false
 
     if (!payload.ok) {
       const message = SearchLib.describeError(payload)
-      if (append) {
-        nextPage = null                     // keep what is on screen, stop offering more
+      if (wasPaging) {
+        // Keep the page on screen and stop offering a next one.
+        pages = pages.map((page, i) => i === pageIndex ? { rows: page.rows, next: null } : page)
         errorMessage = message
         return
       }
@@ -141,24 +151,25 @@ Item {
       return
     }
 
-    if (!append) resultsModel.clear()
+    const rows = SearchLib.mergeResults([], payload.results)
+    const page = { rows: rows, next: payload.next ?? null }
 
-    const added = SearchLib.mergeResults(currentUrls(), payload.results)
-    for (const row of added) resultsModel.append(row)
-    nextPage = payload.next ?? null
-
-    if (resultsModel.count === 0) {
+    if (rows.length === 0) {
+      if (wasPaging) {
+        // An empty page past the end: stay put and stop offering more.
+        pages = pages.map((existing, i) => i === pageIndex ? { rows: existing.rows, next: null } : existing)
+        return
+      }
+      resultsModel.clear()
       status = "empty"
       return
     }
 
     status = "ok"
-    if (!append) {
-      resultsList.moveCursorTo(0)
-      focusResults()
-    } else if (added.length === 0 && hasMore) {
-      loadMore()                            // a page of pure duplicates: skip ahead
-    }
+    errorMessage = ""
+    pages = wasPaging ? [...pages, page] : [page]
+    showPage(pages.length - 1)
+    if (!wasPaging) focusResults()
   }
 
   function focusResults () {
@@ -275,8 +286,9 @@ Item {
             status: root.status,
             count: resultsModel.count,
             query: root.lastQuery,
-            hasMore: root.hasMore,
-            loadingMore: root.loadingMore,
+            page: root.pageIndex + 1,
+            hasNext: root.hasNext,
+            loadingPage: root.loadingPage,
             errorMessage: root.errorMessage
           })
         }
@@ -305,19 +317,18 @@ Item {
               root.focusSearch(false)
             } else if (ctrl && event.key === Qt.Key_D) {
               resultsList.moveCursor(pageStep)
-              root.prefetchIfNearEnd()
             } else if (ctrl && event.key === Qt.Key_U) {
               resultsList.moveCursor(-pageStep)
             } else if (event.key === Qt.Key_Down || event.text === "j") {
               resultsList.moveCursor(1)
-              root.prefetchIfNearEnd()
             } else if (event.key === Qt.Key_Up || event.text === "k") {
               resultsList.moveCursor(-1)
+            } else if (event.key === Qt.Key_Right || event.text === "l") {
+              root.nextPageView()
+            } else if (event.key === Qt.Key_Left || event.text === "h") {
+              root.previousPageView()
             } else if (event.text === "G") {
               resultsList.moveCursorTo(resultsList.count - 1)
-              root.prefetchIfNearEnd()
-            } else if (event.text === "L") {
-              root.loadMore()
             } else if (event.text === "g") {
               if (root.pendingG) resultsList.moveCursorTo(0)
               root.pendingG = !root.pendingG

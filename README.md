@@ -37,19 +37,21 @@ The cursor shows the mode: a block in NORMAL/VISUAL, a thin bar in INSERT.
 
 | Key | Action |
 |---|---|
-| `j` / `k`, `↓` / `↑` | move the cursor |
-| `gg` / `G` | first / last loaded result |
+| `j` / `k`, `↓` / `↑` | move the cursor within the page |
+| `l` / `h`, `→` / `←` | next / previous page |
+| `gg` / `G` | first / last result on the page |
 | `Ctrl+D` / `Ctrl+U` | half-page down / up |
-| `L` | load the next page now |
 | `Enter` | open the highlighted result in the browser |
 | `i` or `/` | back to the search bar (INSERT) |
 | `Esc` | back to the search bar (NORMAL) |
 
 Each result shows the site's favicon, falling back to the domain's initial.
 
-More pages load on their own as the cursor nears the end, appending to the
-list rather than replacing it, so `j` just keeps going. The status line shows
-`· end` once there is nothing left to fetch.
+Results are **paged, not scrolled**: `j` and `k` stay inside the current page,
+and `l` and `h` step between pages. The status line names the page you are on
+and marks `· end` on the last one. Pages you have already visited are cached,
+so `h` never refetches — only `l` past the furthest page hits the network,
+which also keeps request bursts down.
 
 Results open with `omarchy-launch-browser`, which respects your default browser.
 

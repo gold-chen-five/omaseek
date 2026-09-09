@@ -56,13 +56,17 @@ test('status line reflects each state', () => {
   assert.match(statusText({ status: 'idle' }), /enter searches/)
 })
 
-test('status line marks the end of pagination', () => {
-  assert.match(statusText({ status: 'ok', count: 26, hasMore: false }), /26 results · end/)
-  assert.match(statusText({ status: 'ok', count: 10, hasMore: true }), /^10 results · j\/k/)
+test('status line names the current page', () => {
+  assert.match(statusText({ status: 'ok', count: 10, page: 2, hasNext: true }), /^page 2 · 10 results · h\/l pages/)
 })
 
-test('loading more takes precedence over the result count line', () => {
-  assert.equal(statusText({ status: 'ok', count: 10, loadingMore: true }), '10 results · loading more…')
+test('status line marks the last page', () => {
+  assert.match(statusText({ status: 'ok', count: 6, page: 3, hasNext: false }), /page 3 · 6 results · end/)
+  assert.doesNotMatch(statusText({ status: 'ok', count: 10, page: 1, hasNext: true }), / · end/)
+})
+
+test('fetching the next page announces the page being fetched', () => {
+  assert.equal(statusText({ status: 'ok', count: 10, page: 2, loadingPage: true }), 'page 3 · loading…')
 })
 
 test('mode label follows focus, not just the editor mode', () => {
