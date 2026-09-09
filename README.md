@@ -15,8 +15,12 @@ Press **SUPER + D**.
 | *(type)* | build the query |
 | `Enter` | run the search, jump straight to results |
 | `Esc` | leave INSERT for NORMAL mode |
+| `j` / `↓` (in NORMAL) | step down into the results |
 | `Esc` (in NORMAL) | close the panel |
 | `Ctrl+W` / `Ctrl+U` | delete word back / to start (insert mode) |
+
+From NORMAL mode the result list is simply the line below, so `j` moves into
+it — the panel reads as one vertical buffer rather than two separate widgets.
 
 NORMAL mode supports a practical vim subset:
 

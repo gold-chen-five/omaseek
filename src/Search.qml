@@ -271,6 +271,7 @@ Item {
 
           onSubmitted: root.runSearch()
           onCancelled: root.dismiss()
+          onSteppedDown: if (resultsModel.count > 0) root.focusResults()
         }
 
         StatusLine {

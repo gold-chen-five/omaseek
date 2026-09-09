@@ -29,6 +29,7 @@ Ui.TextField {
 
   signal submitted()
   signal cancelled()                        // Esc from normal mode
+  signal steppedDown()                      // j / Down: the results are the "line" below
 
   readonly property bool normalish: mode !== "insert"
 
@@ -164,6 +165,15 @@ Ui.TextField {
     const step = (motion, big) => Motions.repeat(at => motion(text, at, big), count, pos)
 
     switch (key) {
+    // leaving the field — the result list is the next line down
+    case "j":
+      if (mode === "visual" || pendingOperator !== "") {
+        clearPending()                      // dj and friends mean nothing on one line
+        return
+      }
+      field.steppedDown()
+      return
+
     // modes
     case "i": setMode("insert"); return
     case "a": cursorPosition = Math.min(text.length, pos + 1); setMode("insert"); return
@@ -275,6 +285,12 @@ Ui.TextField {
     if (ctrl && event.key === Qt.Key_R) {
       redo()
       clampCursor()
+      event.accepted = true
+      return
+    }
+
+    if (event.key === Qt.Key_Down) {
+      field.steppedDown()
       event.accepted = true
       return
     }
