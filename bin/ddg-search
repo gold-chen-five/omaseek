@@ -1,0 +1,140 @@
+#!/usr/bin/env python3
+"""DuckDuckGo HTML search -> JSON on stdout.
+
+Deliberately stdlib-only so the plugin has no venv and no dependencies.
+Kept out of QML so the fragile part (HTML parsing) is testable on its own:
+
+    ./bin/ddg-search "python asyncio" | jq
+
+Output is always a single JSON object:
+    {"ok": true,  "results": [{title, url, snippet, display_url}, ...]}
+    {"ok": false, "error": "network"|"blocked"|"http"|"usage", "message": "..."}
+
+The ok/false cases are distinguished on purpose: a blocked request and a
+query with genuinely zero hits look identical to a naive parser, and the
+panel must not tell the user "No results" when it was actually rebuffed.
+"""
+
+import html
+import json
+import re
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+
+ENDPOINT = "https://html.duckduckgo.com/html/"
+TIMEOUT = 12
+MAX_RESULTS = 15
+
+# A plain urllib UA gets a challenge page; a browser UA gets results.
+UA = (
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+)
+
+RESULT_SPLIT = '<div class="result results_links results_links_deep web-result'
+LINK_RE = re.compile(
+    r'<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', re.S
+)
+SNIPPET_RE = re.compile(r'class="result__snippet"[^>]*>(.*?)</a>', re.S)
+TAG_RE = re.compile(r"<[^>]+>")
+
+
+def emit(obj):
+    json.dump(obj, sys.stdout, ensure_ascii=False)
+    sys.stdout.write("\n")
+
+
+def fail(error, message):
+    emit({"ok": False, "error": error, "message": message})
+    sys.exit(0)  # A handled failure is still a well-formed answer.
+
+
+def clean(fragment):
+    """HTML fragment -> plain text."""
+    return html.unescape(TAG_RE.sub("", fragment)).strip()
+
+
+def unwrap(href):
+    """DDG wraps some links as //duckduckgo.com/l/?uddg=<encoded>."""
+    if href.startswith("//"):
+        href = "https:" + href
+    try:
+        query = urllib.parse.parse_qs(urllib.parse.urlparse(href).query)
+    except ValueError:
+        return href
+    target = query.get("uddg")
+    return urllib.parse.unquote(target[0]) if target else href
+
+
+def fetch(query):
+    data = urllib.parse.urlencode({"q": query}).encode()
+    request = urllib.request.Request(
+        ENDPOINT,
+        data=data,
+        headers={
+            "User-Agent": UA,
+            "Accept": "text/html,application/xhtml+xml",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
+            return response.read().decode("utf-8", "replace")
+    except urllib.error.HTTPError as exc:
+        if exc.code in (202, 403, 429):
+            fail("blocked", f"DuckDuckGo returned HTTP {exc.code}")
+        fail("http", f"HTTP {exc.code}")
+    except urllib.error.URLError as exc:
+        fail("network", str(exc.reason))
+    except TimeoutError:
+        fail("network", f"timed out after {TIMEOUT}s")
+
+
+def parse(page):
+    results = []
+    for block in page.split(RESULT_SPLIT)[1:]:
+        if "result--ad" in block:
+            continue
+        link = LINK_RE.search(block)
+        if not link:
+            continue
+        url = unwrap(html.unescape(link.group(1)))
+        title = clean(link.group(2))
+        if not title or not url.startswith("http"):
+            continue
+        snippet = SNIPPET_RE.search(block)
+        results.append(
+            {
+                "title": title,
+                "url": url,
+                "snippet": clean(snippet.group(1)) if snippet else "",
+                "display_url": urllib.parse.urlparse(url).netloc,
+            }
+        )
+        if len(results) >= MAX_RESULTS:
+            break
+    return results
+
+
+def main():
+    query = " ".join(sys.argv[1:]).strip()
+    if not query:
+        fail("usage", "no query given")
+
+    page = fetch(query)
+    results = parse(page)
+
+    if not results:
+        # Tell a real empty result set apart from a page that never had results.
+        if "no-results" in page or "No results." in page:
+            emit({"ok": True, "results": []})
+        else:
+            fail("blocked", "no results found in response")
+    emit({"ok": True, "results": results})
+
+
+if __name__ == "__main__":
+    main()
