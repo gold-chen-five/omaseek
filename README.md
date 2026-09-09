@@ -15,12 +15,38 @@ Press **SUPER + D**.
 | *(type)* | build the query |
 | `Enter` | run the search, jump straight to results |
 | `Esc` | leave INSERT for NORMAL mode |
+| `jk` | the same, without reaching for Esc |
 | `j` / `↓` (in NORMAL) | step down into the results |
 | `Esc` (in NORMAL) | close the panel |
 | `Ctrl+W` / `Ctrl+U` | delete word back / to start (insert mode) |
 
 From NORMAL mode the result list is simply the line below, so `j` moves into
 it — the panel reads as one vertical buffer rather than two separate widgets.
+
+`jk` is vim's `inoremap jk <Esc>` in miniature: the `j` types as normal and is
+taken back when the `k` lands within 200 ms. Type the two keys further apart
+than that and they stay text, which is how a query that genuinely contains
+`jk` still works. Both the sequence and the window are yours to set in
+`~/.config/jonas.search/config.json`:
+
+```json
+{
+  "escape_sequence": "jk",
+  "escape_timeout_ms": 200
+}
+```
+
+| Value | Effect |
+|---|---|
+| `"kj"` | any run of two or more keys works |
+| `["jk", "kj"]` | several sequences at once |
+| `""` | turn it off — `Esc` only |
+
+`escape_timeout_ms` is how long the whole run may take, clamped to 20–5000 ms.
+
+The panel re-reads the file every time it opens, so an edit applies on the next
+**SUPER + D**. Anything unreadable in it — no file, malformed JSON, a key of the
+wrong type — leaves the defaults standing rather than breaking the search bar.
 
 NORMAL mode supports a practical vim subset:
 
@@ -72,6 +98,7 @@ src/
     StatusLine.qml     mode on the left, search state on the right
   lib/
     motions.mjs        pure cursor motions
+    keymap.mjs         the insert-mode escape sequence and its config
     search.mjs         result merging, error and status strings
 bin/
   search               DuckDuckGo client with Exa fallback — stdlib Python
@@ -86,12 +113,13 @@ lives in `src/lib` as an ES module, and everything that needs Qt stays in QML.
 node, so the cursor arithmetic and the paging rules are tested directly:
 
 ```bash
-./bin/test          # 24 tests, no shell and no network
+./bin/test          # 41 tests, no shell and no network
 ```
 
 That is why `VimTextField.qml` holds only the mode machine and key dispatch —
 every `w`, `b`, `e`, `f` and count calculation is in `motions.mjs` under test,
-and result de-duplication and status strings are in `search.mjs`.
+the escape-sequence matching is in `keymap.mjs`, and result de-duplication and
+status strings are in `search.mjs`.
 
 Theming is inherited: the panel paints with the `[menu]` surface tokens from
 `qs.Commons` (`Color.menu.*`, `Style.*`), the same ones Omarchy's own overlays

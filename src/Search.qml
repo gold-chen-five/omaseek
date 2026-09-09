@@ -6,6 +6,7 @@ import qs.Commons
 import qs.Ui
 import "components"
 import "lib/search.mjs" as SearchLib
+import "lib/keymap.mjs" as KeymapLib
 
 // DuckDuckGo search overlay.
 //
@@ -42,6 +43,12 @@ Item {
   readonly property bool hasNext: currentPage ? (pageIndex + 1 < pages.length || currentPage.next !== null) : false
   readonly property bool hasPrevious: pageIndex > 0
 
+  // User settings. Re-read on every summon, so an edit applies the next time the
+  // panel opens rather than at the next shell restart — and a file created after
+  // the shell started still counts.
+  readonly property string configPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/jonas.search/config.json"
+  property var keymap: KeymapLib.readKeymap("")
+
   // Resolved so the backend is found through the dev symlink.
   readonly property string backendPath: Qt.resolvedUrl("../bin/search").toString().replace(/^file:\/\//, "")
 
@@ -55,6 +62,7 @@ Item {
   readonly property string fontFamily: Style.font.menuFamily
 
   function open (payloadJson) {
+    configFile.reload()
     opened = true
     focusArea = "search"
     status = "idle"
@@ -197,6 +205,23 @@ Item {
 
   ListModel { id: resultsModel }
 
+  // Watched, and re-read on every summon on top of that, so an edit lands
+  // whether the file was changed, deleted, or created after the shell started.
+  // An explicit reload() reads asynchronously, which is why the keymap comes
+  // from onLoaded rather than from text() at the call site.
+  FileView {
+    id: configFile
+
+    path: root.configPath
+    preload: true
+    watchChanges: true
+    printErrors: false
+
+    onLoaded: root.keymap = KeymapLib.readKeymap(text())
+    onLoadFailed: root.keymap = KeymapLib.readKeymap("")   // absent or unreadable: defaults
+    onFileChanged: reload()
+  }
+
   Process {
     id: searchProcess
 
@@ -270,6 +295,8 @@ Item {
           font.family: root.fontFamily
           font.pixelSize: Style.font.heading
           placeholderText: "Search the web…"
+          escapeSequences: root.keymap.sequences
+          escapeTimeout: root.keymap.timeoutMs
 
           onSubmitted: root.runSearch()
           onCancelled: root.dismiss()

@@ -3,6 +3,7 @@ import Quickshell
 import qs.Commons
 import qs.Ui as Ui
 import "../lib/motions.mjs" as Motions
+import "../lib/keymap.mjs" as Keymap
 
 // Search input with a vim editing model.
 //
@@ -12,7 +13,9 @@ import "../lib/motions.mjs" as Motions
 // lib/motions.mjs where it can be tested without a running shell.
 //
 // Normal and visual mode consume printable keys so they never land as text;
-// insert mode passes everything through untouched.
+// insert mode passes everything through untouched apart from the escape
+// sequence — `jk` by default, which is the one insert-mode binding vim users
+// reach for and the one this field has to fake.
 Ui.TextField {
   id: field
 
@@ -26,6 +29,13 @@ Ui.TextField {
   property string lastFindCommand: ""       // for ; and ,
   property string lastFindChar: ""
   property int visualAnchor: -1
+
+  // The insert-mode escape sequence, vim's `inoremap jk <Esc>`. Which keys and
+  // how long they may take comes from the user's config (see Search.qml); an
+  // empty list turns the whole thing off.
+  property var escapeSequences: []
+  property int escapeTimeout: 200
+  property string escapePending: ""          // sequence keys typed so far
 
   signal submitted()
   signal cancelled()                        // Esc from normal mode
@@ -126,6 +136,7 @@ Ui.TextField {
   // Insert mode only intercepts what vim itself would.
   function handleInsertKey (event) {
     const ctrl = (event.modifiers & Qt.ControlModifier) !== 0
+    const plain = (event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier)) === 0
 
     if (event.key === Qt.Key_Escape) {
       setMode("normal")
@@ -136,8 +147,41 @@ Ui.TextField {
     } else if (ctrl && event.key === Qt.Key_U) {
       remove(0, cursorPosition)
       event.accepted = true
+    } else if (plain && Keymap.isTypedKey(event.text)) {
+      handleEscapeSequence(event)             // types normally unless it closes the sequence
+    } else {
+      clearEscapePending()                    // arrows, Backspace and the rest break the run
     }
-    // anything else types normally
+  }
+
+  // The leading keys of the sequence type as normal and are taken back once it
+  // completes — vim shows that `j` too, then removes it — while the closing key
+  // is swallowed before it ever reaches the field.
+  function handleEscapeSequence (event) {
+    const step = Keymap.advance(escapePending, event.text, escapeSequences)
+
+    if (!step.escaped) {
+      escapePending = step.pending
+      if (escapePending) escapeTimer.restart()
+      else escapeTimer.stop()
+      return
+    }
+
+    // Only take back keys that are still the ones we typed: a click or an edit
+    // in between means this is no longer one run.
+    const from = cursorPosition - step.strip
+    const ours = from >= 0 && text.substring(from, cursorPosition) === escapePending
+    clearEscapePending()
+    if (!ours) return
+
+    remove(from, cursorPosition)
+    setMode("normal")
+    event.accepted = true
+  }
+
+  function clearEscapePending () {
+    escapePending = ""
+    escapeTimer.stop()
   }
 
   function handlePendingFind (key) {
@@ -246,7 +290,19 @@ Ui.TextField {
     }
   }
 
-  onModeChanged: if (mode !== "visual") deselect()
+  onModeChanged: {
+    if (mode !== "visual") deselect()
+    clearEscapePending()                      // a half-typed sequence dies with the mode
+  }
+
+  // The run only holds while the keys arrive together; after the timeout a lone
+  // `j` is just a `j`.
+  Timer {
+    id: escapeTimer
+
+    interval: field.escapeTimeout
+    onTriggered: field.escapePending = ""
+  }
 
   // Block cursor in normal/visual, thin bar in insert — the mode is readable
   // from the cursor alone, without checking the indicator.
@@ -264,6 +320,7 @@ Ui.TextField {
     const ctrl = (event.modifiers & Qt.ControlModifier) !== 0
 
     if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+      clearEscapePending()
       field.submitted()
       event.accepted = true
       return
