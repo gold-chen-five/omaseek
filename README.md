@@ -74,7 +74,7 @@ src/
     motions.mjs        pure cursor motions
     search.mjs         result merging, error and status strings
 bin/
-  ddg-search           DuckDuckGo client — stdlib Python, JSON on stdout
+  search               DuckDuckGo client with Exa fallback — stdlib Python
   dev-watch.sh         hot reload during development
   test                 runs the unit tests
 test/                  node tests for src/lib
@@ -97,11 +97,11 @@ Theming is inherited: the panel paints with the `[menu]` surface tokens from
 `qs.Commons` (`Color.menu.*`, `Style.*`), the same ones Omarchy's own overlays
 use, so every theme and light/dark switch applies automatically.
 
-`bin/ddg-search` is deliberately a separate process rather than QML JavaScript.
+`bin/search` is deliberately a separate process rather than QML JavaScript.
 HTML parsing is the fragile part, and this keeps it testable on its own:
 
 ```bash
-./bin/ddg-search "python asyncio" | jq
+./bin/search "python asyncio" | jq
 ```
 
 It distinguishes a network failure, a rebuffed request, and a genuinely empty
@@ -113,12 +113,31 @@ only serves the next page when the *entire* hidden nav form is echoed back
 verbatim and comes back in as `--next '<json>'`:
 
 ```bash
-./bin/ddg-search --next "$(./bin/ddg-search rust | jq -c .next)" | jq '.results[0]'
+./bin/search --next "$(./bin/search rust | jq -c .next)" | jq '.results[0]'
 ```
 
 Because each search is its own process, the client keeps a cookie jar at
 `~/.cache/jonas.search/cookies.txt` so a run of queries reads as one session
 rather than a stream of cookieless strangers.
+
+### Exa fallback
+
+DuckDuckGo needs no key but blocks under load. Configure an Exa key and a
+blocked query falls through to Exa instead of failing — results still appear,
+and the status line says `· via Exa` so a swapped engine is never silent.
+
+```bash
+mkdir -p ~/.config/jonas.search
+echo '{"exa_api_key": "YOUR_KEY"}' > ~/.config/jonas.search/config.json
+```
+
+`EXA_API_KEY` in the environment overrides the file. The config lives outside
+the plugin directory so a key is never committed. Without a key nothing
+changes — a block is reported as a block.
+
+Exa has no offset parameter, so one call fetches 30 results and pages them
+from `~/.cache/jonas.search/`. One request covers three pages, which matters
+against a free tier of roughly 1,400 searches a month.
 
 ### Rate limiting
 

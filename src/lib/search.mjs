@@ -6,7 +6,8 @@
 
 const ERROR_MESSAGES = {
   network: 'No network connection',
-  blocked: 'DuckDuckGo declined the request — try again shortly'
+  blocked: 'DuckDuckGo declined the request — try again shortly',
+  auth: 'Exa rejected the API key'
 }
 
 /** Backend failure payload -> one line a person can act on. */
@@ -54,8 +55,12 @@ export function mergeResults (existingUrls, incoming = []) {
  */
 export function statusText ({
   status, count = 0, query = '', page = 1,
-  hasNext = false, loadingPage = false, errorMessage = ''
+  hasNext = false, loadingPage = false, errorMessage = '', backend = ''
 } = {}) {
+  // Naming the fallback matters: results still appeared, but they came from
+  // somewhere else, and silently swapping engines would be misleading.
+  const via = backend === 'exa' ? ' · via Exa' : ''
+
   switch (status) {
     case 'loading':
       return 'Searching…'
@@ -66,7 +71,7 @@ export function statusText ({
     case 'ok':
       if (loadingPage) return `page ${page + 1} · loading…`
       if (errorMessage) return errorMessage
-      return `page ${page} · ${count} results${hasNext ? '' : ' · end'} · h/l pages · enter opens`
+      return `page ${page} · ${count} results${hasNext ? '' : ' · end'}${via} · h/l pages`
     default:
       return 'enter searches · esc for normal mode'
   }

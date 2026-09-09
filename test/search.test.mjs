@@ -56,6 +56,20 @@ test('status line reflects each state', () => {
   assert.match(statusText({ status: 'idle' }), /enter searches/)
 })
 
+test('a rejected Exa key gets a human message', () => {
+  assert.equal(describeError({ error: 'auth' }), 'Exa rejected the API key')
+})
+
+test('results served by the fallback say so', () => {
+  const line = statusText({ status: 'ok', count: 10, page: 1, hasNext: true, backend: 'exa' })
+  assert.match(line, /· via Exa/)
+})
+
+test('the default backend is not called out', () => {
+  const line = statusText({ status: 'ok', count: 10, page: 1, hasNext: true, backend: 'duckduckgo' })
+  assert.doesNotMatch(line, /via/)
+})
+
 test('status line names the current page', () => {
   assert.match(statusText({ status: 'ok', count: 10, page: 2, hasNext: true }), /^page 2 · 10 results · h\/l pages/)
 })

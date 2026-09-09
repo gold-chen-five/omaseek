@@ -36,13 +36,14 @@ Item {
   property var pages: []
   property int pageIndex: 0
   property bool loadingPage: false
+  property string backend: ""               // which engine answered: duckduckgo | exa
 
   readonly property var currentPage: pages.length > 0 ? pages[pageIndex] : null
   readonly property bool hasNext: currentPage ? (pageIndex + 1 < pages.length || currentPage.next !== null) : false
   readonly property bool hasPrevious: pageIndex > 0
 
   // Resolved so the backend is found through the dev symlink.
-  readonly property string backend: Qt.resolvedUrl("../bin/ddg-search").toString().replace(/^file:\/\//, "")
+  readonly property string backendPath: Qt.resolvedUrl("../bin/search").toString().replace(/^file:\/\//, "")
 
   // Theme tokens: the same [menu] surface the first-party overlays paint with,
   // so a theme switch repaints this panel with no code of our own.
@@ -99,7 +100,7 @@ Item {
     errorMessage = ""
     resetPaging()
     resultsModel.clear()
-    fetch([backend, query])
+    fetch([backendPath, query])
   }
 
   // `l` — forward a page, from cache when we have already been there.
@@ -111,7 +112,7 @@ Item {
     }
     if (!currentPage || !currentPage.next) return
     loadingPage = true
-    fetch([backend, "--next", JSON.stringify(currentPage.next)])
+    fetch([backendPath, "--next", JSON.stringify(currentPage.next)])
   }
 
   // `h` — back a page. Always cached, so this never hits the network.
@@ -167,6 +168,7 @@ Item {
 
     status = "ok"
     errorMessage = ""
+    backend = payload.backend ?? ""
     pages = wasPaging ? [...pages, page] : [page]
     showPage(pages.length - 1)
     if (!wasPaging) focusResults()
@@ -290,7 +292,8 @@ Item {
             page: root.pageIndex + 1,
             hasNext: root.hasNext,
             loadingPage: root.loadingPage,
-            errorMessage: root.errorMessage
+            errorMessage: root.errorMessage,
+            backend: root.backend
           })
         }
 
