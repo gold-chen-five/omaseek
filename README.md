@@ -38,11 +38,18 @@ The cursor shows the mode: a block in NORMAL/VISUAL, a thin bar in INSERT.
 | Key | Action |
 |---|---|
 | `j` / `k`, `↓` / `↑` | move the cursor |
-| `gg` / `G` | first / last result |
+| `gg` / `G` | first / last loaded result |
 | `Ctrl+D` / `Ctrl+U` | half-page down / up |
+| `L` | load the next page now |
 | `Enter` | open the highlighted result in the browser |
 | `i` or `/` | back to the search bar (INSERT) |
 | `Esc` | back to the search bar (NORMAL) |
+
+Each result shows the site's favicon, falling back to the domain's initial.
+
+More pages load on their own as the cursor nears the end, appending to the
+list rather than replacing it, so `j` just keeps going. The status line shows
+`· end` once there is nothing left to fetch.
 
 Results open with `omarchy-launch-browser`, which respects your default browser.
 
@@ -70,6 +77,28 @@ HTML parsing is the fragile part, and this keeps it testable on its own:
 
 It distinguishes a network failure, a rebuffed request, and a genuinely empty
 result set, so the panel never reports "no results" when it was actually blocked.
+
+Pagination is not a simple offset — DuckDuckGo ignores a bare `s` parameter and
+only serves the next page when the *entire* hidden nav form is echoed back
+(`vqd`, `kl` and `nextParams` included). So `next` in the JSON carries that form
+verbatim and comes back in as `--next '<json>'`:
+
+```bash
+./bin/ddg-search --next "$(./bin/ddg-search rust | jq -c .next)" | jq '.results[0]'
+```
+
+Because each search is its own process, the client keeps a cookie jar at
+`~/.cache/jonas.search/cookies.txt` so a run of queries reads as one session
+rather than a stream of cookieless strangers.
+
+### Rate limiting
+
+DuckDuckGo will serve an anti-bot challenge ("select all squares containing a
+duck") if it sees too many requests too quickly, and the block lasts a while.
+Normal launcher use is nowhere near that threshold, but paging pulls a request
+per page, so holding `j` through many pages is the way to find the limit. When
+it happens the panel says so plainly instead of pretending there were no
+results.
 
 ## Install
 

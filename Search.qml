@@ -26,6 +26,10 @@ Item {
   property string errorMessage: ""
   property string lastQuery: ""
   property bool pendingG: false              // first half of a gg
+  property var nextPage: null                // DDG's forward nav form, verbatim
+  property bool appending: false             // current fetch appends rather than replaces
+  property bool loadingMore: false
+  property int pagesLoaded: 0
 
   // Resolve our own directory so the backend is found through the dev symlink.
   readonly property string pluginDir: Qt.resolvedUrl(".").toString().replace(/^file:\/\//, "").replace(/\/$/, "")
@@ -45,6 +49,10 @@ Item {
     root.status = "idle"
     root.errorMessage = ""
     root.pendingG = false
+    root.nextPage = null
+    root.appending = false
+    root.loadingMore = false
+    root.pagesLoaded = 0
     resultsModel.clear()
     input.clear()
     input.mode = "insert"
@@ -73,37 +81,90 @@ Item {
     root.lastQuery = query
     root.status = "loading"
     root.errorMessage = ""
+    root.nextPage = null
+    root.appending = false
+    root.loadingMore = false
+    root.pagesLoaded = 0
     resultsModel.clear()
     searchProcess.running = false
     searchProcess.command = [root.pluginDir + "/bin/ddg-search", query]
     searchProcess.running = true
   }
 
+  // Fetches the next page and appends. DuckDuckGo only serves it when the
+  // whole nav form is echoed back, so `nextPage` is passed through verbatim.
+  function loadMore() {
+    if (!root.nextPage || root.loadingMore || root.status === "loading") return
+    root.loadingMore = true
+    root.appending = true
+    searchProcess.running = false
+    searchProcess.command = [root.pluginDir + "/bin/ddg-search", "--next", JSON.stringify(root.nextPage)]
+    searchProcess.running = true
+  }
+
   function applyResults(payload) {
-    resultsModel.clear()
+    var append = root.appending
+    root.appending = false
+    root.loadingMore = false
+
     if (!payload.ok) {
-      root.status = "error"
-      root.errorMessage = payload.error === "network" ? "No network connection"
+      var message = payload.error === "network" ? "No network connection"
         : payload.error === "blocked" ? "DuckDuckGo declined the request — try again shortly"
         : (payload.message || "Search failed")
+      if (append) {
+        // Keep the results already on screen; just stop offering more.
+        root.nextPage = null
+        root.errorMessage = message
+        return
+      }
+      resultsModel.clear()
+      root.status = "error"
+      root.errorMessage = message
       return
     }
+
+    if (!append) resultsModel.clear()
+
+    // DuckDuckGo repeats a few hits across page boundaries.
+    var seen = ({})
+    for (var s = 0; s < resultsModel.count; s++) seen[resultsModel.get(s).url] = true
+
     var rows = payload.results || []
+    var added = 0
     for (var i = 0; i < rows.length; i++) {
+      if (!rows[i].url || seen[rows[i].url]) continue
+      seen[rows[i].url] = true
+      added++
       resultsModel.append({
         title: rows[i].title || "",
         url: rows[i].url || "",
         snippet: rows[i].snippet || "",
-        display_url: rows[i].display_url || ""
+        display_url: rows[i].display_url || "",
+        icon: rows[i].icon || ""
       })
     }
+
+    root.nextPage = payload.next || null
+    if (added > 0) root.pagesLoaded++
+
     if (resultsModel.count === 0) {
       root.status = "empty"
       return
     }
     root.status = "ok"
-    resultsList.moveCursorTo(0)
-    focusResults()
+    if (!append) {
+      resultsList.moveCursorTo(0)
+      focusResults()
+    } else if (added === 0 && root.nextPage) {
+      // A page of pure duplicates: skip ahead rather than appearing stuck.
+      root.loadMore()
+    }
+  }
+
+  // Pull the next page in before the cursor actually lands on the last row,
+  // so paging down stays continuous instead of stalling at the boundary.
+  function prefetchIfNearEnd() {
+    if (resultsList.currentIndex >= resultsModel.count - 3) root.loadMore()
   }
 
   function focusResults() {
@@ -235,7 +296,12 @@ Item {
               if (root.status === "loading") return "Searching…"
               if (root.status === "error") return root.errorMessage
               if (root.status === "empty") return "No results for “" + root.lastQuery + "”"
-              if (root.status === "ok") return resultsModel.count + " results · j/k move · enter opens"
+              if (root.status === "ok") {
+                if (root.loadingMore) return resultsModel.count + " results · loading more…"
+                if (root.errorMessage) return root.errorMessage
+                return resultsModel.count + " results" + (root.nextPage ? "" : " · end")
+                  + " · j/k move · enter opens"
+              }
               return "enter searches · esc for normal mode"
             }
           }
@@ -264,14 +330,19 @@ Item {
               root.focusSearch(false)
             } else if (ctrl && event.key === Qt.Key_D) {
               resultsList.moveCursor(pageStep)
+              root.prefetchIfNearEnd()
             } else if (ctrl && event.key === Qt.Key_U) {
               resultsList.moveCursor(-pageStep)
             } else if (event.key === Qt.Key_Down || event.text === "j") {
               resultsList.moveCursor(1)
+              root.prefetchIfNearEnd()
             } else if (event.key === Qt.Key_Up || event.text === "k") {
               resultsList.moveCursor(-1)
             } else if (event.text === "G") {
               resultsList.moveCursorTo(resultsList.count - 1)
+              root.prefetchIfNearEnd()
+            } else if (event.text === "L") {
+              root.loadMore()
             } else if (event.text === "g") {
               if (root.pendingG) { resultsList.moveCursorTo(0); root.pendingG = false }
               else root.pendingG = true
