@@ -55,14 +55,37 @@ Results open with `omarchy-launch-browser`, which respects your default browser.
 
 ## How it works
 
-| File | Role |
-|---|---|
-| `manifest.json` | plugin manifest — `overlay` kind, `keepLoaded` for instant summon |
-| `Search.qml` | layer-shell window, focus state machine, backend wiring |
-| `VimTextField.qml` | the vim editing model over `qs.Ui.TextField` |
-| `ResultList.qml` | result rows and the selection cursor |
-| `bin/ddg-search` | DuckDuckGo client — stdlib Python, JSON on stdout |
-| `bin/dev-watch.sh` | hot reload for development (see below) |
+```
+manifest.json          plugin manifest — overlay kind, keepLoaded for instant summon
+src/
+  Search.qml           entry point: layer-shell window, focus machine, wiring
+  components/
+    VimTextField.qml   the vim mode machine and key dispatch
+    ResultList.qml     the list and its cursor
+    ResultRow.qml      one result: favicon, title, domain, snippet
+    StatusLine.qml     mode on the left, search state on the right
+  lib/
+    motions.mjs        pure cursor motions
+    search.mjs         result merging, error and status strings
+bin/
+  ddg-search           DuckDuckGo client — stdlib Python, JSON on stdout
+  dev-watch.sh         hot reload during development
+  test                 runs the unit tests
+test/                  node tests for src/lib
+```
+
+The split follows one rule: anything that is a pure function of its inputs
+lives in `src/lib` as an ES module, and everything that needs Qt stays in QML.
+`.mjs` modules load in both QML (`import "lib/motions.mjs" as Motions`) and
+node, so the cursor arithmetic and the paging rules are tested directly:
+
+```bash
+./bin/test          # 24 tests, no shell and no network
+```
+
+That is why `VimTextField.qml` holds only the mode machine and key dispatch —
+every `w`, `b`, `e`, `f` and count calculation is in `motions.mjs` under test,
+and result de-duplication and status strings are in `search.mjs`.
 
 Theming is inherited: the panel paints with the `[menu]` surface tokens from
 `qs.Commons` (`Color.menu.*`, `Style.*`), the same ones Omarchy's own overlays
@@ -130,6 +153,8 @@ to reload the plugin on save. For changes that a rescan won't pick up — a
 
 > Remove this dev install with `rm ~/.config/omarchy/plugins/jonas.search`.
 > Do **not** use `omarchy plugin remove`, which would delete through the symlink.
+
+Run `./bin/test` after touching anything in `src/lib`.
 
 Logs: `journalctl -t omarchy-shell -f`.
 

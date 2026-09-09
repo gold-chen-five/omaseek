@@ -5,7 +5,11 @@
   "version": "1.0.0",
   "author": "jonas",
   "description": "DuckDuckGo search with vim keybindings",
-  "kinds": ["overlay"],
+  "kinds": [
+    "overlay"
+  ],
   "keepLoaded": true,
-  "entryPoints": { "overlay": "Search.qml" }
+  "entryPoints": {
+    "overlay": "src/Search.qml"
+  }
 }
