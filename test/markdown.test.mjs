@@ -33,7 +33,7 @@ test('the transcript colours questions and answers apart', () => {
     { question: '#fff', answer: '#ccc', glyph: '#888', dotSize: 9 }
   )
   assert.match(html, /<span style="color:#888">&gt; <\/span><b><span style="color:#fff">why &lt;this&gt;\?<\/span><\/b>/)
-  assert.match(html, /<p><span style="color:#ccc"><span style="color:#888;font-size:9px;">● <\/span>because <b>so<\/b><\/span><\/p>/)
+  assert.match(html, /<p><span style="color:#ccc"><span style="color:#888;font-size:9px;vertical-align:middle;">● <\/span>because <b>so<\/b><\/span><\/p>/)
   assert.equal(renderTranscript([]), '')
 })
 
@@ -53,4 +53,9 @@ test('a link takes the colour it is given, so a TextEdit does not paint it Qt bl
 test('a question typed on two lines is shown on two lines', () => {
   const html = renderTranscript([{ role: 'user', text: 'first\nsecond' }], { question: '#fff' })
   assert.ok(html.includes('first<br>second'))
+})
+
+test('the answer dot is centred on its line, not sat on the baseline', () => {
+  const html = renderTranscript([{ role: 'assistant', text: 'hi' }], { dotSize: 8 })
+  assert.ok(html.includes('font-size:8px;vertical-align:middle'))
 })

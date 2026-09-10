@@ -95,8 +95,20 @@ FocusScope {
     preferredX = -1
     answer.text = render()
     // The layout settles after the text lands; only then are the line
-    // rectangles real. Land on the newest answer, scrolled into view.
-    Qt.callLater(() => { placeCursor(answer.length); findMarks() })
+    // rectangles real. Land at the *start* of the newest answer, so j reads
+    // down through it — landing at the end left j with nowhere to go and
+    // thirty presses of k to reach the top of a long reply.
+    Qt.callLater(() => { placeCursor(startOfNewest()); findMarks() })
+  }
+
+  // Where the newest reply begins in the plain text: after its dot. While
+  // only the question is there, the end.
+  function startOfNewest () {
+    const last = turns.length > 0 ? turns[turns.length - 1] : null
+    if (!last || last.role !== "assistant") return answer.length
+    const source = plain()
+    const at = source.lastIndexOf("●")
+    return at === -1 ? answer.length : Math.min(answer.length, at + 2)
   }
   onWidthChanged: Qt.callLater(findMarks)
 
@@ -168,10 +180,19 @@ FocusScope {
     placeCursor(answer.positionAt(preferredX, y), true)
   }
 
+  // The content moves with the cursor, vim's scrolloff turned all the way
+  // up: once the transcript is taller than the view, the cursor line is held
+  // near the middle and every j or k visibly scrolls. Left to the edges, a
+  // long answer read from the bottom did not move for twenty presses.
+  property rect cursorRect: Qt.rect(0, 0, 0, 0)
+
   function ensureVisible () {
     const rect = answer.positionToRectangle(cursor)
-    if (rect.y < flick.contentY) flick.contentY = rect.y
-    else if (rect.y + rect.height > flick.contentY + flick.height) flick.contentY = rect.y + rect.height - flick.height
+    cursorRect = rect
+    const overflow = flick.contentHeight - flick.height
+    if (overflow <= 0) { flick.contentY = 0; return }
+    const centred = rect.y + rect.height / 2 - flick.height / 2
+    flick.contentY = Math.max(0, Math.min(overflow, centred))
   }
 
   function startSelecting (byLine) {
@@ -295,6 +316,18 @@ FocusScope {
       }
     }
 
+    // The line the cursor is on, lit the way an editor's cursorline is: a
+    // two-pixel caret at half strength was easy to lose in a long answer,
+    // and then j and k looked like they did nothing.
+    Rectangle {
+      visible: view.activeFocus && !view.selecting
+      x: 0
+      y: view.cursorRect.y - Style.spacing.xxs
+      width: flick.width
+      height: view.cursorRect.height + Style.spacing.xxs * 2
+      color: Util.alpha(view.foreground, 0.06)
+    }
+
     // Sits where the answer's dot will: same column, same tone, so when the
     // reply lands it takes the spinner's place rather than appearing under it.
     Row {
@@ -305,10 +338,15 @@ FocusScope {
       y: answer.contentHeight + answer.topPadding + answer.bottomPadding
       spacing: Style.spacing.xs
 
+      // The frames are not all the same width, and a verb that shuffles left
+      // and right with each one reads as broken. The glyph gets a box the
+      // widest frame fits in, centred, so only the glyph changes.
       Text {
+        width: Math.ceil(Style.font.body * 1.4)
+        horizontalAlignment: Text.AlignHCenter
         textFormat: Text.PlainText
         text: Thinking.FRAMES[view.tick % Thinking.FRAMES.length]
-        color: view.glyphColor
+        color: view.accent
         font.family: view.fontFamily
         font.pixelSize: Style.font.body
       }

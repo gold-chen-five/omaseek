@@ -140,7 +140,9 @@ export function toHtml (markdown, { color = '', lead = '', link = '' } = {}) {
 export function renderTranscript (turns, {
   question = '#ffffff', answer = '#cccccc', glyph = '#888888', error = '#e06c75', link = '', dotSize = 0
 } = {}) {
-  const dot = dotSize > 0 ? `font-size:${dotSize}px;` : ''
+  // Smaller than the text, so on the baseline it sits low; middle alignment
+  // puts it on the line's centre, where the eye expects a bullet.
+  const dot = dotSize > 0 ? `font-size:${dotSize}px;vertical-align:middle;` : ''
   const parts = []
   for (let i = 0; i < (turns || []).length; i++) {
     const turn = turns[i]
