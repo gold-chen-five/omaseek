@@ -4,7 +4,7 @@ import Quickshell.Io
 import "../lib/settings.mjs" as SettingsLib
 import "../lib/keymap.mjs" as KeymapLib
 
-// ~/.config/jonas.search/config.json, read and written.
+// ~/.config/omaseek/config.json, read and written.
 //
 // The file is shared with bin/search and stays hand-editable: this store
 // writes only the keys the settings page owns and carries everything else
@@ -13,7 +13,7 @@ import "../lib/keymap.mjs" as KeymapLib
 Item {
   id: store
 
-  readonly property string path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/jonas.search/config.json"
+  readonly property string path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/omaseek/config.json"
   readonly property string dir: path.replace(/\/[^\/]*$/, "")
 
   property string source: ""                   // kept so a write preserves unknown keys

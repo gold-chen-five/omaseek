@@ -67,7 +67,7 @@ if [[ ! -f $SETTINGS ]]; then
   mkdir -p "$CONFIG_DIR"
   secret=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
   cat > "$SETTINGS" <<YAML
-# Settings for the jonas.search panel's SearXNG instance.
+# Settings for the omaseek panel's SearXNG instance.
 # Minimal on purpose: anything not named here comes from SearXNG's defaults.
 use_default_settings: true
 

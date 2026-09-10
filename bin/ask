@@ -50,13 +50,13 @@ import sys
 
 CONFIG_PATH = os.path.join(
     os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.environ["HOME"], ".config"),
-    "jonas.search", "config.json",
+    "omaseek", "config.json",
 )
 # The chat runs somewhere with no project in it: an agent started in $HOME
 # or a repo would read that directory's instructions into a web question.
 WORK_DIR = os.path.join(
     os.environ.get("XDG_CACHE_HOME") or os.path.join(os.environ["HOME"], ".cache"),
-    "jonas.search", "ask",
+    "omaseek", "ask",
 )
 TIMEOUT = 180           # an agent that has said nothing by now is stuck, not thinking
 LAUNCHERS = ("terminal", "tmux", "herdr")

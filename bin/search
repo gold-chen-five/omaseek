@@ -40,11 +40,11 @@ TIMEOUT = 8
 
 CONFIG_PATH = os.path.join(
     os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"),
-    "jonas.search", "config.json",
+    "omaseek", "config.json",
 )
 CACHE_DIR = os.path.join(
     os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"),
-    "jonas.search",
+    "omaseek",
 )
 
 # A favicon CDN, not a search backend: it is sent a bare domain, never a query.

@@ -11,7 +11,7 @@ import "lib/settings.mjs" as SettingsLib
 //
 // The layer-shell recipe and the open/close/dismiss/toggle contract follow the
 // first-party overlays (see shell/plugins/emojis/Emojis.qml), so shell IPC
-// `toggle jonas.search` behaves like every other Omarchy panel.
+// `toggle omaseek` behaves like every other Omarchy panel.
 //
 // This file is the wiring. State lives in four stores — ConfigStore (the
 // config file), Engine (the SearXNG instance), SearchSession (the query and
@@ -78,7 +78,7 @@ Item {
   function dismiss () {
     close()
     if (shell && typeof shell.hide === "function") {
-      shell.hide(manifest?.id ?? "jonas.search")
+      shell.hide(manifest?.id ?? "omaseek")
     }
   }
 
@@ -197,7 +197,7 @@ Item {
     visible: root.opened
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
-    WlrLayershell.namespace: "jonas-search"
+    WlrLayershell.namespace: "omaseek"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     exclusionMode: ExclusionMode.Ignore

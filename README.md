@@ -1,4 +1,4 @@
-# jonas.search — Omarchy web search panel
+# omaseek — Omarchy web search panel
 
 A keybind-summoned web search overlay for Omarchy 4, with vim keybindings.
 Searches go through a SearXNG instance you run yourself.
@@ -31,7 +31,7 @@ it — the panel reads as one vertical buffer rather than two separate widgets.
 taken back when the `k` lands within 200 ms. Type the two keys further apart
 than that and they stay text, which is how a query that genuinely contains
 `jk` still works. Both the sequence and the window are yours to set in
-`~/.config/jonas.search/config.json`:
+`~/.config/omaseek/config.json`:
 
 ```json
 {
@@ -236,7 +236,7 @@ saying yes to an update in the Omarchy menu.
 A terminal rather than a detached process, because sudo needs somewhere to
 prompt and a 200 MB first pull is worth watching.
 
-Point the panel at it in `~/.config/jonas.search/config.json`:
+Point the panel at it in `~/.config/omaseek/config.json`:
 
 ```json
 {
@@ -254,7 +254,7 @@ upstream engines it queries — and it waits for *every* engine in the category,
 so the slowest one sets the pace for all of them. Out of the box that includes
 engines that only ever fill an infobox this panel never shows (`wikidata` runs
 around 0.9 s) and ones that are CAPTCHA'd and return nothing. Naming the
-engines that actually answer, in `~/.config/jonas.search/config.json`, is the
+engines that actually answer, in `~/.config/omaseek/config.json`, is the
 biggest lever and needs no sudo:
 
 ```json
@@ -306,7 +306,7 @@ setup prompt rather than quietly searching somewhere you did not choose.
 
 A SearXNG page is however many upstream engines answered in time, so paging
 straight off it would give ragged pages. Whatever a chunk contains is
-accumulated in a session buffer under `~/.cache/jonas.search/`, and pages are
+accumulated in a session buffer under `~/.cache/omaseek/`, and pages are
 sliced from that at a fixed size — every page holds 10, except the last.
 
 That also means fewer requests: a 25-result page covers two and a half of ours,
@@ -342,7 +342,7 @@ The window the two keys must land inside is vim's own `timeoutlen` (1000 ms),
 so a sequence that works in your vimrc works here. It is not a setting; set
 `escape_timeout_ms` by hand if you really want a different one.
 
-Everything is stored in `~/.config/jonas.search/config.json`, which stays
+Everything is stored in `~/.config/omaseek/config.json`, which stays
 hand-editable — the page writes only the keys it owns and leaves anything else
 in the file alone. The file is watched, so an edit outside the panel is picked
 up on the next summon.
@@ -350,15 +350,15 @@ up on the next summon.
 ## Install
 
 ```bash
-ln -s /mnt/hdd/work/qml ~/.config/omarchy/plugins/jonas.search
+ln -s /mnt/hdd/work/omaseek ~/.config/omarchy/plugins/omaseek
 omarchy-shell shell rescanPlugins
-omarchy plugin enable jonas.search
+omarchy plugin enable omaseek
 ```
 
 Then add the keybind to `~/.config/hypr/bindings.lua`:
 
 ```lua
-o.bind("SUPER + D", "Web search", "omarchy-shell shell toggle jonas.search")
+o.bind("SUPER + D", "Web search", "omarchy-shell shell toggle omaseek")
 ```
 
 and `hyprctl reload`.
@@ -375,7 +375,7 @@ Omarchy's hot-reload watcher (`inotifywait -r`) does not follow symlinks, so run
 to reload the plugin on save. For changes that a rescan won't pick up — a
 `keepLoaded` component that is already instantiated — use `omarchy-restart-shell`.
 
-> Remove this dev install with `rm ~/.config/omarchy/plugins/jonas.search`.
+> Remove this dev install with `rm ~/.config/omarchy/plugins/omaseek`.
 > Do **not** use `omarchy plugin remove`, which would delete through the symlink.
 
 Run `./bin/test` after touching anything in `src/lib`.

@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "id": "jonas.search",
-  "name": "Web search",
+  "id": "omaseek",
+  "name": "Omaseek",
   "version": "1.0.0",
   "author": "jonas",
-  "description": "Web search with vim keybindings, through your own SearXNG",
+  "description": "Web search and AI, with vim keybindings, through your own SearXNG",
   "kinds": [
     "overlay"
   ],

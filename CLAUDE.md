@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`jonas.search` — a web search overlay with vim keybindings, packaged as an
+`omaseek` — a web search overlay with vim keybindings, packaged as an
 **Omarchy 4 plugin**. It is not a standalone app: `manifest.json` declares an
 `overlay` entry point (`src/Search.qml`) that is loaded *in-process* by the
 running `omarchy-shell` Quickshell instance. There is no build step, no package
@@ -86,7 +86,7 @@ waits for every engine in the category, so `searxng_engines` in config.json
 that answer took a query from ~1.1 s to ~0.3 s locally. `outgoing.request_timeout`
 in its `settings.yml` is the backstop.
 
-Pages are sliced from a session buffer under `~/.cache/jonas.search/` rather
+Pages are sliced from a session buffer under `~/.cache/omaseek/` rather
 than served straight from SearXNG, because a SearXNG page is however many
 engines answered in time. Rows are de-duplicated on URL *and* domain+title, in
 `absorb()` and again in `search.mjs`.
@@ -163,7 +163,7 @@ next door cannot, because node loads it too. `VimTextField` keeps its own
 dispatch: counts, operators and pending finds make it a different machine, and
 flattening it into a table would hide that rather than simplify it.
 
-Settings live in `~/.config/jonas.search/config.json`, shared by the panel and
+Settings live in `~/.config/omaseek/config.json`, shared by the panel and
 `bin/search` — **the option lists are declared once in `src/lib/settings.mjs`**
 and mirrored in `bin/search` (`PAGE_SIZE_CHOICES`); change both. `searxng_url`
 is read by `bin/search` and never written by the panel, so `writeSettings` must
@@ -183,7 +183,7 @@ layer-shell and open/close/dismiss/toggle contract mirrors
 
 - The repo lives outside `~/.config/omarchy/plugins/` and is symlinked in. Never
   suggest `omarchy plugin remove` — it deletes through the symlink. Use
-  `rm ~/.config/omarchy/plugins/jonas.search`.
+  `rm ~/.config/omarchy/plugins/omaseek`.
 - Commit subjects are lowercase-ish prose in the imperative describing the
   behaviour change, not the files ("Page results with h and l instead of
   scrolling"). Bodies explain *why*, and record runtime traps found along the way.

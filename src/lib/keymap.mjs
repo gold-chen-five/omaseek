@@ -13,7 +13,7 @@ const MIN_TIMEOUT_MS = 20
 const MAX_TIMEOUT_MS = 5000
 
 /**
- * `~/.config/jonas.search/config.json` -> the escape sequences and the window
+ * `~/.config/omaseek/config.json` -> the escape sequences and the window
  * they must be typed within.
  *
  * Anything unreadable — no file, malformed JSON, a key of the wrong type —
