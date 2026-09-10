@@ -52,6 +52,10 @@ NORMAL mode supports a practical vim subset:
 
 - **Motions** — `h` `l` `w` `W` `b` `B` `e` `E` `0` `^` `$`, `f{char}` `F{char}`
   `t{char}` `T{char}`, and `;` `,` to repeat a find
+- **Text objects** — `iw` `aw` `iW` `aW`, quotes `i"` `a"` `i'` `a'` ``i` `` ``a` ``,
+  and brackets `i(` `a(` `i[` `a[` `i{` `a{` `i<` `a<` (with `b` and `B` as aliases) —
+  so `diw`, `ci"`, `da(` and `viw` all work. Brackets pick the innermost
+  enclosing pair; a pair that never closes cancels the operator
 - **Operators** — `d` `c` `y` with any motion, `dd` `cc` `yy`, `D` `C` `Y`
 - **Edits** — `x` `X` `s` `S` `p` `P`
 - **Modes** — `i` `a` `I` `A` to insert, `v` for charwise visual

@@ -3,6 +3,7 @@ import Quickshell
 import qs.Commons
 import qs.Ui as Ui
 import "../lib/motions.mjs" as Motions
+import "../lib/textobjects.mjs" as TextObjects
 import "../lib/keymap.mjs" as Keymap
 
 // Search input with a vim editing model.
@@ -25,6 +26,7 @@ Ui.TextField {
   // Pending state for multi-key sequences: 2dw, d3w, f{char}, ...
   property string pendingOperator: ""
   property string pendingFind: ""           // f/F/t/T awaiting its target
+  property string pendingTextObject: ""     // i/a awaiting its object, as in diw
   property int pendingCount: 0
   property string lastFindCommand: ""       // for ; and ,
   property string lastFindChar: ""
@@ -60,6 +62,7 @@ Ui.TextField {
   function clearPending () {
     pendingOperator = ""
     pendingFind = ""
+    pendingTextObject = ""
     pendingCount = 0
   }
 
@@ -204,6 +207,32 @@ Ui.TextField {
     applyMotion(target, pendingOperator !== "")
   }
 
+  // The key after i or a: diw, ci", da(. A missing pair drops the operator
+  // rather than acting on something arbitrary, which is what vim does.
+  function handleTextObject (key) {
+    const scope = pendingTextObject
+    pendingTextObject = ""
+
+    const range = TextObjects.isTextObject(key)
+      ? TextObjects.resolve(text, cursorPosition, scope, key)
+      : null
+    if (!range) {
+      pendingOperator = ""
+      return
+    }
+
+    if (mode === "visual") {
+      visualAnchor = range.start
+      cursorPosition = Math.max(range.start, range.end - 1)
+      select(range.start, range.end)
+      return
+    }
+
+    const operator = pendingOperator
+    pendingOperator = ""
+    if (operator) applyOperator(operator, range.start, range.end)
+  }
+
   function handleNormalKey (key) {
     const count = takeCount(1)
     const pos = cursorPosition
@@ -220,8 +249,15 @@ Ui.TextField {
       return
 
     // modes
-    case "i": setMode("insert"); return
-    case "a": cursorPosition = Math.min(text.length, pos + 1); setMode("insert"); return
+    case "i":
+      if (pendingOperator !== "" || mode === "visual") { pendingTextObject = "i"; return }
+      setMode("insert")
+      return
+    case "a":
+      if (pendingOperator !== "" || mode === "visual") { pendingTextObject = "a"; return }
+      cursorPosition = Math.min(text.length, pos + 1)
+      setMode("insert")
+      return
     case "I": cursorPosition = Motions.firstNonBlank(text); setMode("insert"); return
     case "A": cursorPosition = text.length; setMode("insert"); return
     case "v":
@@ -342,7 +378,7 @@ Ui.TextField {
 
     if (event.key === Qt.Key_Escape) {
       if (mode === "visual") setMode("normal")
-      else if (pendingOperator || pendingCount > 0 || pendingFind) clearPending()
+      else if (pendingOperator || pendingCount > 0 || pendingFind || pendingTextObject) clearPending()
       else field.cancelled()
       event.accepted = true
       return
@@ -367,6 +403,11 @@ Ui.TextField {
 
     if (pendingFind !== "") {
       handlePendingFind(key)
+      return
+    }
+
+    if (pendingTextObject !== "") {
+      handleTextObject(key)
       return
     }
 
