@@ -272,10 +272,10 @@ Item {
             font.family: root.fontFamily
             font.pixelSize: Style.font.body    // the same size as the button beside it
             // Ui.TextField sizes itself from the font plus this padding. The
-            // default fits a dialog form; a search bar wants to be a line, not
-            // a box, so it takes the tighter spelling the kit documents for
-            // inline fields.
-            verticalPadding: Style.spacing.sm
+            // kit's default is sized for a dialog form, and the query text is
+            // a size smaller than that assumes — this sits one step under it:
+            // room around the text without turning the bar into a box.
+            verticalPadding: Style.spacing.md
             placeholderText: root.panelMode === "ai" ? "Ask " + ai.agentName + "…" : "Search the web…"
             escapeSequences: config.keymap.sequences
             escapeTimeout: config.keymap.timeoutMs
