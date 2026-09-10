@@ -29,7 +29,7 @@ FocusScope {
   implicitHeight: layout.implicitHeight
 
   function open () {
-    cursor = 0
+    cursor = firstSetting()                  // never a heading, which has nothing to do
     Qt.callLater(() => page.forceActiveFocus())
   }
 
@@ -135,27 +135,42 @@ FocusScope {
         readonly property bool stacked: isChoice && modelData.options.length > 4
 
         width: layout.width
-        height: isSection ? sectionLabel.implicitHeight + Style.spacing.lg
+        height: isSection ? sectionLabel.implicitHeight + Style.spacing.lg + Style.spacing.md
                           : body.implicitHeight + Style.spacing.md * 2
         radius: Style.cornerRadius
         color: hasCursor ? page.selectedBackground : "transparent"
 
         // A heading, not a setting: it names what the rows under it are for
-        // and the cursor walks past it.
+        // and the cursor walks past it. The rule is what actually separates
+        // the groups — the label alone left the page reading as one list with
+        // a stray word in it.
+        Rectangle {
+          visible: settingRow.isSection && settingRow.index > 0
+          anchors.left: parent.left
+          anchors.right: parent.right
+          anchors.leftMargin: Style.spacing.controlPaddingX
+          anchors.rightMargin: Style.spacing.controlPaddingX
+          anchors.top: parent.top
+          anchors.topMargin: Style.spacing.sm
+          height: Math.max(1, Style.normalBorderWidth)
+          color: Util.alpha(page.foreground, 0.18)
+        }
+
         Text {
           id: sectionLabel
 
           visible: settingRow.isSection
           anchors.left: parent.left
-          anchors.leftMargin: Style.spacing.md
+          anchors.leftMargin: Style.spacing.controlPaddingX   // in line with the row labels
           anchors.bottom: parent.bottom
           anchors.bottomMargin: Style.spacing.xs
           textFormat: Text.PlainText
-          text: settingRow.isSection ? String(settingRow.modelData.label) : ""
+          text: settingRow.isSection ? String(settingRow.modelData.label).toUpperCase() : ""
           color: page.accent
-          opacity: 0.7
+          opacity: 0.85
           font.family: page.fontFamily
           font.pixelSize: Style.font.caption
+          font.letterSpacing: 1.5
         }
 
         // One chip, used by both the inline row and the stacked flow. The raw
@@ -243,7 +258,7 @@ FocusScope {
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
               text: settingRow.modelData.actionLabel || ""
-              bordered: true
+              active: true                       // filled, like the field's buttons
               hasCursor: settingRow.hasCursor
               foreground: page.foreground
               accent: page.accent
@@ -281,7 +296,7 @@ FocusScope {
               visible: settingRow.modelData.type === "text"
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
-              width: Style.space(180)
+              width: Style.space(120)
               text: String(settingRow.modelData.value)
               placeholderText: settingRow.modelData.placeholder || ""
               readOnly: !editing

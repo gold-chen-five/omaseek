@@ -120,6 +120,7 @@ export function settingsRows (settings, engine = 'unknown', agents = null) {
     ? settings.chatAgent
     : DEFAULT_AGENT
   return [
+    { type: 'section', label: 'Search' },
     {
       key: 'engine',
       type: 'action',
@@ -139,10 +140,11 @@ export function settingsRows (settings, engine = 'unknown', agents = null) {
       options: PAGE_SIZE_CHOICES,
       value: settings.resultsPerPage
     },
+    { type: 'section', label: 'Ask' },
     {
       key: 'chatAgent',
       type: 'choice',
-      label: 'Ask',
+      label: 'Agent',
       hint: agents === null ? 'finding installed agents…'
         : known.length === 0 ? 'nothing installed — pick one with: omarchy default agent <name>'
         : agents.configured ? `default is ${defaultId}, from omarchy default agent`
