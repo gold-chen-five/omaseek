@@ -48,18 +48,21 @@ Item {
 
   // ---- shell contract -----------------------------------------------------
 
+  // The panel is keepLoaded, so the last search is still here when it is
+  // summoned again — and it comes back rather than being thrown away.
+  // Reopening is usually to try the next result, not to start over: the
+  // browser took the screen and the panel with it. It reopens where it left
+  // off, in normal mode, so j is already the way back into the results.
+  // A new search is `cc` — vim's clear-the-line — or i to edit this one.
   function open (payloadJson) {
     config.reload()
     opened = true
     view = "search"
     panelMode = "search"
-    focusArea = "search"
-    session.reset()
     ai.reset()
     if (ai.agents === null) ai.probeAgents()   // once: which agents this machine has
-    input.clear()
-    input.mode = "insert"
-    Qt.callLater(() => input.forceActiveFocus())
+    if (session.results.count === 0) input.clear()
+    focusSearch(session.results.count === 0)
   }
 
   function close () {
