@@ -290,54 +290,64 @@ Item {
             onNewSessionRequested: root.newChat()
           }
 
-          // Each half of the panel gets the buttons it has actions for,
-          // matching the field's height so the row reads as one control.
-          // The keys are in the status strip and in settings; on the button
-          // they were noise beside a verb that already says what it does.
-          Row {
+          // Each half of the panel gets the buttons it has actions for. The
+          // block reserves the wider of the two arrangements and keeps it,
+          // so the field does not change width when Tab flips the mode —
+          // a search bar that resizes under you reads as a different bar.
+          Item {
             id: actions
 
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            spacing: Style.spacing.sm
+            height: input.height
+            width: Math.max(searchButton.implicitWidth, askActions.implicitWidth)
 
             Button {
+              id: searchButton
+
               visible: root.panelMode === "search"
-              height: input.height
-              text: "search"
-              bordered: true
+              anchors.fill: parent               // the whole reserved block, so
+              text: "search"                     // the row has no gap in it
+              active: true
               foreground: root.foreground
               accent: root.accent
               fontFamily: root.fontFamily
-              fontSize: Style.font.bodySmall
+              fontSize: Style.font.body
 
               onClicked: root.runSearch()
             }
 
-            Button {
+            Row {
+              id: askActions
+
               visible: root.panelMode === "ai"
-              height: input.height
-              text: "chat"
-              bordered: true
-              foreground: root.foreground
-              accent: root.accent
-              fontFamily: root.fontFamily
-              fontSize: Style.font.bodySmall
+              anchors.right: parent.right
+              height: parent.height
+              spacing: Style.spacing.sm
 
-              onClicked: root.runSearch()
-            }
+              Button {
+                height: askActions.height
+                text: "chat"
+                active: true
+                foreground: root.foreground
+                accent: root.accent
+                fontFamily: root.fontFamily
+                fontSize: Style.font.body
 
-            Button {
-              visible: root.panelMode === "ai"
-              height: input.height
-              text: "new session"
-              bordered: true
-              foreground: root.foreground
-              accent: root.accent
-              fontFamily: root.fontFamily
-              fontSize: Style.font.bodySmall
+                onClicked: root.runSearch()
+              }
 
-              onClicked: root.newChat()
+              Button {
+                height: askActions.height
+                text: "new session"
+                active: true
+                foreground: root.foreground
+                accent: root.accent
+                fontFamily: root.fontFamily
+                fontSize: Style.font.body
+
+                onClicked: root.newChat()
+              }
             }
           }
         }
