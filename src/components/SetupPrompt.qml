@@ -132,7 +132,7 @@ Item {
           color: selected ? prompt.selectedBackground : "transparent"
           borderSpec: Border.flat(selected ? prompt.accent : Util.alpha(prompt.foreground, 0.38),
                                   Style.normalBorderWidth)
-          radius: 0
+          radius: Style.cornerRadius
 
           Text {
             textFormat: Text.PlainText

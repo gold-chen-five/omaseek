@@ -250,6 +250,8 @@ FocusScope {
 
     // Painted behind the text: one quiet block per question, the grey box
     // Claude Code puts a prompt in. No accent — the reply is the content.
+    // Rounded like everything else in the panel, which is to say however
+    // Hyprland's decoration:rounding is set.
     Repeater {
       model: view.marks
 
@@ -260,7 +262,8 @@ FocusScope {
         y: modelData.y - Style.spacing.xs
         width: flick.width
         height: modelData.height + Style.spacing.xs * 2
-        color: Util.alpha(view.foreground, 0.07)     // a flat bar, as Claude Code draws it
+        color: Util.alpha(view.foreground, 0.07)
+        radius: Style.cornerRadius                  // Hyprland's decoration:rounding
       }
     }
 
