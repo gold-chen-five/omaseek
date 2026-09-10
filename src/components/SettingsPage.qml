@@ -148,8 +148,6 @@ FocusScope {
           visible: settingRow.isSection && settingRow.index > 0
           anchors.left: parent.left
           anchors.right: parent.right
-          anchors.leftMargin: Style.spacing.controlPaddingX
-          anchors.rightMargin: Style.spacing.controlPaddingX
           anchors.top: parent.top
           anchors.topMargin: Style.spacing.sm
           height: Math.max(1, Style.normalBorderWidth)
@@ -161,13 +159,12 @@ FocusScope {
 
           visible: settingRow.isSection
           anchors.left: parent.left
-          anchors.leftMargin: Style.spacing.controlPaddingX   // in line with the row labels
-          anchors.bottom: parent.bottom
+          anchors.bottom: parent.bottom               // flush with the search field above
           anchors.bottomMargin: Style.spacing.xs
           textFormat: Text.PlainText
           text: settingRow.isSection ? String(settingRow.modelData.label).toUpperCase() : ""
-          color: page.accent
-          opacity: 0.85
+          color: page.foreground
+          opacity: 0.5
           font.family: page.fontFamily
           font.pixelSize: Style.font.caption
           font.letterSpacing: 1.5
@@ -184,7 +181,7 @@ FocusScope {
 
             text: String(modelData)
             bordered: true
-            selected: String(modelData) === String(settingRow.modelData.value)
+            active: String(modelData) === String(settingRow.modelData.value)
             foreground: page.foreground
             accent: page.accent
             fontFamily: page.fontFamily
@@ -228,7 +225,7 @@ FocusScope {
                 width: parent.width
                 textFormat: Text.PlainText
                 text: settingRow.modelData.label
-                color: settingRow.hasCursor ? page.accent : page.foreground
+                color: page.foreground     // the row's background says where the cursor is
                 font.family: page.fontFamily
                 font.pixelSize: Style.font.subtitle
                 elide: Text.ElideRight
@@ -240,6 +237,7 @@ FocusScope {
                 // A section row carries no hint, and an undefined binding is
                 // a warning on every repaint even while the body is hidden.
                 text: settingRow.modelData.hint || ""
+                leftPadding: Style.spacing.md   // stepped in under the label it explains
                 color: page.foreground
                 opacity: 0.55
                 font.family: page.fontFamily
