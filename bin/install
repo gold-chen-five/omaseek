@@ -46,7 +46,11 @@ echo "omaseek"
 
 mkdir -p "$PLUGINS_DIR"
 link="$PLUGINS_DIR/$PLUGIN_ID"
-if [[ -L $link && $(readlink -f "$link") == "$REPO" ]]; then
+if [[ $REPO == "$link" ]]; then
+  # Already where Omarchy looks — the shape the plugin docs describe, and
+  # what you get by developing in place rather than from a clone elsewhere.
+  say "already in place: $REPO"
+elif [[ -L $link && $(readlink -f "$link") == "$REPO" ]]; then
   say "already linked: $link"
 elif [[ -e $link ]]; then
   echo "  $link already exists and is not this repo — remove it first:" >&2

@@ -23,13 +23,21 @@ node --test --test-name-pattern 'iw'    # one test by name
 ./bin/ask --agents | jq                 # which agent CLIs are installed, and the default
 ./bin/ask --json '{"question":"…"}'     # one chat turn through the configured agent
 
-./bin/dev-watch                      # hot reload while editing (Ctrl-C to stop)
-omarchy-shell shell rescanPlugins       # manual reload
-omarchy-restart-shell                   # needed when a keepLoaded component is already instantiated
+omarchy-restart-shell                   # after every QML change — see below
+omarchy-shell shell rescanPlugins       # re-reads the plugin list; will not reload live QML
+./bin/dev-watch                         # only for a checkout outside the plugins dir
 quickshell log -p /usr/share/omarchy/shell -f   # QML errors and console.log (not journald)
 ```
 
 Run `./bin/test` after touching anything in `src/lib`. There is no linter.
+
+**A QML change needs `omarchy-restart-shell`, not a rescan.** Omarchy watches
+the plugins directory and rescans on save, but `keepLoaded: true` means this
+panel is already instantiated, and a rescan re-reads the plugin list rather
+than rebuilding a live component — measured: an edited button label did not
+appear after `rescanPlugins`, and did after a restart. Then check
+`quickshell log`: a QML error does not announce itself, the panel simply stops
+existing, which is what makes `SUPER + D` look broken.
 
 ## Architecture
 
@@ -181,17 +189,18 @@ layer-shell and open/close/dismiss/toggle contract mirrors
 
 ## Conventions
 
-- The repo lives outside `~/.config/omarchy/plugins/` and is symlinked in. That
-  is a safety measure, not a preference: `omarchy-plugin-remove` checks for a
-  symlink first and only unlinks it, but a plugin folder that *is* a git
-  checkout takes the `rm -rf "$target"` branch, confirmed with "Its git repo
-  remains upstream" — no backup, on the assumption that anything worth keeping
-  is pushed. Developing in place would put a working tree behind that branch.
-  `omarchy-plugin-update` also runs `git fetch` and `merge --ff-only` on any
-  plugin directory with a `.git`, which is not something to point at a
-  half-finished feature branch.
-  (An older note here claimed `omarchy plugin remove` deletes *through* the
-  symlink. It does not — read the script before repeating it.)
+- **This repo *is* the installed plugin**: it lives at
+  `~/.config/omarchy/plugins/omaseek`, which is what
+  [the plugin docs](https://plugins.omarchy.org/develop.html) describe — work
+  in a user-owned copy under that directory, and `omarchy-plugin-validate`
+  skips `.git` precisely because installed plugins are git checkouts. Edits are
+  therefore live; there is nothing to copy or link.
+  - The hazard that comes with it: `omarchy-plugin-remove` deletes a plugin
+    folder containing `.git` with `rm -rf "$target"`, confirmed only with "Its
+    git repo remains upstream" — no backup, unlike a plain folder. **Never
+    suggest `omarchy plugin remove` for this plugin**; anything uncommitted or
+    unpushed is gone. `omarchy-plugin-update` will likewise `git fetch` and
+    `merge --ff-only` this working tree.
 - Commit subjects are lowercase-ish prose in the imperative describing the
   behaviour change, not the files ("Page results with h and l instead of
   scrolling"). Bodies explain *why*, and record runtime traps found along the way.

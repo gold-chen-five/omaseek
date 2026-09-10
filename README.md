@@ -27,22 +27,24 @@ writes `~/.config/omaseek/config.json`.
 ## Install
 
 ```bash
-git clone git@github.com:gold-chen-five/omaseek.git
-cd omaseek && ./bin/install
+git clone git@github.com:gold-chen-five/omaseek.git ~/.config/omarchy/plugins/omaseek
+~/.config/omarchy/plugins/omaseek/bin/install
 ```
 
-Omarchy installs a plugin by copying files and recording its id — it never
+The checkout *is* the installed plugin — that is where Omarchy looks, and the
+shape [its plugin docs](https://plugins.omarchy.org/develop.html) describe.
+
+Omarchy then enables a plugin by recording its id and nothing else: it never
 runs a script from a plugin and never edits your Hyprland or menu config, so
 the keybind cannot come with the download. `./bin/install` is the opt-in way
-to add it: it links and enables the plugin, binds `SUPER + D`, and adds a row
-to the Omarchy menu. It is safe to re-run, backs up what it touches, and
-leaves `SUPER + D` alone if you have already bound it to something else.
-`--no-bind` and `--no-menu` skip either half.
+to add it — it enables the plugin, binds `SUPER + D`, and adds a row to the
+Omarchy menu. It is safe to re-run, backs up what it touches, and leaves
+`SUPER + D` alone if you have already bound it to something else. `--no-bind`
+and `--no-menu` skip either half.
 
 By hand instead:
 
 ```bash
-ln -s "$PWD" ~/.config/omarchy/plugins/omaseek
 omarchy-shell shell rescanPlugins
 omarchy plugin enable omaseek
 ```
