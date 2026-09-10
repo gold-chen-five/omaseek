@@ -139,7 +139,7 @@ export function settingsRows (settings, engine = 'unknown', agents = null) {
       type: 'choice',
       label: 'Ask',
       hint: agents === null ? 'finding installed agents…'
-        : known.length === 0 ? 'no supported agent installed — omarchy default agent <name>'
+        : known.length === 0 ? 'nothing installed — pick one with: omarchy default agent <name>'
         : agents.configured ? `default is ${defaultId}, from omarchy default agent`
         : `default is ${defaultId} — omarchy default agent is unset, so the first installed stands in`,
       options: [DEFAULT_AGENT].concat(agentIds),

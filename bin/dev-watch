@@ -5,7 +5,7 @@
 # symlinks — so edits to this repo never reach the shell on their own. This
 # watches the real directory and asks the shell to rescan.
 #
-# Usage: ./bin/dev-watch.sh   (Ctrl-C to stop)
+# Usage: ./bin/dev-watch   (Ctrl-C to stop)
 
 set -euo pipefail
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

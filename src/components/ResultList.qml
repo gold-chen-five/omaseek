@@ -1,6 +1,8 @@
 import QtQuick
 import qs.Commons
 import qs.Ui
+import "../lib/keys.mjs" as KeysLib
+import "chord.js" as Chord
 
 // Result rows plus the vim cursor that walks them.
 //
@@ -14,7 +16,7 @@ ListView {
   property color accent: Color.menu.selectedText
   property color selectedBackground: Color.menu.selectedBackground
   property string fontFamily: Style.font.menuFamily
-  property bool pendingG: false          // first half of a gg
+  property string pending: ""                  // an unfinished sequence: "g" after g
 
   signal activated(int index)
   signal escaped()                       // esc: back to the field, normal mode
@@ -39,7 +41,7 @@ ListView {
     referenceItem: list
   }
 
-  onActiveFocusChanged: pendingG = false
+  onActiveFocusChanged: pending = ""
 
   function moveCursor (delta) {
     moveCursorTo(currentIndex + delta)
@@ -54,42 +56,33 @@ ListView {
 
   Keys.priority: Keys.BeforeItem
   Keys.onPressed: event => {
-    const ctrl = (event.modifiers & Qt.ControlModifier) !== 0
+    const step = KeysLib.resolve(KeysLib.LIST_KEYS, pending, Chord.of(event))
+    pending = step.pending
+    run(step.command)
+    event.accepted = true
+  }
+
+  // What this pane makes of the shared vocabulary: sideways is a page turn,
+  // and the thing under the cursor is a link to open.
+  function run (command) {
     const rowHeight = Math.max(1, contentHeight / Math.max(1, count))
     const pageStep = Math.max(1, Math.floor(height / rowHeight / 2))
 
-    if (ctrl && (event.key === Qt.Key_S || event.key === Qt.Key_Comma)) {
-      settingsRequested()
-    } else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
-      tabbed()
-    } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-      activated(currentIndex)
-    } else if (event.key === Qt.Key_Escape) {
-      escaped()
-    } else if (ctrl && event.key === Qt.Key_D) {
-      moveCursor(pageStep)
-    } else if (ctrl && event.key === Qt.Key_U) {
-      moveCursor(-pageStep)
-    } else if (event.key === Qt.Key_Down || event.text === "j") {
-      moveCursor(1)
-    } else if (event.key === Qt.Key_Up || event.text === "k") {
-      moveCursor(-1)
-    } else if (event.key === Qt.Key_Right || event.text === "l") {
-      nextPageRequested()
-    } else if (event.key === Qt.Key_Left || event.text === "h") {
-      previousPageRequested()
-    } else if (event.text === "G") {
-      moveCursorTo(count - 1)
-    } else if (event.text === "g") {
-      if (pendingG) moveCursorTo(0)
-      pendingG = !pendingG
-      event.accepted = true
-      return
-    } else if (event.text === "i" || event.text === "/") {
-      insertRequested()
+    switch (command) {
+    case "settings":     settingsRequested(); break
+    case "toggleMode":   tabbed(); break
+    case "accept":       activated(currentIndex); break
+    case "cancel":       escaped(); break
+    case "insert":       insertRequested(); break
+    case "halfPageDown": moveCursor(pageStep); break
+    case "halfPageUp":   moveCursor(-pageStep); break
+    case "down":         moveCursor(1); break
+    case "up":           moveCursor(-1); break
+    case "right":        nextPageRequested(); break
+    case "left":         previousPageRequested(); break
+    case "top":          moveCursorTo(0); break
+    case "bottom":       moveCursorTo(count - 1); break
     }
-    pendingG = false
-    event.accepted = true
   }
 
   // `index` and the model roles are required properties on ResultRow itself,

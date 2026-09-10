@@ -23,7 +23,7 @@ node --test --test-name-pattern 'iw'    # one test by name
 ./bin/ask --agents | jq                 # which agent CLIs are installed, and the default
 ./bin/ask --json '{"question":"…"}'     # one chat turn through the configured agent
 
-./bin/dev-watch.sh                      # hot reload while editing (Ctrl-C to stop)
+./bin/dev-watch                      # hot reload while editing (Ctrl-C to stop)
 omarchy-shell shell rescanPlugins       # manual reload
 omarchy-restart-shell                   # needed when a keepLoaded component is already instantiated
 quickshell log -p /usr/share/omarchy/shell -f   # QML errors and console.log (not journald)
@@ -46,6 +46,8 @@ merging and config parsing are all under test without a compositor.
 - `src/lib/keymap.mjs` — the insert-mode escape sequence (`jk`) and its config
 - `src/lib/search.mjs` — result normalising, de-duplication, status/error strings
 - `src/lib/settings.mjs` — config text → settings, and the settings-page row list
+- `src/lib/markdown.mjs` — the agent's Markdown → the rich-text subset a TextEdit colours; the transcript layout
+- `src/lib/keys.mjs` — chord → command name for the reading panes, and the `gg`/`gv` prefix machine
 
 `VimTextField.qml` is therefore only a mode machine and key dispatch — if you
 add a motion or an object, the logic goes in `src/lib` with tests and the QML
@@ -96,12 +98,32 @@ out, exit 0 on handled failure. It speaks to **agent CLIs already installed**
 (`claude`, `codex`, `opencode`, `gemini`, `hermes`, `copilot`, `cursor-agent`)
 through their print modes, so there is no API key and no SDK — do not add one.
 The interactive spellings for a hand-off are copied from Omarchy's
-`omarchy-agent`; when the agent is Omarchy's default, `omarchy-agent --prompt`
-itself is run so the two never drift. The conversation lives in `AiSession.qml`
+`omarchy-agent`, but the window is a plain `xdg-terminal-exec` rather than
+`omarchy-launch-tui --app-id=org.omarchy.agent`: window rules for opacity and
+blur are keyed on the terminal's own class, so a dedicated app-id gives the
+hand-off a look the user never chose.
+
+Three runtime traps, all found the hard way: **stdin must be closed**
+(`stdin=DEVNULL`) or `codex exec` waits on it forever and the panel just
+hangs; **presence is Omarchy's test, not `PATH`** (`~/.local/bin` user
+install, else `mise where`, else the agent's own installer `--check`) because
+Omarchy leaves a mise shim on `PATH` for every agent it knows, installed or
+not; and **a failure is diagnosed from short, non-log lines only** — Codex
+logs a 47KB model catalogue to stderr, and matching "sign in" anywhere in it
+reported a signed-in CLI as signed out. Being out of allowance
+(`error: "quota"`) is kept apart from being signed out (`error: "auth"`),
+since only the latter has a sign-in worth opening. The conversation lives in `AiSession.qml`
 and travels in the prompt (last 8 turns) because print mode remembers nothing.
 The payload goes in as `--json '<object>'`, not stdin. Launchers: `terminal`
 (`omarchy-launch-tui`), `tmux` (new window in the *Work* session), `herdr`
 (`herdr tab create` → `herdr pane run`).
+
+Signing in is handed to the CLI, through that same launcher: the agent opens
+its own browser, waits for the callback and writes its own credentials, so
+there is nothing for the panel to drive. `--login` chains the pending question
+after the sign-in (`login; exec <agent> "<question>"` — `;` and not `&&`, so a
+failed sign-in still leaves the agent on screen saying why), and the user comes
+back to a terminal that is already asking what they asked here.
 
 ### Search.qml and the stores
 
@@ -129,6 +151,17 @@ Each view owns its own keys (`ResultList`, `AnswerView`, `SettingsPage`,
 `closed` — rather than reaching into the panel. Add a key to the view it
 belongs to, and a new piece of state to the store that owns it; `Search.qml`
 should only ever gain a signal connection.
+
+The two panes that are *read* with vim keys — the result list and the answer
+view — share their keymap rather than each spelling one out: `src/lib/keys.mjs`
+holds the tables and turns a chord plus whatever is pending into a command
+name, and each pane switches on that name. `j`/`k`/`gg`/`G`/Enter therefore
+cannot drift apart between them, and the `g` prefix is written once. Qt's key
+enums become chord strings in `src/components/chord.js`, which is a plain
+(non-`.pragma library`) JS import precisely so it can see `Qt` — the `.mjs`
+next door cannot, because node loads it too. `VimTextField` keeps its own
+dispatch: counts, operators and pending finds make it a different machine, and
+flattening it into a table would hide that rather than simplify it.
 
 Settings live in `~/.config/jonas.search/config.json`, shared by the panel and
 `bin/search` — **the option lists are declared once in `src/lib/settings.mjs`**

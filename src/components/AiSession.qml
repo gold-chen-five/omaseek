@@ -17,7 +17,7 @@ Item {
   property string status: "idle"               // idle | thinking | ok | error
   property string errorMessage: ""
   property string agent: ""                    // who answered last, by id
-  property var history: []                     // [{ role: 'user'|'assistant', text }]
+  property var history: []                     // [{ role: 'user'|'assistant'|'error', text }]
   property var agents: null                    // { agents: [{id, name}], default, configured } once probed
 
   // What bin/ask will answer as, for the placeholder and the thinking line.
@@ -33,9 +33,27 @@ Item {
     if (status === "thinking") return
     status = "thinking"
     errorMessage = ""
-    const payload = { question: question, history: history, agent: chatAgent }
+    const payload = { question: question, history: answeredTurns(), agent: chatAgent }
     history = [...history, { role: "user", text: question }]
     run(askProcess, [session.askPath, "--json", JSON.stringify(payload)])
+  }
+
+  // The turns worth repeating to the agent: questions that got an answer,
+  // and the answers. A failure and the question it failed on stay on screen
+  // but do not travel. Not `answered` — that is the signal above, and a
+  // function sharing the name makes the whole component fail to load.
+  function answeredTurns () {
+    const kept = []
+    for (let i = 0; i < history.length; i++) {
+      const turn = history[i]
+      if (turn.role === "user") {
+        const next = history[i + 1]
+        if (next && next.role === "assistant") kept.push(turn)
+      } else if (turn.role === "assistant") {
+        kept.push(turn)
+      }
+    }
+    return kept
   }
 
   // Hand text to the agent in a terminal — the selection, or a whole answer.
@@ -45,6 +63,25 @@ Item {
     launching()
     run(launchProcess, [session.askPath, "--launch", "--json",
                         JSON.stringify({ prompt: prompt, agent: chatAgent, launcher: launcher })])
+  }
+
+  // Signed out is not something the panel can fix: the CLI opens a browser,
+  // waits for the callback and writes its own credentials. So it is handed
+  // off like any other context — to the launcher the user picked, carrying
+  // the question they just asked, so signing in ends in the agent with that
+  // question already put rather than back here to retype it.
+  function login () {
+    launching()
+    run(launchProcess, [session.askPath, "--login", "--json",
+                        JSON.stringify({ agent: chatAgent, launcher: launcher,
+                                         prompt: lastQuestion() })])
+  }
+
+  function lastQuestion () {
+    for (let i = history.length - 1; i >= 0; i--) {
+      if (history[i].role === "user") return history[i].text
+    }
+    return ""
   }
 
   function probeAgents () {
@@ -64,20 +101,12 @@ Item {
     process.running = true
   }
 
+  // A failure is written into the transcript under its question, where it
+  // is read, rather than only into the status strip, where it is missed.
   function fail (message) {
     status = "error"
     errorMessage = message
-  }
-
-  // The transcript as one Markdown document for the answer view.
-  function transcript () {
-    const parts = []
-    for (let i = 0; i < history.length; i++) {
-      const turn = history[i]
-      if (turn.role === "user") parts.push("**" + turn.text + "**")
-      else parts.push(turn.text)
-    }
-    return parts.join("\n\n")
+    history = [...history, { role: "error", text: message }]
   }
 
   Process {
@@ -95,6 +124,11 @@ Item {
         }
         if (!payload.ok) {
           session.fail(payload.message ?? "The agent failed")
+          // Signed out: the sign-in opens by itself, in the terminal the
+          // user hands off to, with the question already on it. Only a
+          // signed-out agent has a sign-in worth opening; being out of
+          // allowance is reported and left alone.
+          if (payload.error === "auth" && payload.login === true) session.login()
           return
         }
         session.agent = payload.agent ?? ""

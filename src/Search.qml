@@ -316,7 +316,7 @@ Item {
           visible: root.view === "search" && root.panelMode === "ai"
           width: parent.width
           height: parent.height - input.height - statusLine.height - Style.spacing.md * 2
-          text: ai.transcript()
+          turns: ai.history
           foreground: root.foreground
           accent: root.accent
           fontFamily: root.fontFamily

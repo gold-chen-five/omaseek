@@ -100,7 +100,12 @@ that found nothing is one keystroke from being a question. Enter sends it to
 an AI coding agent already on the machine, in its print mode (`claude -p`,
 `codex exec`, `hermes chat -q`…), and the answer renders below as Markdown.
 The panel keeps the conversation, so a follow-up question sees the earlier
-turns. Nothing new to sign in to: whatever the CLI is signed into answers.
+turns. Nothing new to sign in to: whatever the CLI is signed into answers —
+and if it is signed out, the panel opens that CLI's own sign-in in a terminal
+(`claude auth login`, `codex login`, …) instead of showing the error; ask
+again once it is done. Being *out of allowance* is a different thing and says
+so where the answer would be, since signing in again would fix nothing. Questions sit in a quiet grey block after `>` and
+replies follow a `⏺`, the way Claude Code lays out its own transcript.
 
 `j` or `↓` steps into the answer, which reads with the same keys as the field:
 
@@ -108,8 +113,8 @@ turns. Nothing new to sign in to: whatever the CLI is signed into answers.
 |---|---|
 | `j` `k` `h` `l` `w` `b` `e` `0` `$` `gg` `G` | move the cursor |
 | `Ctrl+D` / `Ctrl+U` | half a screen |
-| `v` | start a selection; `Esc` drops it |
-| `y` | yank the selection (or the whole answer) to the clipboard |
+| `v` / `V` | select by character / by line; `Esc` drops it, `gv` brings it back |
+| `y` | yank the selection (or the whole answer) to the clipboard — it stays lit for a beat, as LazyVim's yank highlight does |
 | `Enter` | hand the selection — or the whole answer — to the agent in a terminal |
 | `i` / `/` | back to the field, typing the next question |
 | `Esc` | back to the field, NORMAL mode |
@@ -145,11 +150,12 @@ src/
     keymap.mjs         the insert-mode escape sequence and its config
     search.mjs         result merging, error and status strings
     settings.mjs       config text -> settings, and the settings-page rows
+    markdown.mjs       Markdown -> rich text, so a question and a reply can differ in colour
 bin/
   search               SearXNG client — stdlib Python, one request per page
   ask                  agent client — lists them, runs a chat turn, opens a hand-off
   searxng-up           create or start the SearXNG container, idempotent
-  dev-watch.sh         hot reload during development
+  dev-watch            hot reload during development
   test                 runs the unit tests
 test/                  node tests for src/lib
 ```
@@ -329,7 +335,7 @@ moment you make them — there is no save button to forget.
 | SearXNG | *Start* · *Stop* | Not a setting so much as a switch: the row shows whether the instance answers, and `Enter` opens a terminal that runs `bin/searxng-up` (or `--stop`). Checked each time the page opens. |
 | Leave insert with | *typed* | The insert-mode escape sequence — any keys, not a fixed list. `Enter` opens the field, `Enter` again saves, `Esc` discards. Empty turns it off; a single character is refused, since binding one key would make that key untypable. |
 | Results per page | 5 · 10 · 15 · 20 | How many rows each page shows, however many SearXNG returns. |
-| Ask | default · *installed agents* | Which agent answers and receives a hand-off. *default* is `omarchy default agent`; when that is unset, the first installed one stands in and the row says so. The list is what `bin/ask --agents` finds. |
+| Ask | default · *installed agents* | Which agent answers and receives a hand-off. *default* is `omarchy default agent`; when that is unset, the first installed one stands in and the row says so. Installed means what Omarchy means by it — a user install in `~/.local/bin`, a mise install, or the Hermes installer's own check — not merely a name on `PATH`, since Omarchy leaves a mise shim there for agents that were never installed. |
 | Hand off to | terminal · tmux · herdr | Where `Enter` on an answer opens the agent: a new terminal window (`omarchy-agent`), a new window in the tmux *Work* session, or a new herdr tab. |
 
 The window the two keys must land inside is vim's own `timeoutlen` (1000 ms),
@@ -363,7 +369,7 @@ The repo lives outside `~/.config/omarchy/plugins/` and is symlinked in.
 Omarchy's hot-reload watcher (`inotifywait -r`) does not follow symlinks, so run:
 
 ```bash
-./bin/dev-watch.sh
+./bin/dev-watch
 ```
 
 to reload the plugin on save. For changes that a rescan won't pick up — a

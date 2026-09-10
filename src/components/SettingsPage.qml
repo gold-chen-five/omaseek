@@ -113,143 +113,195 @@ FocusScope {
         // a property and called through that.
         readonly property var owner: page
         readonly property bool hasCursor: index === page.cursor
+        readonly property bool isChoice: modelData.type === "choice"
+        // A handful of chips sit beside the label; more than that would run
+        // into it, so they take a line of their own underneath and wrap.
+        readonly property bool stacked: isChoice && modelData.options.length > 4
 
         width: layout.width
-        height: rowContent.implicitHeight + Style.spacing.md * 2
+        height: body.implicitHeight + Style.spacing.md * 2
         radius: Style.cornerRadius
         color: hasCursor ? page.selectedBackground : "transparent"
 
-        Item {
-          anchors.fill: parent
-          anchors.leftMargin: Style.spacing.controlPaddingX
-          anchors.rightMargin: Style.spacing.controlPaddingX
+        // One chip, used by both the inline row and the stacked flow. The raw
+        // option goes back, not its string: the page sizes are numbers, and a
+        // string would fail the write-side check and fall back to the default.
+        Component {
+          id: chip
 
-          Column {
-            id: rowContent
-
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            width: parent.width - Style.space(200)
-            spacing: Style.spacing.xxs
-
-            Text {
-              width: parent.width
-              textFormat: Text.PlainText
-              text: settingRow.modelData.label
-              color: settingRow.hasCursor ? page.accent : page.foreground
-              font.family: page.fontFamily
-              font.pixelSize: Style.font.subtitle
-              elide: Text.ElideRight
-            }
-
-            Text {
-              width: parent.width
-              textFormat: Text.PlainText
-              text: settingRow.modelData.hint
-              color: page.foreground
-              opacity: 0.55
-              font.family: page.fontFamily
-              font.pixelSize: Style.font.caption
-              elide: Text.ElideRight
-            }
-          }
-
-          // An action row has nothing to pick, only something to do. The
-          // button lights up with the row cursor so Enter visibly lands on it.
           Button {
-            visible: settingRow.modelData.type === "action"
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            text: settingRow.modelData.actionLabel || ""
+            required property var modelData
+
+            text: String(modelData)
             bordered: true
-            hasCursor: settingRow.hasCursor
+            selected: String(modelData) === String(settingRow.modelData.value)
             foreground: page.foreground
             accent: page.accent
             fontFamily: page.fontFamily
-            fontSize: Style.font.body
+            fontSize: Style.font.bodySmall
 
             onClicked: {
               settingRow.owner.cursor = settingRow.index
-              settingRow.owner.activated(settingRow.modelData.key, settingRow.modelData.action)
+              settingRow.owner.changed(settingRow.modelData.key, modelData)
             }
           }
+        }
 
-          ButtonGroup {
-            id: chips
+        Column {
+          id: body
 
-            visible: settingRow.modelData.type === "choice"
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            options: visible ? settingRow.modelData.options.map(option => String(option)) : []
-            value: String(settingRow.modelData.value)
-            foreground: page.foreground
-            accent: page.accent
-            fontFamily: page.fontFamily
-            focusable: false                 // Search.qml drives the keyboard
-            cursorIndex: -1
+          anchors.left: parent.left
+          anchors.right: parent.right
+          anchors.leftMargin: Style.spacing.controlPaddingX
+          anchors.rightMargin: Style.spacing.controlPaddingX
+          anchors.verticalCenter: parent.verticalCenter
+          spacing: Style.spacing.xs
 
-            onChanged: function (picked) {
-              settingRow.owner.cursor = settingRow.index
-              settingRow.owner.changed(settingRow.modelData.key, picked)
-            }
-          }
+          Item {
+            id: headLine
 
-          // A typed setting: any sequence, not a menu of them. The field takes
-          // the keyboard only while this row is being edited, so j/k keep
-          // walking the page the rest of the time.
-          TextField {
-            id: sequenceField
+            width: parent.width
+            height: Math.max(labels.implicitHeight, inlineChips.visible ? inlineChips.implicitHeight : 0,
+                             actionButton.visible ? actionButton.implicitHeight : 0,
+                             sequenceField.visible ? sequenceField.implicitHeight : 0)
 
-            readonly property bool editing: settingRow.index === page.editingIndex
+            Column {
+              id: labels
 
-            visible: settingRow.modelData.type === "text"
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            width: Style.space(180)
-            text: String(settingRow.modelData.value)
-            placeholderText: settingRow.modelData.placeholder || ""
-            readOnly: !editing
-            // Declarative, so the field releases the keyboard the moment
-            // editing ends. Left holding focus it would swallow the next Esc,
-            // which the user means for the settings page.
-            focus: editing
-            foreground: page.foreground
-            accent: page.accent
-            font.family: page.fontFamily
-            horizontalAlignment: TextInput.AlignHCenter
+              anchors.left: parent.left
+              anchors.verticalCenter: parent.verticalCenter
+              width: settingRow.stacked ? parent.width : parent.width - Style.space(200)
+              spacing: Style.spacing.xxs
 
-            function commit () {
-              const cleaned = SettingsLib.normalizeSequence(sequenceField.text)
-              if (cleaned !== null) settingRow.owner.changed(settingRow.modelData.key, cleaned)
-              // Back to a binding, on the new value or the old one if refused.
-              sequenceField.text = Qt.binding(function () { return String(settingRow.modelData.value) })
-              settingRow.owner.endEdit()
+              Text {
+                width: parent.width
+                textFormat: Text.PlainText
+                text: settingRow.modelData.label
+                color: settingRow.hasCursor ? page.accent : page.foreground
+                font.family: page.fontFamily
+                font.pixelSize: Style.font.subtitle
+                elide: Text.ElideRight
+              }
+
+              Text {
+                width: parent.width
+                textFormat: Text.PlainText
+                text: settingRow.modelData.hint
+                color: page.foreground
+                opacity: 0.55
+                font.family: page.fontFamily
+                font.pixelSize: Style.font.caption
+                wrapMode: settingRow.stacked ? Text.WordWrap : Text.NoWrap
+                elide: settingRow.stacked ? Text.ElideNone : Text.ElideRight
+              }
             }
 
-            onEditingChanged: if (sequenceField.editing) {
-              sequenceField.forceActiveFocus()
-              // Focus lands asynchronously and resets the selection, so the
-              // select-all has to follow it — otherwise typing appends to the
-              // existing sequence instead of replacing it.
-              Qt.callLater(function () { sequenceField.selectAll() })
+            // An action row has nothing to pick, only something to do. The
+            // button lights up with the row cursor so Enter visibly lands on it.
+            Button {
+              id: actionButton
+
+              visible: settingRow.modelData.type === "action"
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              text: settingRow.modelData.actionLabel || ""
+              bordered: true
+              hasCursor: settingRow.hasCursor
+              foreground: page.foreground
+              accent: page.accent
+              fontFamily: page.fontFamily
+              fontSize: Style.font.body
+
+              onClicked: {
+                settingRow.owner.cursor = settingRow.index
+                settingRow.owner.activated(settingRow.modelData.key, settingRow.modelData.action)
+              }
             }
 
-            // A plain function, not an arrow: inside a Repeater delegate an
-            // arrow handler is bound to lexical JS scope instead of the QML
-            // scope chain, so ids like `page` and this object's own methods
-            // are simply not resolvable from it.
-            Keys.priority: Keys.BeforeItem
-            Keys.onPressed: function (event) {
-              if (!sequenceField.editing) return    // not this field's keyboard
+            Row {
+              id: inlineChips
 
-              if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                sequenceField.commit()
-                event.accepted = true
-              } else if (event.key === Qt.Key_Escape) {
+              visible: settingRow.isChoice && !settingRow.stacked
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              spacing: Style.spacing.sm
+
+              Repeater {
+                model: inlineChips.visible ? settingRow.modelData.options : []
+                delegate: chip
+              }
+            }
+
+            // A typed setting: any sequence, not a menu of them. The field takes
+            // the keyboard only while this row is being edited, so j/k keep
+            // walking the page the rest of the time.
+            TextField {
+              id: sequenceField
+
+              readonly property bool editing: settingRow.index === page.editingIndex
+
+              visible: settingRow.modelData.type === "text"
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              width: Style.space(180)
+              text: String(settingRow.modelData.value)
+              placeholderText: settingRow.modelData.placeholder || ""
+              readOnly: !editing
+              // Declarative, so the field releases the keyboard the moment
+              // editing ends. Left holding focus it would swallow the next Esc,
+              // which the user means for the settings page.
+              focus: editing
+              foreground: page.foreground
+              accent: page.accent
+              font.family: page.fontFamily
+              horizontalAlignment: TextInput.AlignHCenter
+
+              function commit () {
+                const cleaned = SettingsLib.normalizeSequence(sequenceField.text)
+                if (cleaned !== null) settingRow.owner.changed(settingRow.modelData.key, cleaned)
+                // Back to a binding, on the new value or the old one if refused.
                 sequenceField.text = Qt.binding(function () { return String(settingRow.modelData.value) })
                 settingRow.owner.endEdit()
-                event.accepted = true
               }
+
+              onEditingChanged: if (sequenceField.editing) {
+                sequenceField.forceActiveFocus()
+                // Focus lands asynchronously and resets the selection, so the
+                // select-all has to follow it — otherwise typing appends to the
+                // existing sequence instead of replacing it.
+                Qt.callLater(function () { sequenceField.selectAll() })
+              }
+
+              // A plain function, not an arrow: inside a Repeater delegate an
+              // arrow handler is bound to lexical JS scope instead of the QML
+              // scope chain, so ids like `page` and this object's own methods
+              // are simply not resolvable from it.
+              Keys.priority: Keys.BeforeItem
+              Keys.onPressed: function (event) {
+                if (!sequenceField.editing) return    // not this field's keyboard
+
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                  sequenceField.commit()
+                  event.accepted = true
+                } else if (event.key === Qt.Key_Escape) {
+                  sequenceField.text = Qt.binding(function () { return String(settingRow.modelData.value) })
+                  settingRow.owner.endEdit()
+                  event.accepted = true
+                }
+              }
+            }
+          }
+
+          Flow {
+            id: stackedChips
+
+            visible: settingRow.stacked
+            width: parent.width
+            spacing: Style.spacing.sm
+
+            Repeater {
+              model: stackedChips.visible ? settingRow.modelData.options : []
+              delegate: chip
             }
           }
         }

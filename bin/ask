@@ -14,18 +14,35 @@ into is what answers. Stdlib only, like bin/search.
 
 The interactive spellings — which flag means "don't stop to ask", where the
 prompt goes — are copied from omarchy-agent so a hand-off from the panel
-starts the agent the way the Super+A keybinding would. When the agent is
-Omarchy's default, omarchy-agent itself is run, so the two never drift.
+starts the agent the way the Super+A keybinding would. The window is a plain
+terminal rather than omarchy-agent's org.omarchy.agent app-id, because the
+user's terminal rules (opacity, blur, size) are keyed on the terminal's own
+class, and a hand-off should look like the terminal next to it.
+
+Which agents exist is decided the way omarchy-default-agent decides it — a
+user install in ~/.local/bin, else a mise install, else the Hermes
+installer's own --check — not by what is on PATH: Omarchy puts a mise shim
+on PATH for every agent it knows, installed or not, and running one would
+start an install instead of a chat.
 
 Output is always one JSON object:
     {"ok": true, "agents": [...], "default": "claude"}
     {"ok": true, "text": "…", "agent": "claude"}
     {"ok": true, "launched": "claude", "launcher": "terminal"}
     {"ok": false, "error": "usage"|"agent"|"launcher", "message": "…"}
+    {"ok": false, "error": "auth", "login": true, "message": "…"}   the CLI is signed out
+
+`--login` hands the sign-in to the CLI, in whichever launcher the user has
+chosen, with the pending question chained after it. The panel runs it the
+moment a turn comes back with error "auth": signing in belongs to the agent
+— it opens a browser and writes its own credentials — so being signed out
+costs a window that ends in the agent, question already put, rather than a
+search for the right command and a retype.
 """
 
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -41,7 +58,7 @@ WORK_DIR = os.path.join(
     os.environ.get("XDG_CACHE_HOME") or os.path.join(os.environ["HOME"], ".cache"),
     "jonas.search", "ask",
 )
-TIMEOUT = 240
+TIMEOUT = 180           # an agent that has said nothing by now is stuck, not thinking
 LAUNCHERS = ("terminal", "tmux", "herdr")
 
 # In omarchy-default-agent's order. `chat` is the print-mode command with the
@@ -52,22 +69,26 @@ AGENTS = [
         "chat": ["claude", "-p", "--output-format", "text",
                  "--allowedTools", "WebSearch", "WebFetch", "--"],
         "launch": ["claude", "--permission-mode", "auto", "--"],
+        "login": ["claude", "auth", "login"],
     },
     {
         "id": "codex", "name": "Codex",
         # exec narrates on stdout too; the final message alone lands in -o.
         "chat": ["codex", "exec", "--skip-git-repo-check", "--color", "never", "-o", "{last}"],
         "launch": ["codex", "--approve-for-me", "--"],
+        "login": ["codex", "login"],
     },
     {
         "id": "opencode", "name": "OpenCode",
         "chat": ["opencode", "run"],
         "launch": ["opencode", "--auto", "--prompt"],
+        "login": ["opencode", "auth", "login"],
     },
     {
         "id": "gemini", "name": "Gemini",
         "chat": ["gemini", "-p"],
         "launch": ["gemini", "--yolo", "--prompt-interactive"],
+        "login": ["gemini"],               # no subcommand: the TUI asks on first start
     },
     {
         "id": "hermes", "name": "Hermes",
@@ -75,18 +96,68 @@ AGENTS = [
         "launch": ["hermes", "chat", "--yolo", "--tui", "--query"],
         "launch_env_unset": ["HERMES_SESSION_SOURCE"],
         "launch_joined_value": True,       # --query=<prompt>, as omarchy-agent spells it
+        "login": ["hermes", "login"],
+        "installer": "omarchy-install-hermes-cli",
     },
     {
         "id": "copilot", "name": "GitHub Copilot",
         "chat": ["copilot", "-p"],
         "launch": ["copilot", "--allow-all", "--interactive"],
+        "login": ["copilot", "login"],
     },
     {
         "id": "cursor-agent", "name": "Cursor CLI",
         "chat": ["cursor-agent", "-p", "--output-format", "text", "--trust"],
         "launch": ["cursor-agent", "--yolo", "--trust", "agent", "--"],
+        "login": ["cursor-agent", "login"],
     },
 ]
+
+
+# What a signed-out CLI says. Claude: "Not logged in · Please run /login";
+# the rest name the token, the key, or the status code.
+SIGNED_OUT = re.compile(
+    r"not logged in|please run /login|login required|not authenticated|"
+    r"unauthori[sz]ed|authentication (failed|required|error)|invalid api key|"
+    r"no api key|api key (is )?(missing|not set)|please (sign|log) in|\b401\b",
+    re.IGNORECASE,
+)
+
+# Signed in, but out of allowance. Not a sign-in problem — logging in again
+# fixes nothing — so it is reported as it is, with whatever the CLI said
+# about when the window resets.
+OUT_OF_QUOTA = re.compile(
+    r"usage limit|rate limit|quota|out of credit|insufficient (credit|balance|funds)|"
+    r"upgrade to (plus|pro)|\b429\b",
+    re.IGNORECASE,
+)
+
+# A crate's structured log line: a timestamp, a level, a module path. These
+# carry whole HTTP bodies, and a model catalogue mentioning "sign in" would
+# otherwise read as a signed-out CLI.
+LOG_LINE = re.compile(r"^\d{4}-\d\d-\d\dT[\d:.]+Z?\s+(TRACE|DEBUG|INFO|WARN|ERROR)\b")
+ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def diagnosis(*streams):
+    """The last few human-facing lines of a failed run.
+
+    Long lines are dropped along with log lines: an agent talking to a person
+    writes a sentence, not a 47KB JSON body.
+    """
+    lines = []
+    for stream in streams:
+        for line in ANSI.sub("", stream or "").splitlines():
+            line = line.strip()
+            if not line or len(line) > 400 or LOG_LINE.match(line):
+                continue
+            lines.append(re.sub(r"^(ERROR|error|Error):\s*", "", line))
+    # The same complaint is often printed twice; the tail is what matters.
+    unique = []
+    for line in lines[-6:]:
+        if line not in unique:
+            unique.append(line)
+    return unique
 
 
 def emit(obj):
@@ -130,8 +201,36 @@ def read_payload(argv):
     return payload if isinstance(payload, dict) else {}
 
 
+def user_install(agent_id):
+    """A binary the user put in ~/.local/bin themselves (a symlink, or anything
+    that is not Omarchy's `mise use -g` stub)."""
+    path = os.path.join(os.environ["HOME"], ".local", "bin", agent_id)
+    if not os.access(path, os.X_OK):
+        return False
+    if os.path.islink(path):
+        return True
+    try:
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            return not any(line.startswith("mise use -g") for line in handle)
+    except OSError:
+        return False
+
+
+def quietly(command):
+    try:
+        return subprocess.run(command, capture_output=True, timeout=10).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def agent_present(agent):
+    if agent.get("installer"):
+        return quietly([agent["installer"], "--check"])
+    return user_install(agent["id"]) or quietly(["mise", "where", agent.get("package", agent["id"])])
+
+
 def installed_agents():
-    return [agent for agent in AGENTS if shutil.which(agent["id"])]
+    return [agent for agent in AGENTS if agent_present(agent)]
 
 
 def omarchy_default():
@@ -189,11 +288,17 @@ def run_chat(agent, prompt):
     for key in agent.get("launch_env_unset", []):
         env.pop(key, None)
     last = os.path.join(WORK_DIR, f"{agent['id']}.last")
+    # A stale file from an earlier answer would be read as this one's.
+    if os.path.exists(last):
+        os.remove(last)
     command = [part.replace("{last}", last) for part in agent["chat"]] + [prompt]
     try:
         done = subprocess.run(
             command, cwd=WORK_DIR, env=env,
-            capture_output=True, text=True, timeout=TIMEOUT,
+            # Closed stdin, not the panel's: an agent CLI that finds an open
+            # stdin waits on it and answers nothing — codex exec does exactly
+            # that, so a question through the panel simply hung.
+            stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=TIMEOUT,
         )
     except FileNotFoundError:
         fail("agent", f"{agent['id']} is not installed")
@@ -206,9 +311,21 @@ def run_chat(agent, prompt):
                 text = handle.read().strip()
         except OSError:
             pass
-    if done.returncode != 0 and not text:
-        detail = done.stderr.strip().splitlines()[-1:] or [f"exit {done.returncode}"]
-        fail("agent", f"{agent['name']}: {detail[0]}")
+    if done.returncode != 0:
+        said = diagnosis(done.stdout, done.stderr)
+        joined = "\n".join(said)
+        # Out of allowance is not a sign-in problem: say so and stop, rather
+        # than opening a login that fixes nothing.
+        if OUT_OF_QUOTA.search(joined):
+            fail("quota", f"{agent['name']}: {said[-1]}")
+        # A failed run that talks about logging in is the signed-out case,
+        # which the panel can fix by opening the sign-in.
+        if SIGNED_OUT.search(joined):
+            emit({"ok": False, "error": "auth", "login": True,
+                  "message": f"{agent['name']} is signed out — opening its sign-in"})
+            sys.exit(0)
+        if not text:
+            fail("agent", f"{agent['name']}: {said[-1] if said else f'exit {done.returncode}'}")
     if not text:
         fail("agent", f"{agent['name']} returned nothing")
     return text
@@ -220,29 +337,47 @@ def interactive_command(agent, prompt):
     return agent["launch"] + [prompt]
 
 
+def env_prefix(agent):
+    """`env -u KEY` for the variables the interactive spelling must not see."""
+    unset = agent.get("launch_env_unset", [])
+    return ["env"] + ["-u" + key for key in unset] if unset else []
+
+
 def shell_line(agent, prompt):
     """The interactive command as one shell string, for tmux and herdr."""
-    parts = []
-    unset = agent.get("launch_env_unset", [])
-    if unset:
-        parts += ["env"] + ["-u" + key for key in unset]
-    return shlex.join(parts + interactive_command(agent, prompt))
+    return shlex.join(env_prefix(agent) + interactive_command(agent, prompt))
 
 
-def launch_terminal(agent, is_default, prompt):
-    if is_default:
-        command = ["omarchy-agent", "--prompt", prompt]
-    else:
-        command = ["omarchy-launch-tui", "--app-id=org.omarchy.agent"]
-        for key in agent.get("launch_env_unset", []):
-            command = ["env", "-u", key] + command   # env before the launcher: xdg-terminal-exec passes it on
-        command += interactive_command(agent, prompt)
-    subprocess.Popen(command, start_new_session=True,
+def login_line(agent, prompt):
+    """Sign in, then land in the agent with the question already asked.
+
+    The CLI owns its own sign-in — it opens a browser, waits for the callback
+    and writes its own credentials — so the panel hands the whole thing over
+    rather than trying to drive it, and the user finishes in the terminal.
+    Chained with `;` and not `&&`: a sign-in that fails should still leave
+    the agent on screen saying so, not a window that closes on the message.
+    """
+    line = shlex.join(env_prefix(agent) + agent["login"])
+    if prompt:
+        line += "; exec " + shell_line(agent, prompt)
+    return line
+
+
+def open_terminal(command, env_unset=()):
+    """A plain terminal window running `command` — the same class as the
+    user's own terminal, so their window rules dress it the same way."""
+    launcher = ["setsid", "uwsm-app", "--", "xdg-terminal-exec", "-e"]
+    for key in env_unset:
+        launcher = ["env", "-u", key] + launcher   # before the launcher: xdg-terminal-exec passes it on
+    subprocess.Popen(launcher + list(command), start_new_session=True,
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
-def launch_tmux(agent, prompt):
-    line = shell_line(agent, prompt)
+def launch_terminal(agent, prompt):
+    open_terminal(interactive_command(agent, prompt), agent.get("launch_env_unset", []))
+
+
+def launch_tmux(agent, line):
     session = "Work"                       # the one omarchy-launch-terminal-tmux attaches to
     has = subprocess.run(["tmux", "has-session", "-t", session], capture_output=True)
     if has.returncode != 0:
@@ -255,7 +390,7 @@ def launch_tmux(agent, prompt):
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
-def launch_herdr(agent, prompt):
+def launch_herdr(agent, line):
     created = subprocess.run(
         ["herdr", "tab", "create", "--label", agent["name"], "--focus"],
         capture_output=True, text=True, timeout=15,
@@ -266,7 +401,7 @@ def launch_herdr(agent, prompt):
     except (ValueError, KeyError, TypeError):
         detail = created.stderr.strip() or created.stdout.strip() or "no answer from the herdr server"
         fail("launcher", f"herdr could not open a tab: {detail}")
-    subprocess.run(["herdr", "pane", "run", pane, shell_line(agent, prompt)],
+    subprocess.run(["herdr", "pane", "run", pane, line],
                    capture_output=True, timeout=15)
     # A bare `herdr` process is a client attached to the session; the server
     # runs with arguments. No client means the tab opened somewhere invisible.
@@ -274,6 +409,28 @@ def launch_herdr(agent, prompt):
     if clients.returncode != 0:
         subprocess.Popen(["omarchy-launch-terminal-herdr"], start_new_session=True,
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def hand_off(launcher, agent, line):
+    """Open one shell line where this user keeps their terminals."""
+    if launcher == "tmux":
+        launch_tmux(agent, line)
+    elif launcher == "herdr":
+        launch_herdr(agent, line)
+    else:
+        # `-l` so the shell reads the user's profile: the panel inherits
+        # whatever PATH the compositor was started with, which need not have
+        # mise's shims on it.
+        open_terminal(["bash", "-lc", line])
+
+
+def chosen_launcher(payload, config):
+    launcher = payload.get("launcher") or config.get("launcher") or "terminal"
+    if launcher not in LAUNCHERS:
+        fail("usage", f"unknown launcher {launcher!r}")
+    if launcher != "terminal" and shutil.which(launcher) is None:
+        fail("launcher", f"{launcher} is not installed")
+    return launcher
 
 
 def main():
@@ -294,20 +451,25 @@ def main():
 
     payload = read_payload(argv)
     requested = payload.get("agent") or config.get("chat_agent") or "default"
-    agent, is_default = resolve_agent(requested, available)
+    agent, _is_default = resolve_agent(requested, available)
+
+    if argv and argv[0] == "--login":
+        launcher = chosen_launcher(payload, config)
+        hand_off(launcher, agent, login_line(agent, str(payload.get("prompt") or "").strip()))
+        emit({"ok": True, "login": agent["id"], "launcher": launcher})
+        return
 
     if argv and argv[0] == "--launch":
         prompt = str(payload.get("prompt") or "").strip()
         if not prompt:
             fail("usage", "--launch needs a prompt")
-        launcher = payload.get("launcher") or config.get("launcher") or "terminal"
-        if launcher not in LAUNCHERS:
-            fail("usage", f"unknown launcher {launcher!r}")
-        if launcher != "terminal" and shutil.which(launcher) is None:
-            fail("launcher", f"{launcher} is not installed")
-        {"terminal": lambda: launch_terminal(agent, is_default, prompt),
-         "tmux": lambda: launch_tmux(agent, prompt),
-         "herdr": lambda: launch_herdr(agent, prompt)}[launcher]()
+        launcher = chosen_launcher(payload, config)
+        if launcher == "terminal":
+            # Straight argv, not a shell line: this is the path the hand-off
+            # actually runs on, and it is spelled the way it was verified.
+            launch_terminal(agent, prompt)
+        else:
+            hand_off(launcher, agent, shell_line(agent, prompt))
         emit({"ok": True, "launched": agent["id"], "launcher": launcher})
         return
 
