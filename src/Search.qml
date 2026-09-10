@@ -236,7 +236,7 @@ Item {
     BorderSurface {
       id: card
 
-      width: Math.min(Style.space(720), panel.width - Style.gapsOut * 2)
+      width: Math.min(Style.space(820), panel.width - Style.gapsOut * 2)
       height: Math.min(Style.space(560), panel.height - Style.gapsOut * 2)
       radius: Style.cornerRadius
       anchors.centerIn: parent
@@ -271,6 +271,11 @@ Item {
             accent: root.accent
             font.family: root.fontFamily
             font.pixelSize: Style.font.heading
+            // Ui.TextField sizes itself from the font plus this padding. The
+            // default fits a dialog form; a search bar wants to be a line, not
+            // a box, so it takes the tighter spelling the kit documents for
+            // inline fields.
+            verticalPadding: Style.spacing.xs
             placeholderText: root.panelMode === "ai" ? "Ask " + ai.agentName + "…" : "Search the web…"
             escapeSequences: config.keymap.sequences
             escapeTimeout: config.keymap.timeoutMs
