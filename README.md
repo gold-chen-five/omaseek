@@ -14,10 +14,11 @@ Press **SUPER + D**.
 | Key | Action |
 |---|---|
 | *(type)* | build the query |
-| `Enter` | run the search, jump straight to results |
+| `Enter` | run the search — focus stays in the field |
+| `↓` | step down into the results, from either mode |
 | `Esc` | leave INSERT for NORMAL mode |
 | `jk` | the same, without reaching for Esc |
-| `j` / `↓` (in NORMAL) | step down into the results |
+| `j` (in NORMAL) | step down into the results |
 | `Esc` (in NORMAL) | close the panel |
 | `Ctrl+W` / `Ctrl+U` | delete word back / to start (insert mode) |
 | `Ctrl+S` | settings |

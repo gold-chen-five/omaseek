@@ -151,6 +151,12 @@ Ui.TextField {
     } else if (ctrl && event.key === Qt.Key_U) {
       remove(0, cursorPosition)
       event.accepted = true
+    } else if (event.key === Qt.Key_Down) {
+      // The results stay put after Enter, so the way down has to work from
+      // insert mode as well — vim's arrows do, and nobody wants Esc first.
+      clearEscapePending()
+      field.steppedDown()
+      event.accepted = true
     } else if (plain && Keymap.isTypedKey(event.text)) {
       handleEscapeSequence(event)             // types normally unless it closes the sequence
     } else {

@@ -28,7 +28,6 @@ Item {
   readonly property alias results: resultsModel
 
   signal pageShown()                           // the model was refilled; put the cursor back on top
-  signal landed()                              // a fresh search has rows to walk
   signal engineDown(string reason)             // the instance is not there — nothing to read past
   signal engineUp()
 
@@ -134,7 +133,6 @@ Item {
     backend = payload.backend ?? ""
     pages = wasPaging ? [...pages, { rows: rows, next: payload.next ?? null }] : [{ rows: rows, next: payload.next ?? null }]
     showPage(pages.length - 1)
-    if (!wasPaging) landed()
   }
 
   function fail (message) {

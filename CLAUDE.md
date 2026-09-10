@@ -91,7 +91,8 @@ engines answered in time. Rows are de-duplicated on URL *and* domain+title, in
 
 `Search.qml` is wiring: it decides which view shows (`view`: `search` |
 `settings` | `setup`) and which of the field and the list has the keyboard
-(`focusArea`, a two-state machine with Enter as the hinge). Everything else
+(`focusArea`, a two-state machine — Enter searches and stays in the field;
+`j`/Down step into the results). Everything else
 is held by non-visual `Item`s in `src/components`, the way first-party
 plugins keep state in a `Service.qml`:
 

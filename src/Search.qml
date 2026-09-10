@@ -19,7 +19,8 @@ import "lib/settings.mjs" as SettingsLib
 // as a signal. What is left here is the part only the panel can decide:
 // which view is showing, and which of the search field and the result list
 // has the keyboard. That is a two-state machine, "search" and "results",
-// with Enter as the hinge: it runs the query and hands focus to the results.
+// hinged on the field: Enter searches and stays put, j or Down steps into the
+// results, Esc or i steps back.
 Item {
   id: root
 
@@ -148,7 +149,6 @@ Item {
     backendPath: engine.backendPath
 
     onPageShown: resultsList.moveCursorTo(0)
-    onLanded: root.focusResults()
     onEngineDown: reason => root.askToStartEngine(reason)
     onEngineUp: engine.state = "running"
   }
