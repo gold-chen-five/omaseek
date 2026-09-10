@@ -65,16 +65,18 @@ Item {
                         JSON.stringify({ prompt: prompt, agent: chatAgent, launcher: launcher })])
   }
 
-  // Signed out is not something the panel can fix: the CLI opens a browser,
-  // waits for the callback and writes its own credentials. So it is handed
-  // off like any other context — to the launcher the user picked, carrying
-  // the question they just asked, so signing in ends in the agent with that
-  // question already put rather than back here to retype it.
-  function login () {
+  // Signed out, or signed in with nothing configured — neither is something
+  // the panel can fix: the CLI opens a browser, writes its own credentials,
+  // asks which provider to use. So it is handed off like any other context —
+  // to the launcher the user picked, carrying the question they just asked,
+  // so putting it right ends in the agent with that question already asked
+  // rather than back here to retype it. `fix` is which of the two the
+  // backend hit; it names a different command for some agents.
+  function login (fix) {
     launching()
     run(launchProcess, [session.askPath, "--login", "--json",
                         JSON.stringify({ agent: chatAgent, launcher: launcher,
-                                         prompt: lastQuestion() })])
+                                         fix: fix || "login", prompt: lastQuestion() })])
   }
 
   function lastQuestion () {
@@ -132,11 +134,11 @@ Item {
         }
         if (!payload.ok) {
           session.fail(payload.message ?? "The agent failed")
-          // Signed out: the sign-in opens by itself, in the terminal the
-          // user hands off to, with the question already on it. Only a
-          // signed-out agent has a sign-in worth opening; being out of
-          // allowance is reported and left alone.
-          if (payload.error === "auth" && payload.login === true) session.login()
+          // Whatever the backend says is fixable in a terminal opens by
+          // itself there, with the question already on it. Being out of
+          // allowance is not: it is reported and left alone, because no
+          // command in a terminal will fix it.
+          if (payload.login === true) session.login(payload.fix)
           return
         }
         session.agent = payload.agent ?? ""

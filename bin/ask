@@ -97,6 +97,7 @@ AGENTS = [
         "launch_env_unset": ["HERMES_SESSION_SOURCE"],
         "launch_joined_value": True,       # --query=<prompt>, as omarchy-agent spells it
         "login": ["hermes", "login"],
+        "setup": ["hermes", "model"],      # signed in but with no provider chosen
         "installer": "omarchy-install-hermes-cli",
     },
     {
@@ -334,7 +335,7 @@ def run_chat(agent, prompt):
         # A failed run that talks about logging in is the signed-out case,
         # which the panel can fix by opening the sign-in.
         if SIGNED_OUT.search(joined):
-            emit({"ok": False, "error": "auth", "login": True,
+            emit({"ok": False, "error": "auth", "login": True, "fix": "login",
                   "message": f"{agent['name']} is signed out — opening its sign-in"})
             sys.exit(0)
         if not text:
@@ -344,7 +345,11 @@ def run_chat(agent, prompt):
     # Setup instructions are not an answer. Shown as one they read as the
     # agent replying, and the question looks answered when nothing was asked.
     if len(text) <= UNCONFIGURED_MAX and NOT_CONFIGURED.search(text):
-        fail("config", f"{agent['name']}: {' '.join(text.split())}")
+        # Fixable in the same one place a sign-in is: a terminal running the
+        # agent's own setup, with the question waiting behind it.
+        emit({"ok": False, "error": "config", "login": True, "fix": "setup",
+              "message": f"{agent['name']}: {' '.join(text.split())}"})
+        sys.exit(0)
     return text
 
 
@@ -365,16 +370,30 @@ def shell_line(agent, prompt):
     return shlex.join(env_prefix(agent) + interactive_command(agent, prompt))
 
 
-def login_line(agent, prompt):
-    """Sign in, then land in the agent with the question already asked.
+def fix_command(agent, fix):
+    """What to run to make this agent able to answer.
 
-    The CLI owns its own sign-in — it opens a browser, waits for the callback
-    and writes its own credentials — so the panel hands the whole thing over
-    rather than trying to drive it, and the user finishes in the terminal.
-    Chained with `;` and not `&&`: a sign-in that fails should still leave
-    the agent on screen saying so, not a window that closes on the message.
+    Two ways to be unable: signed out, which the sign-in fixes, and signed in
+    with nothing configured, which it does not — `hermes login` will never ask
+    which provider to use. An agent that tells them apart names both; the rest
+    only have a sign-in.
     """
-    line = shlex.join(env_prefix(agent) + agent["login"])
+    if fix == "setup" and agent.get("setup"):
+        return agent["setup"]
+    return agent["login"]
+
+
+def login_line(agent, prompt, fix="login"):
+    """Fix the agent, then land in it with the question already asked.
+
+    The CLI owns this: it opens a browser, waits for the callback, writes its
+    own credentials, asks which model to use. So the panel hands the whole
+    thing over rather than trying to drive it, and the user finishes in the
+    terminal. Chained with `;` and not `&&`: a sign-in that fails should still
+    leave the agent on screen saying so, not a window that closes on the
+    message.
+    """
+    line = shlex.join(env_prefix(agent) + fix_command(agent, fix))
     if prompt:
         line += "; exec " + shell_line(agent, prompt)
     return line
@@ -472,7 +491,8 @@ def main():
 
     if argv and argv[0] == "--login":
         launcher = chosen_launcher(payload, config)
-        hand_off(launcher, agent, login_line(agent, str(payload.get("prompt") or "").strip()))
+        hand_off(launcher, agent, login_line(agent, str(payload.get("prompt") or "").strip(),
+                                             str(payload.get("fix") or "login")))
         emit({"ok": True, "login": agent["id"], "launcher": launcher})
         return
 
