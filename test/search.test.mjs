@@ -81,6 +81,7 @@ test('status line reflects each state', () => {
   assert.equal(statusText({ status: 'error', errorMessage: 'nope' }), 'nope')
   assert.match(statusText({ status: 'empty', query: 'zz' }), /No results for “zz”/)
   assert.match(statusText({ status: 'idle' }), /enter searches/)
+  assert.match(statusText({ status: 'idle' }), /ctrl\+, settings/, 'the settings key must be discoverable')
 })
 
 test('a locked-down Exa endpoint is reported plainly', () => {

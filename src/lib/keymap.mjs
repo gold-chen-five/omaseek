@@ -5,7 +5,9 @@
 // so the matching rules run under node. See test/keymap.test.mjs.
 
 export const DEFAULT_SEQUENCES = ['jk']
-export const DEFAULT_TIMEOUT_MS = 200
+// vim's own `timeoutlen`, which is what decides whether two keys count as one
+// mapping. Matching it means a sequence that works in vim works here.
+export const DEFAULT_TIMEOUT_MS = 1000
 
 const MIN_TIMEOUT_MS = 20
 const MAX_TIMEOUT_MS = 5000

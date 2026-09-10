@@ -4,6 +4,7 @@ import {
   readSettings, writeSettings, settingsRows, cycle, normalizeSequence,
   ENGINES, PAGE_SIZE_CHOICES, DEFAULTS
 } from '../src/lib/settings.mjs'
+import { DEFAULT_TIMEOUT_MS } from '../src/lib/keymap.mjs'
 
 test('an absent config yields the defaults', () => {
   const settings = readSettings('')
@@ -57,12 +58,26 @@ test('writing off stores an empty sequence, which reads back as off', () => {
 })
 
 test('a written config round-trips unchanged', () => {
-  const settings = { engine: 'duckduckgo', escapeSequence: 'kj', escapeTimeoutMs: 300, resultsPerPage: 20 }
+  const settings = { engine: 'duckduckgo', escapeSequence: 'kj', resultsPerPage: 20 }
   const back = readSettings(writeSettings(settings, ''))
   assert.equal(back.engine, 'duckduckgo')
   assert.equal(back.escapeSequence, 'kj')
-  assert.equal(back.escapeTimeoutMs, 300)
   assert.equal(back.resultsPerPage, 20)
+})
+
+test('the sequence window is vim’s timeoutlen, not a setting', () => {
+  assert.equal(DEFAULT_TIMEOUT_MS, 1000, 'vim and neovim both default to 1000')
+  assert.equal(readSettings('').escapeTimeoutMs, 1000)
+  assert.equal(settingsRows(readSettings('')).find(r => r.key === 'escapeTimeoutMs'), undefined)
+})
+
+test('a hand-set timeout in the config is still honoured', () => {
+  assert.equal(readSettings('{"escape_timeout_ms":300}').escapeTimeoutMs, 300)
+})
+
+test('writing does not clobber a hand-set timeout', () => {
+  const written = writeSettings({ ...DEFAULTS, engine: 'exa' }, '{"escape_timeout_ms":300}')
+  assert.equal(JSON.parse(written).escape_timeout_ms, 300)
 })
 
 test('every choice row exposes its current value as one of its options', () => {

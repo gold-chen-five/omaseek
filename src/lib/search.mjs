@@ -100,7 +100,9 @@ export function statusText ({
       if (errorMessage) return errorMessage
       return `page ${page} · ${count} results${hasNext ? '' : ' · end'}${via} · h/l pages`
     default:
-      return 'enter searches · esc for normal mode'
+      // The empty panel is the only place a first-timer looks, so this is
+      // where the settings key has to be named.
+      return 'enter searches · esc normal · ctrl+, settings'
   }
 }
 

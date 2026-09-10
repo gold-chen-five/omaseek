@@ -209,8 +209,11 @@ moment you make them — there is no save button to forget.
 |---|---|---|
 | Search engine | `auto` · `duckduckgo` · `exa` | `auto` tries DuckDuckGo and falls through to Exa when it is blocked. Pinning an engine means a block is reported rather than silently substituted. |
 | Leave insert with | *typed* | The insert-mode escape sequence — any keys, not a fixed list. `Enter` opens the field, `Enter` again saves, `Esc` discards. Empty turns it off; a single character is refused, since binding one key would make that key untypable. |
-| Sequence window | 150–500 ms | How long the two keys may take. |
 | Results per page | 5 · 10 · 15 · 20 | Applies to both engines. |
+
+The window the two keys must land inside is vim's own `timeoutlen` (1000 ms),
+so a sequence that works in your vimrc works here. It is not a setting; set
+`escape_timeout_ms` by hand if you really want a different one.
 
 Everything is stored in `~/.config/jonas.search/config.json`, which stays
 hand-editable — the page writes only the keys it owns and leaves anything else

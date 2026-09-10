@@ -8,7 +8,6 @@
 import { readKeymap, DEFAULT_SEQUENCES, DEFAULT_TIMEOUT_MS } from './keymap.mjs'
 
 export const ENGINES = ['auto', 'duckduckgo', 'exa']
-export const TIMEOUT_CHOICES = [150, 200, 300, 500]
 export const PAGE_SIZE_CHOICES = [5, 10, 15, 20]
 
 export const DEFAULTS = {
@@ -62,7 +61,6 @@ export function writeSettings (settings, source) {
 
   config.engine = oneOf(settings.engine, ENGINES, DEFAULTS.engine)
   config.escape_sequence = normalizeSequence(settings.escapeSequence) ?? DEFAULTS.escapeSequence
-  config.escape_timeout_ms = oneOf(settings.escapeTimeoutMs, TIMEOUT_CHOICES, DEFAULTS.escapeTimeoutMs)
   config.results_per_page = oneOf(settings.resultsPerPage, PAGE_SIZE_CHOICES, DEFAULTS.resultsPerPage)
 
   return JSON.stringify(config, null, 2) + '\n'
@@ -83,17 +81,9 @@ export function settingsRows (settings) {
       key: 'escapeSequence',
       type: 'text',
       label: 'Leave insert with',
-      hint: 'any keys, typed quickly — like vim’s inoremap jk <Esc>. Empty turns it off',
+      hint: 'any keys, typed within vim’s timeoutlen. Empty turns it off',
       placeholder: 'off',
       value: settings.escapeSequence
-    },
-    {
-      key: 'escapeTimeoutMs',
-      type: 'choice',
-      label: 'Sequence window',
-      hint: 'how long the two keys may take, in milliseconds',
-      options: TIMEOUT_CHOICES,
-      value: settings.escapeTimeoutMs
     },
     {
       key: 'resultsPerPage',
