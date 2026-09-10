@@ -6,6 +6,7 @@ import qs.Ui
 import "components"
 import "lib/search.mjs" as SearchLib
 import "lib/settings.mjs" as SettingsLib
+import "lib/keybinds.mjs" as Keybinds
 
 // Web search overlay, through a SearXNG instance the user runs.
 //
@@ -36,6 +37,10 @@ Item {
   property string setupReason: ""              // what the backend said when the instance was down
 
   readonly property var settingsRows: SettingsLib.settingsRows(config.settings, engine.state, ai.agents)
+
+  // The two rebindable keys, parsed once into the spelling the views match on.
+  readonly property string searchChord: Keybinds.parseChord(config.settings.searchKey) || "Return"
+  readonly property string newChatChord: Keybinds.parseChord(config.settings.newChatKey) || "C-c"
 
   // Theme tokens: the same [menu] surface the first-party overlays paint with,
   // so a theme switch repaints this panel with no code of our own.
@@ -249,24 +254,71 @@ Item {
         anchors.leftMargin: card.contentLeftInset
         spacing: Style.spacing.md
 
-        VimTextField {
-          id: input
+        // The field and the button that runs it. A button because Enter is
+        // not discoverable, and because the panel is summoned with a mouse
+        // as often as it is typed at.
+        Item {
+          id: fieldRow
 
           width: parent.width
-          foreground: root.foreground
-          accent: root.accent
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.heading
-          placeholderText: root.panelMode === "ai" ? "Ask " + ai.agentName + "…" : "Search the web…"
-          escapeSequences: config.keymap.sequences
-          escapeTimeout: config.keymap.timeoutMs
+          height: input.height
 
-          onSubmitted: root.runSearch()
-          onCancelled: root.dismiss()
-          onSteppedDown: if (root.hasBody()) root.focusResults()
-          onRequestedSettings: root.openSettings()
-          onTabbed: root.toggleMode()
-          onNewSessionRequested: root.newChat()
+          VimTextField {
+            id: input
+
+            width: parent.width - actions.width - Style.spacing.sm
+            foreground: root.foreground
+            accent: root.accent
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.heading
+            placeholderText: root.panelMode === "ai" ? "Ask " + ai.agentName + "…" : "Search the web…"
+            escapeSequences: config.keymap.sequences
+            escapeTimeout: config.keymap.timeoutMs
+            searchChord: root.searchChord
+            newChatChord: root.newChatChord
+
+            onSubmitted: root.runSearch()
+            onCancelled: root.dismiss()
+            onSteppedDown: if (root.hasBody()) root.focusResults()
+            onRequestedSettings: root.openSettings()
+            onTabbed: root.toggleMode()
+            onNewSessionRequested: root.newChat()
+          }
+
+          // Each half of the panel gets the one button it has an action for:
+          // running the query, or ending the conversation. Both name their
+          // key, so the shortcut is learnt from the button.
+          Row {
+            id: actions
+
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Style.spacing.sm
+
+            Button {
+              visible: root.panelMode === "search"
+              text: "search  " + Keybinds.chordText(root.searchChord)
+              bordered: true
+              foreground: root.foreground
+              accent: root.accent
+              fontFamily: root.fontFamily
+              fontSize: Style.font.bodySmall
+
+              onClicked: root.runSearch()
+            }
+
+            Button {
+              visible: root.panelMode === "ai"
+              text: "new chat  " + Keybinds.chordText(root.newChatChord)
+              bordered: true
+              foreground: root.foreground
+              accent: root.accent
+              fontFamily: root.fontFamily
+              fontSize: Style.font.bodySmall
+
+              onClicked: root.newChat()
+            }
+          }
         }
 
         StatusLine {
@@ -332,7 +384,7 @@ Item {
 
           visible: root.view === "search" && root.panelMode === "ai"
           width: parent.width
-          height: parent.height - input.height - statusLine.height - Style.spacing.md * 2
+          height: parent.height - fieldRow.height - statusLine.height - Style.spacing.md * 2
           turns: ai.history
           foreground: root.foreground
           accent: root.accent
@@ -344,6 +396,7 @@ Item {
           onSettingsRequested: root.openSettings()
           onTabbed: root.toggleMode()
           onNewSessionRequested: root.newChat()
+          newChatChord: root.newChatChord
         }
 
         ResultList {
@@ -351,7 +404,7 @@ Item {
 
           visible: root.view === "search" && root.panelMode === "search"
           width: parent.width
-          height: parent.height - input.height - statusLine.height - Style.spacing.md * 2
+          height: parent.height - fieldRow.height - statusLine.height - Style.spacing.md * 2
           model: session.results
           foreground: root.foreground
           accent: root.accent

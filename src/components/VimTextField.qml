@@ -5,6 +5,7 @@ import qs.Ui as Ui
 import "../lib/motions.mjs" as Motions
 import "../lib/textobjects.mjs" as TextObjects
 import "../lib/keymap.mjs" as Keymap
+import "chord.js" as Chord
 
 // Search input with a vim editing model.
 //
@@ -39,12 +40,18 @@ Ui.TextField {
   property int escapeTimeout: 200
   property string escapePending: ""          // sequence keys typed so far
 
+  // Set from settings, already parsed. Both are checked before anything else,
+  // so rebinding search really does move it off enter rather than adding a
+  // second key that does the same thing.
+  property string searchChord: "Return"
+  property string newChatChord: "C-c"
+
   signal submitted()
   signal cancelled()                        // Esc from normal mode
   signal steppedDown()                      // j / Down: the results are the "line" below
   signal requestedSettings()                // Ctrl+S (or Ctrl+,) in any mode
   signal tabbed()                           // Tab in any mode: the panel switches search <-> ai
-  signal newSessionRequested()              // Ctrl+N: start the conversation over
+  signal newSessionRequested()              // the new-chat chord: start over
 
   readonly property bool normalish: mode !== "insert"
 
@@ -373,15 +380,18 @@ Ui.TextField {
       return
     }
 
-    // Same reason: a new conversation should not need you to leave the field
-    // you are typing the next question in.
-    if (ctrl && event.key === Qt.Key_N) {
+    // The two the buttons carry, both rebindable. Same reason as settings: a
+    // new conversation should not need you to leave the field you are typing
+    // the next question in.
+    const chord = Chord.of(event)
+
+    if (chord !== "" && chord === field.newChatChord) {
       field.newSessionRequested()
       event.accepted = true
       return
     }
 
-    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+    if (chord !== "" && chord === field.searchChord) {
       clearEscapePending()
       field.submitted()
       event.accepted = true

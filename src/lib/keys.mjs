@@ -60,8 +60,7 @@ export const ANSWER_KEYS = merge(NAV, {
   'v': 'selectChars',
   'V': 'selectLines',
   'g v': 'reselect',
-  'y': 'yank',
-  'C-n': 'newSession'
+  'y': 'yank'
 })
 
 function isPrefix (keymap, sequence) {

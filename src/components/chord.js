@@ -43,6 +43,8 @@ function of (event) {
       return "C-" + String.fromCharCode(event.key).toLowerCase()
     }
     if (event.key === Qt.Key_Comma) return "C-,"
+    const withCtrl = names()[event.key]
+    if (withCtrl) return "C-" + withCtrl
     return ""
   }
 

@@ -43,9 +43,21 @@ FocusScope {
     editingFinished()
   }
 
+  // A section header is a label, not a setting, so the cursor steps over it
+  // rather than landing on a row with nothing to do.
   function moveCursor (delta) {
-    if (rows.length === 0) return
-    cursor = Math.max(0, Math.min(rows.length - 1, cursor + delta))
+    const step = delta < 0 ? -1 : 1
+    let next = cursor
+    for (let i = 0; i < rows.length; i++) {
+      next += step
+      if (next < 0 || next >= rows.length) return
+      if (rows[next].type !== "section") { cursor = next; return }
+    }
+  }
+
+  function firstSetting () {
+    for (let i = 0; i < rows.length; i++) if (rows[i].type !== "section") return i
+    return 0
   }
 
   // h/l on a choice row; nothing on the others.
@@ -87,9 +99,10 @@ FocusScope {
     } else if (event.key === Qt.Key_Left || event.text === "h") {
       cycle(-1)
     } else if (event.text === "g") {
-      cursor = 0
+      cursor = firstSetting()
     } else if (event.text === "G") {
       cursor = rows.length - 1
+      if (rows[cursor] && rows[cursor].type === "section") moveCursor(-1)
     }
     event.accepted = true
   }
@@ -114,16 +127,36 @@ FocusScope {
         // imperative code in the same delegate cannot — so the page is held in
         // a property and called through that.
         readonly property var owner: page
-        readonly property bool hasCursor: index === page.cursor
+        readonly property bool isSection: modelData.type === "section"
+        readonly property bool hasCursor: index === page.cursor && !isSection
         readonly property bool isChoice: modelData.type === "choice"
         // A handful of chips sit beside the label; more than that would run
         // into it, so they take a line of their own underneath and wrap.
         readonly property bool stacked: isChoice && modelData.options.length > 4
 
         width: layout.width
-        height: body.implicitHeight + Style.spacing.md * 2
+        height: isSection ? sectionLabel.implicitHeight + Style.spacing.lg
+                          : body.implicitHeight + Style.spacing.md * 2
         radius: Style.cornerRadius
         color: hasCursor ? page.selectedBackground : "transparent"
+
+        // A heading, not a setting: it names what the rows under it are for
+        // and the cursor walks past it.
+        Text {
+          id: sectionLabel
+
+          visible: settingRow.isSection
+          anchors.left: parent.left
+          anchors.leftMargin: Style.spacing.md
+          anchors.bottom: parent.bottom
+          anchors.bottomMargin: Style.spacing.xs
+          textFormat: Text.PlainText
+          text: settingRow.isSection ? String(settingRow.modelData.label) : ""
+          color: page.accent
+          opacity: 0.7
+          font.family: page.fontFamily
+          font.pixelSize: Style.font.caption
+        }
 
         // One chip, used by both the inline row and the stacked flow. The raw
         // option goes back, not its string: the page sizes are numbers, and a
@@ -152,6 +185,7 @@ FocusScope {
         Column {
           id: body
 
+          visible: !settingRow.isSection
           anchors.left: parent.left
           anchors.right: parent.right
           anchors.leftMargin: Style.spacing.controlPaddingX
@@ -188,7 +222,9 @@ FocusScope {
               Text {
                 width: parent.width
                 textFormat: Text.PlainText
-                text: settingRow.modelData.hint
+                // A section row carries no hint, and an undefined binding is
+                // a warning on every repaint even while the body is hidden.
+                text: settingRow.modelData.hint || ""
                 color: page.foreground
                 opacity: 0.55
                 font.family: page.fontFamily
@@ -259,7 +295,7 @@ FocusScope {
               horizontalAlignment: TextInput.AlignHCenter
 
               function commit () {
-                const cleaned = SettingsLib.normalizeSequence(sequenceField.text)
+                const cleaned = SettingsLib.normalizeRow(settingRow.modelData, sequenceField.text)
                 if (cleaned !== null) settingRow.owner.changed(settingRow.modelData.key, cleaned)
                 // Back to a binding, on the new value or the old one if refused.
                 sequenceField.text = Qt.binding(function () { return String(settingRow.modelData.value) })

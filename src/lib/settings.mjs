@@ -6,6 +6,7 @@
 // test/settings.test.mjs.
 
 import { readKeymap, DEFAULT_SEQUENCES, DEFAULT_TIMEOUT_MS } from './keymap.mjs'
+import { DEFAULT_BINDS, normalizeBind } from './keybinds.mjs'
 
 export const PAGE_SIZE_CHOICES = [5, 10, 15, 20]
 
@@ -25,7 +26,9 @@ export const DEFAULTS = {
   escapeTimeoutMs: DEFAULT_TIMEOUT_MS,
   resultsPerPage: 10,
   chatAgent: DEFAULT_AGENT,
-  launcher: LAUNCHER_CHOICES[0]
+  launcher: LAUNCHER_CHOICES[0],
+  searchKey: DEFAULT_BINDS.search,
+  newChatKey: DEFAULT_BINDS.newChat
 }
 
 function parse (source) {
@@ -60,8 +63,16 @@ export function readSettings (source) {
     resultsPerPage: oneOf(config.resultsPerPage ?? config.results_per_page, PAGE_SIZE_CHOICES, DEFAULTS.resultsPerPage),
     chatAgent: agentId(config.chat_agent),
     launcher: oneOf(config.launcher, LAUNCHER_CHOICES, DEFAULTS.launcher),
+    searchKey: bind(config.search_key, DEFAULTS.searchKey),
+    newChatKey: bind(config.new_chat_key, DEFAULTS.newChatKey),
     sequences: keymap.sequences
   }
+}
+
+// An unparseable chord costs that one binding, not the button: the default
+// stands in, and the settings row shows what is actually bound.
+function bind (value, fallback) {
+  return normalizeBind(value) || fallback
 }
 
 // Any non-empty id is kept: which agents exist is only known at runtime, and
@@ -82,6 +93,8 @@ export function writeSettings (settings, source) {
   config.results_per_page = oneOf(settings.resultsPerPage, PAGE_SIZE_CHOICES, DEFAULTS.resultsPerPage)
   config.chat_agent = agentId(settings.chatAgent)
   config.launcher = oneOf(settings.launcher, LAUNCHER_CHOICES, DEFAULTS.launcher)
+  config.search_key = bind(settings.searchKey, DEFAULTS.searchKey)
+  config.new_chat_key = bind(settings.newChatKey, DEFAULTS.newChatKey)
 
   return JSON.stringify(config, null, 2) + '\n'
 }
@@ -119,14 +132,6 @@ export function settingsRows (settings, engine = 'unknown', agents = null) {
       value: state
     },
     {
-      key: 'escapeSequence',
-      type: 'text',
-      label: 'Leave insert with',
-      hint: 'any keys, typed within vim’s timeoutlen. Empty turns it off',
-      placeholder: 'off',
-      value: settings.escapeSequence
-    },
-    {
       key: 'resultsPerPage',
       type: 'choice',
       label: 'Results per page',
@@ -152,8 +157,49 @@ export function settingsRows (settings, engine = 'unknown', agents = null) {
       hint: 'where enter on an answer opens the agent with it',
       options: LAUNCHER_CHOICES,
       value: settings.launcher
+    },
+    // The keys a person is most likely to want their own spelling of: the
+    // one that leaves insert, and the two the buttons carry.
+    { type: 'section', label: 'Keys' },
+    {
+      key: 'escapeSequence',
+      type: 'text',
+      normalize: 'sequence',
+      label: 'Leave insert with',
+      hint: 'any keys, typed within vim’s timeoutlen. Empty turns it off',
+      placeholder: 'off',
+      value: settings.escapeSequence
+    },
+    {
+      key: 'searchKey',
+      type: 'text',
+      normalize: 'bind',
+      label: 'Search',
+      hint: 'runs the query, the same as the button beside the field',
+      placeholder: DEFAULTS.searchKey,
+      value: settings.searchKey
+    },
+    {
+      key: 'newChatKey',
+      type: 'text',
+      normalize: 'bind',
+      label: 'New chat',
+      hint: 'forgets the conversation and starts one, from the field or the transcript',
+      placeholder: DEFAULTS.newChatKey,
+      value: settings.newChatKey
     }
   ]
+}
+
+/**
+ * A typed row's text -> what to store, or null when the row refuses it.
+ *
+ * The settings page does not know what makes a value good, only which rule
+ * a row named, so the rules stay here with the rows that name them.
+ */
+export function normalizeRow (row, raw) {
+  if (row && row.normalize === 'bind') return normalizeBind(raw) || null
+  return normalizeSequence(raw)
 }
 
 /**

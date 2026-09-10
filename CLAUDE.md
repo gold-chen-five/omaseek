@@ -191,3 +191,7 @@ layer-shell and open/close/dismiss/toggle contract mirrors
   nav form, why a separate process), not what the line does.
 - The vim layer deliberately stops short of `.` repeat, macros, marks, named
   registers and linewise visual — a single-line field gets little from them.
+- **`KEYS.md` is the keybinding reference**, flat and greppable for exactly this
+  reason. It is the answer to "what does this key do" and to "is that key
+  free" — read it before adding a binding, and update it in the same commit
+  that changes one.

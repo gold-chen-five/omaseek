@@ -40,6 +40,7 @@ FocusScope {
   property bool linewise: false                // V rather than v
   property var lastVisual: null                // for gv: { anchor, cursor, linewise }
   property string pending: ""                  // an unfinished sequence: "g" after g
+  property string newChatChord: "C-c"          // from settings, already parsed
   property real preferredX: -1                 // the column j/k try to keep
   property var marks: []                       // [{ y, height }] — where the questions are
 
@@ -60,7 +61,7 @@ FocusScope {
   signal insertRequested()                     // i or /: back to the field, typing
   signal settingsRequested()
   signal tabbed()
-  signal newSessionRequested()                 // ctrl+n, or the button
+  signal newSessionRequested()                 // the new-chat chord, or the button
 
   onActiveFocusChanged: pending = ""
   onTurnsChanged: {
@@ -182,48 +183,6 @@ FocusScope {
     handedOff(context)
   }
 
-  // Ends the conversation without leaving the panel. It sits over the
-  // transcript rather than in the status strip, because it is only ever
-  // wanted when there is a conversation to end — and it names its key, so
-  // the shortcut is learnt from using the button.
-  Rectangle {
-    id: newChatButton
-
-    visible: view.turns.length > 0
-    anchors.top: parent.top
-    anchors.right: parent.right
-    anchors.rightMargin: Style.spacing.sm
-    z: 2
-    width: newChatLabel.implicitWidth + Style.space(20)
-    height: newChatLabel.implicitHeight + Style.space(10)
-    radius: 0
-    color: newChatArea.containsMouse ? Util.alpha(view.foreground, 0.12)
-                                     : Util.alpha(view.foreground, 0.05)
-    border.width: Style.normalBorderWidth
-    border.color: Util.alpha(view.foreground, newChatArea.containsMouse ? 0.38 : 0.18)
-
-    Text {
-      id: newChatLabel
-
-      anchors.centerIn: parent
-      textFormat: Text.PlainText
-      text: "new chat  ⌃N"
-      color: view.foreground
-      opacity: newChatArea.containsMouse ? 0.9 : 0.55
-      font.family: view.fontFamily
-      font.pixelSize: Style.font.caption
-    }
-
-    MouseArea {
-      id: newChatArea
-
-      anchors.fill: parent
-      hoverEnabled: true
-      cursorShape: Qt.PointingHandCursor
-      onClicked: view.newSessionRequested()
-    }
-  }
-
   Timer {
     id: yankFlash
 
@@ -233,7 +192,14 @@ FocusScope {
 
   Keys.priority: Keys.BeforeItem
   Keys.onPressed: event => {
-    const step = KeysLib.resolve(KeysLib.ANSWER_KEYS, pending, Chord.of(event))
+    const chord = Chord.of(event)
+    if (chord !== "" && chord === view.newChatChord) {
+      pending = ""
+      newSessionRequested()
+      event.accepted = true
+      return
+    }
+    const step = KeysLib.resolve(KeysLib.ANSWER_KEYS, pending, chord)
     pending = step.pending
     run(step.command)
     event.accepted = true
@@ -270,7 +236,6 @@ FocusScope {
     case "selectLines": if (selecting && linewise) stopSelecting(); else startSelecting(true); break
     case "reselect":    reselect(); break
     case "yank":        yank(); break
-    case "newSession":  newSessionRequested(); break
     }
   }
 
@@ -304,11 +269,7 @@ FocusScope {
 
       width: flick.width
       leftPadding: Style.spacing.md
-      // Wide enough on the right for the new-chat button to float over the
-      // gutter rather than over the first question.
-      rightPadding: newChatButton.visible
-        ? newChatButton.width + Style.spacing.md + Style.spacing.sm
-        : Style.spacing.md
+      rightPadding: Style.spacing.md
       topPadding: Style.spacing.xs
       bottomPadding: Style.spacing.xs
       readOnly: true

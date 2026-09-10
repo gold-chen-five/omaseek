@@ -53,7 +53,3 @@ test('escape and enter are named keys, not their control characters', () => {
   assert.equal(resolve(LIST_KEYS, '', '\r').command, '')
 })
 
-test('the answer view can start a new conversation, the list has no session to end', () => {
-  assert.equal(resolve(ANSWER_KEYS, '', 'C-n').command, 'newSession')
-  assert.equal(resolve(LIST_KEYS, '', 'C-n').command, '')
-})
