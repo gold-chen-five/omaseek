@@ -49,3 +49,8 @@ test('a link takes the colour it is given, so a TextEdit does not paint it Qt bl
   const html = renderTranscript([{ role: 'assistant', text: 'read [this](https://x.y)' }], { link: '#abc' })
   assert.ok(html.includes('<a href="https://x.y" style="color:#abc">this</a>'))
 })
+
+test('a question typed on two lines is shown on two lines', () => {
+  const html = renderTranscript([{ role: 'user', text: 'first\nsecond' }], { question: '#fff' })
+  assert.ok(html.includes('first<br>second'))
+})

@@ -299,8 +299,8 @@ Item {
             id: actions
 
             anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            height: input.height
+            anchors.top: parent.top                // the field grows down; the buttons stay a line
+            height: input.oneLineHeight
             width: Math.max(searchButton.implicitWidth, askActions.implicitWidth)
 
             Button {
@@ -418,6 +418,8 @@ Item {
           width: parent.width
           height: parent.height - fieldRow.height - statusLine.height - Style.spacing.md * 2
           turns: ai.history
+          thinking: ai.status === "thinking"
+          agentName: ai.agentName
           foreground: root.foreground
           accent: root.accent
           fontFamily: root.fontFamily

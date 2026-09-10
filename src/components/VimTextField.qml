@@ -1,7 +1,6 @@
 import QtQuick
 import Quickshell
 import qs.Commons
-import qs.Ui as Ui
 import "../lib/motions.mjs" as Motions
 import "../lib/textobjects.mjs" as TextObjects
 import "../lib/keymap.mjs" as Keymap
@@ -9,7 +8,7 @@ import "chord.js" as Chord
 
 // Search input with a vim editing model.
 //
-// Ui.TextField descends from QtQuick Controls TextField, so cursorPosition,
+// GrowingField is the kit's field chrome on a TextArea, so cursorPosition,
 // select(), remove(), insert() and undo()/redo() are inherited — this file adds
 // the mode machine and key dispatch, while the cursor arithmetic lives in
 // lib/motions.mjs where it can be tested without a running shell.
@@ -18,7 +17,7 @@ import "chord.js" as Chord
 // insert mode passes everything through untouched apart from the escape
 // sequence — `jk` by default, which is the one insert-mode binding vim users
 // reach for and the one this field has to fake.
-Ui.TextField {
+GrowingField {
   id: field
 
   property string mode: "insert"            // insert | normal | visual
@@ -66,6 +65,22 @@ Ui.TextField {
     mode = next
     clearPending()
     if (next === "normal") clampCursor()
+  }
+
+  // A question can span lines (Ctrl+J breaks one), so "down" means a line
+  // down while there is one, and only from the last line does it mean the
+  // results. Column is kept the way vim keeps it, clamped to the new line.
+  function onLastLine () { return text.indexOf("\n", cursorPosition) === -1 }
+
+  function moveLineDown () {
+    const nl = text.indexOf("\n", cursorPosition)
+    if (nl === -1) return false
+    const lineStart = text.lastIndexOf("\n", cursorPosition - 1) + 1
+    const column = cursorPosition - lineStart
+    const nextEnd = text.indexOf("\n", nl + 1)
+    const nextLen = (nextEnd === -1 ? text.length : nextEnd) - (nl + 1)
+    cursorPosition = nl + 1 + Math.min(column, nextLen)
+    return true
   }
 
   function clearPending () {
@@ -160,12 +175,18 @@ Ui.TextField {
     } else if (ctrl && event.key === Qt.Key_U) {
       remove(0, cursorPosition)
       event.accepted = true
+    } else if (ctrl && event.key === Qt.Key_J) {
+      // A line break in the question. Enter is taken — it asks — so this is
+      // the terminal's spelling of newline, as herdr and readline have it.
+      clearEscapePending()
+      insert(cursorPosition, "\n")
+      event.accepted = true
     } else if (event.key === Qt.Key_Down) {
       // The results stay put after Enter, so the way down has to work from
       // insert mode as well — vim's arrows do, and nobody wants Esc first.
+      // Inside a multi-line question it is first a line down.
       clearEscapePending()
-      field.steppedDown()
-      event.accepted = true
+      if (onLastLine()) { field.steppedDown(); event.accepted = true }
     } else if (plain && Keymap.isTypedKey(event.text)) {
       handleEscapeSequence(event)             // types normally unless it closes the sequence
     } else {
@@ -260,7 +281,7 @@ Ui.TextField {
         clearPending()                      // dj and friends mean nothing on one line
         return
       }
-      field.steppedDown()
+      if (!moveLineDown()) field.steppedDown()
       return
 
     // modes
@@ -428,7 +449,7 @@ Ui.TextField {
     }
 
     if (event.key === Qt.Key_Down) {
-      field.steppedDown()
+      if (!moveLineDown()) field.steppedDown()
       event.accepted = true
       return
     }

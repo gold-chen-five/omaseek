@@ -4,6 +4,7 @@ import qs.Commons
 import "../lib/keys.mjs" as KeysLib
 import "../lib/motions.mjs" as Motions
 import "../lib/markdown.mjs" as Markdown
+import "../lib/thinking.mjs" as Thinking
 import "chord.js" as Chord
 
 // The conversation with the agent, read with vim keys.
@@ -30,6 +31,31 @@ FocusScope {
   id: view
 
   property var turns: []                       // [{ role: 'user'|'assistant', text }]
+  property bool thinking: false                // the agent has the question and has not answered
+  property string agentName: ""
+
+  // The wait: a spinner, a verb and a clock under the question, as Claude
+  // Code draws its own. A print-mode CLI says nothing until it says
+  // everything, and ten silent seconds read as a hang.
+  property int tick: 0
+  property real startedAt: 0
+  property string verb: ""
+
+  onThinkingChanged: {
+    if (thinking) {
+      startedAt = Date.now()
+      verb = Thinking.pickVerb(startedAt)
+      tick = 0
+      Qt.callLater(() => { flick.contentY = Math.max(0, flick.contentHeight - flick.height) })
+    }
+  }
+
+  Timer {
+    interval: Thinking.FRAME_MS
+    running: view.thinking && view.visible
+    repeat: true
+    onTriggered: view.tick = view.tick + 1
+  }
   property color foreground: Color.menu.text
   property color accent: Color.menu.selectedText
   property color selectedBackground: Color.menu.selectedBackground
@@ -247,6 +273,7 @@ FocusScope {
     clip: true
     contentWidth: width
     contentHeight: answer.contentHeight + answer.topPadding + answer.bottomPadding
+                   + (spinner.visible ? spinner.height + Style.spacing.xs : 0)
     boundsBehavior: Flickable.StopAtBounds
 
     // Painted behind the text: one quiet block per question, the grey box
@@ -265,6 +292,32 @@ FocusScope {
         height: modelData.height + Style.spacing.xs * 2
         color: Util.alpha(view.foreground, 0.07)
         radius: Style.cornerRadius                  // Hyprland's decoration:rounding
+      }
+    }
+
+    // Sits where the answer's dot will: same column, same tone, so when the
+    // reply lands it takes the spinner's place rather than appearing under it.
+    Row {
+      id: spinner
+
+      visible: view.thinking
+      x: answer.leftPadding
+      y: answer.contentHeight + answer.topPadding + answer.bottomPadding
+      spacing: Style.spacing.xs
+
+      Text {
+        textFormat: Text.PlainText
+        text: Thinking.FRAMES[view.tick % Thinking.FRAMES.length]
+        color: view.glyphColor
+        font.family: view.fontFamily
+        font.pixelSize: Style.font.body
+      }
+      Text {
+        textFormat: Text.PlainText
+        text: view.verb + "… (" + Thinking.elapsedText(view.tick * Thinking.FRAME_MS) + ")"
+        color: view.answerColor
+        font.family: view.fontFamily
+        font.pixelSize: Style.font.body
       }
     }
 

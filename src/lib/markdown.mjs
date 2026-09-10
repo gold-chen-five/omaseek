@@ -145,7 +145,8 @@ export function renderTranscript (turns, {
   for (let i = 0; i < (turns || []).length; i++) {
     const turn = turns[i]
     if (turn.role === 'user') {
-      parts.push(`<p><span style="color:${glyph}">&gt; </span><b><span style="color:${question}">${escapeHtml(turn.text)}</span></b></p>`)
+      // A question keeps the line breaks it was typed with; the agent saw them.
+      parts.push(`<p><span style="color:${glyph}">&gt; </span><b><span style="color:${question}">${escapeHtml(turn.text).replace(/\n/g, '<br>')}</span></b></p>`)
     } else if (turn.role === 'error') {
       // What went wrong, where the answer would have been.
       parts.push(`<p><span style="color:${error}">⚠ ${escapeHtml(turn.text)}</span></p>`)
