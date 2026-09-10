@@ -134,6 +134,7 @@ Item {
       return
     }
     session.search(query)
+    focusSearch(false)                         // normal: j steps into the results
   }
 
   // Whether there is anything below the field to step into.
@@ -147,10 +148,12 @@ Item {
     Qt.callLater(() => target.forceActiveFocus())
   }
 
+  // Through setMode, not by assigning `mode`: leaving insert steps the cursor
+  // left as vim does and drops any half-typed operator, and doing it by hand
+  // here skipped both.
   function focusSearch (insertMode) {
     focusArea = "search"
-    input.mode = insertMode ? "insert" : "normal"
-    if (!insertMode) input.clampCursor()
+    input.setMode(insertMode ? "insert" : "normal")
     Qt.callLater(() => input.forceActiveFocus())
   }
 
