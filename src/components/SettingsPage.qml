@@ -54,14 +54,16 @@ FocusScope {
     if (row && row.type === "choice") changed(row.key, SettingsLib.cycle(row, delta))
   }
 
-  // Enter: a typed row opens for editing, an action row fires, and a choice
-  // row just steps along.
+  // Enter opens what can be opened: a typed row for editing, an action row
+  // fires. A choice row has nothing to open — h and l step through its
+  // options and each step is written straight through — so Enter used to
+  // step it along too, which meant pressing Enter to settle on a value
+  // changed it to the next one instead. It does nothing there now.
   function press () {
     const row = rows[cursor]
     if (!row) return
     if (row.type === "text") beginEdit(cursor)
     else if (row.type === "action") activated(row.key, row.action)
-    else cycle(1)
   }
 
   Keys.priority: Keys.BeforeItem

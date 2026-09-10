@@ -84,7 +84,7 @@ export function statusText ({
   agent = '', selecting = false
 } = {}) {
   // The other two views have no search state to report, only their keys.
-  if (view === 'settings') return 'j/k rows · h/l change · enter press · saved as you go · esc back'
+  if (view === 'settings') return 'j/k rows · h/l change · enter opens · saved as you go · esc back'
   if (view === 'setup') return 'h/l choose · enter confirm · esc not now'
   if (panelMode === 'ai') return askStatusText({ status, errorMessage, agent, selecting })
 
