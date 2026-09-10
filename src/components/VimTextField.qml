@@ -44,6 +44,7 @@ Ui.TextField {
   signal steppedDown()                      // j / Down: the results are the "line" below
   signal requestedSettings()                // Ctrl+S (or Ctrl+,) in any mode
   signal tabbed()                           // Tab in any mode: the panel switches search <-> ai
+  signal newSessionRequested()              // Ctrl+N: start the conversation over
 
   readonly property bool normalish: mode !== "insert"
 
@@ -368,6 +369,14 @@ Ui.TextField {
     // binding, and muscle memory outlives a rename.
     if (ctrl && (event.key === Qt.Key_S || event.key === Qt.Key_Comma)) {
       field.requestedSettings()
+      event.accepted = true
+      return
+    }
+
+    // Same reason: a new conversation should not need you to leave the field
+    // you are typing the next question in.
+    if (ctrl && event.key === Qt.Key_N) {
+      field.newSessionRequested()
       event.accepted = true
       return
     }

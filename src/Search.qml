@@ -57,12 +57,12 @@ Item {
   function open (payloadJson) {
     config.reload()
     opened = true
-    view = "search"
-    panelMode = "search"
-    ai.reset()
+    view = "search"                            // never reopen into settings or setup
     if (ai.agents === null) ai.probeAgents()   // once: which agents this machine has
-    if (session.results.count === 0) input.clear()
-    focusSearch(session.results.count === 0)
+    // Normal when there is still a query in the field to act on, insert when
+    // there is nothing to type over — which is the state AI mode leaves the
+    // field in, since asking moves the question into the transcript.
+    focusSearch(input.text.length === 0)
   }
 
   function close () {
@@ -72,6 +72,16 @@ Item {
 
   // Tab: the same field, the other job. The text stays — a query that found
   // nothing is often the question worth asking.
+  // Ctrl+N, or the button in the transcript: forget the conversation and
+  // start one. Only AI mode has a session to end — a search is replaced by
+  // the next search, not started over.
+  function newChat () {
+    if (panelMode !== "ai") return
+    ai.reset()
+    input.clear()
+    focusSearch(true)
+  }
+
   function toggleMode () {
     panelMode = panelMode === "search" ? "ai" : "search"
     view = "search"
@@ -256,6 +266,7 @@ Item {
           onSteppedDown: if (root.hasBody()) root.focusResults()
           onRequestedSettings: root.openSettings()
           onTabbed: root.toggleMode()
+          onNewSessionRequested: root.newChat()
         }
 
         StatusLine {
@@ -332,6 +343,7 @@ Item {
           onInsertRequested: root.focusSearch(true)
           onSettingsRequested: root.openSettings()
           onTabbed: root.toggleMode()
+          onNewSessionRequested: root.newChat()
         }
 
         ResultList {
