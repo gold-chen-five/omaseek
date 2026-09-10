@@ -82,10 +82,11 @@ them.
 |---|---|
 | `j` `k` | move between rows, stepping over section headings |
 | `h` `l` | change the value under the cursor |
-| `enter`, `i` | open a typed row for editing, or press an action row's button |
+| `enter`, `i` | open a typed row for editing, press an action row's button, or open a dropdown |
 | `gg` `G` | first, last row |
 | `enter` while editing | commit |
 | `esc` while editing | cancel |
+| `j` `k`, `enter`, `esc` in an open dropdown | walk it, pick, close |
 | `esc`, `ctrl+s` | back to the panel |
 
 Values are written as they change; there is no save.

@@ -144,6 +144,7 @@ export function settingsRows (settings, engine = 'unknown', agents = null) {
     {
       key: 'chatAgent',
       type: 'choice',
+      control: 'dropdown',       // seven-plus options: a list, not a row of chips
       label: 'Agent',
       hint: agents === null ? 'finding installed agents…'
         : known.length === 0 ? 'nothing installed — pick one with: omarchy default agent <name>'

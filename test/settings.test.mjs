@@ -162,3 +162,11 @@ test('the agent row offers default plus whatever is installed', () => {
   assert.deepEqual(launcher.options, LAUNCHER_CHOICES)
 })
 
+
+test('the agent row is a dropdown; the short choices stay chips', () => {
+  const rows = settingsRows(DEFAULTS, 'running', { agents: [{ id: 'claude', name: 'c' }], default: 'claude', configured: false })
+  const control = key => rows.find(r => r.key === key).control
+  assert.equal(control('chatAgent'), 'dropdown')
+  assert.equal(control('resultsPerPage'), undefined)
+  assert.equal(control('launcher'), undefined)
+})

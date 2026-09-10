@@ -16,6 +16,7 @@ FocusScope {
   property var rows: []
   property int cursor: 0
   property int editingIndex: -1              // which text row is being typed into
+  property int dropdownIndex: -1             // which choice row has its list open
   property color foreground: Color.menu.text
   property color accent: Color.menu.selectedText
   property color selectedBackground: Color.menu.selectedBackground
@@ -76,13 +77,14 @@ FocusScope {
     if (!row) return
     if (row.type === "text") beginEdit(cursor)
     else if (row.type === "action") activated(row.key, row.action)
+    else if (row.control === "dropdown") dropdownIndex = cursor
   }
 
   Keys.priority: Keys.BeforeItem
   Keys.onPressed: event => {
     // While a row is being typed into, the field owns the keyboard. Its Enter
     // reaches here too, and would reopen the editor the instant it closed.
-    if (editingIndex !== -1) return
+    if (editingIndex !== -1 || dropdownIndex !== -1) return
 
     const ctrl = (event.modifiers & Qt.ControlModifier) !== 0
     if (event.key === Qt.Key_Escape
@@ -130,9 +132,9 @@ FocusScope {
         readonly property bool isSection: modelData.type === "section"
         readonly property bool hasCursor: index === page.cursor && !isSection
         readonly property bool isChoice: modelData.type === "choice"
-        // A handful of chips sit beside the label; more than that would run
-        // into it, so they take a line of their own underneath and wrap.
-        readonly property bool stacked: isChoice && modelData.options.length > 4
+        // A handful of options are chips beside the label. More than that is
+        // a list behind a dropdown, so the row stays one line tall.
+        readonly property bool isDropdown: isChoice && modelData.control === "dropdown"
 
         width: layout.width
         height: isSection ? sectionLabel.implicitHeight + Style.spacing.lg + Style.spacing.md
@@ -170,7 +172,7 @@ FocusScope {
           font.letterSpacing: 1.5
         }
 
-        // One chip, used by both the inline row and the stacked flow. The raw
+        // One chip, for the short choices. The raw
         // option goes back, not its string: the page sizes are numbers, and a
         // string would fail the write-side check and fall back to the default.
         Component {
@@ -210,6 +212,7 @@ FocusScope {
 
             width: parent.width
             height: Math.max(labels.implicitHeight, inlineChips.visible ? inlineChips.implicitHeight : 0,
+                             picker.visible ? picker.implicitHeight : 0,
                              actionButton.visible ? actionButton.implicitHeight : 0,
                              sequenceField.visible ? sequenceField.implicitHeight : 0)
 
@@ -218,7 +221,7 @@ FocusScope {
 
               anchors.left: parent.left
               anchors.verticalCenter: parent.verticalCenter
-              width: settingRow.stacked ? parent.width : parent.width - Style.space(200)
+              width: parent.width - Style.space(200)
               spacing: Style.spacing.xxs
 
               Text {
@@ -242,8 +245,10 @@ FocusScope {
                 opacity: 0.55
                 font.family: page.fontFamily
                 font.pixelSize: Style.font.caption
-                wrapMode: settingRow.stacked ? Text.WordWrap : Text.NoWrap
-                elide: settingRow.stacked ? Text.ElideNone : Text.ElideRight
+                // A dropdown row's hint has the most to say and the least
+                // room, so it wraps; the others stay one line.
+                wrapMode: settingRow.isDropdown ? Text.WordWrap : Text.NoWrap
+                elide: settingRow.isDropdown ? Text.ElideNone : Text.ElideRight
               }
             }
 
@@ -272,7 +277,7 @@ FocusScope {
             Row {
               id: inlineChips
 
-              visible: settingRow.isChoice && !settingRow.stacked
+              visible: settingRow.isChoice && !settingRow.isDropdown
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
               spacing: Style.spacing.sm
@@ -280,6 +285,58 @@ FocusScope {
               Repeater {
                 model: inlineChips.visible ? settingRow.modelData.options : []
                 delegate: chip
+              }
+            }
+
+            // The list behind a long choice. While it is open its own ListView
+            // has the keys — the page steps aside the way it does for a text
+            // row being typed into — and when it closes the page takes them
+            // back, whichever way it was opened.
+            Dropdown {
+              id: picker
+
+              readonly property bool asked: settingRow.index === page.dropdownIndex
+
+              visible: settingRow.isDropdown
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              width: Style.space(200)
+              showLabel: false
+              options: picker.visible ? settingRow.modelData.options.map(String) : []
+              value: String(settingRow.modelData.value)
+              hasCursor: settingRow.hasCursor
+              foreground: page.foreground
+              accent: page.accent
+              background: Color.menu.background
+              popupBorder: Color.menu.border
+              fontFamily: page.fontFamily
+
+              onAskedChanged: if (asked) open()
+              onPopupOpenChanged: {
+                if (popupOpen) {
+                  settingRow.owner.cursor = settingRow.index   // a click lands the cursor too
+                } else {
+                  settingRow.owner.dropdownIndex = -1
+                  settingRow.owner.forceActiveFocus()
+                }
+              }
+
+              // The raw option goes back, not its string — see the chip.
+              //
+              // Writing a setting recomputes the rows, and the Repeater rebuilds
+              // every delegate — this one included, popup and all, while the
+              // Dropdown is still inside its own select. So the page's state is
+              // released first, so the rebuilt row does not reopen, and the
+              // write itself waits a tick for the Dropdown to finish closing.
+              onChanged: function (chosen) {
+                const options = settingRow.modelData.options
+                let raw = chosen
+                for (let i = 0; i < options.length; i++) if (String(options[i]) === chosen) raw = options[i]
+                const owner = settingRow.owner
+                const key = settingRow.modelData.key
+                owner.dropdownIndex = -1
+                owner.forceActiveFocus()
+                Qt.callLater(function () { owner.changed(key, raw) })
               }
             }
 
@@ -340,19 +397,6 @@ FocusScope {
                   event.accepted = true
                 }
               }
-            }
-          }
-
-          Flow {
-            id: stackedChips
-
-            visible: settingRow.stacked
-            width: parent.width
-            spacing: Style.spacing.sm
-
-            Repeater {
-              model: stackedChips.visible ? settingRow.modelData.options : []
-              delegate: chip
             }
           }
         }
