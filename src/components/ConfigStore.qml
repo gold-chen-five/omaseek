@@ -31,7 +31,9 @@ Item {
       escapeTimeoutMs: settings.escapeTimeoutMs,
       resultsPerPage: settings.resultsPerPage,
       chatAgent: settings.chatAgent,
-      launcher: settings.launcher
+      launcher: settings.launcher,
+      searchKey: settings.searchKey,
+      newSessionKey: settings.newSessionKey
     }
     next[key] = value
 

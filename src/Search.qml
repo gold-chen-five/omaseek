@@ -40,7 +40,7 @@ Item {
 
   // The two rebindable keys, parsed once into the spelling the views match on.
   readonly property string searchChord: Keybinds.parseChord(config.settings.searchKey) || "Return"
-  readonly property string newChatChord: Keybinds.parseChord(config.settings.newChatKey) || "C-c"
+  readonly property string newSessionChord: Keybinds.parseChord(config.settings.newSessionKey) || "C-c"
 
   // Theme tokens: the same [menu] surface the first-party overlays paint with,
   // so a theme switch repaints this panel with no code of our own.
@@ -275,7 +275,7 @@ Item {
             escapeSequences: config.keymap.sequences
             escapeTimeout: config.keymap.timeoutMs
             searchChord: root.searchChord
-            newChatChord: root.newChatChord
+            newSessionChord: root.newSessionChord
 
             onSubmitted: root.runSearch()
             onCancelled: root.dismiss()
@@ -285,9 +285,9 @@ Item {
             onNewSessionRequested: root.newChat()
           }
 
-          // Each half of the panel gets the one button it has an action for:
-          // running the query, or ending the conversation. Both name their
-          // key, so the shortcut is learnt from the button.
+          // Each half of the panel gets the buttons it has actions for. They
+          // match the field's height so the row reads as one control, and
+          // they name their key, so the shortcut is learnt from the button.
           Row {
             id: actions
 
@@ -297,6 +297,7 @@ Item {
 
             Button {
               visible: root.panelMode === "search"
+              height: input.height
               text: "search  " + Keybinds.chordText(root.searchChord)
               bordered: true
               foreground: root.foreground
@@ -309,7 +310,21 @@ Item {
 
             Button {
               visible: root.panelMode === "ai"
-              text: "new chat  " + Keybinds.chordText(root.newChatChord)
+              height: input.height
+              text: "chat  " + Keybinds.chordText(root.searchChord)
+              bordered: true
+              foreground: root.foreground
+              accent: root.accent
+              fontFamily: root.fontFamily
+              fontSize: Style.font.bodySmall
+
+              onClicked: root.runSearch()
+            }
+
+            Button {
+              visible: root.panelMode === "ai"
+              height: input.height
+              text: "new session  " + Keybinds.chordText(root.newSessionChord)
               bordered: true
               foreground: root.foreground
               accent: root.accent
@@ -396,7 +411,7 @@ Item {
           onSettingsRequested: root.openSettings()
           onTabbed: root.toggleMode()
           onNewSessionRequested: root.newChat()
-          newChatChord: root.newChatChord
+          newSessionChord: root.newSessionChord
         }
 
         ResultList {

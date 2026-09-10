@@ -40,7 +40,7 @@ FocusScope {
   property bool linewise: false                // V rather than v
   property var lastVisual: null                // for gv: { anchor, cursor, linewise }
   property string pending: ""                  // an unfinished sequence: "g" after g
-  property string newChatChord: "C-c"          // from settings, already parsed
+  property string newSessionChord: "C-c"          // from settings, already parsed
   property real preferredX: -1                 // the column j/k try to keep
   property var marks: []                       // [{ y, height }] — where the questions are
 
@@ -61,7 +61,7 @@ FocusScope {
   signal insertRequested()                     // i or /: back to the field, typing
   signal settingsRequested()
   signal tabbed()
-  signal newSessionRequested()                 // the new-chat chord, or the button
+  signal newSessionRequested()                 // the new-session chord, or the button
 
   onActiveFocusChanged: pending = ""
   onTurnsChanged: {
@@ -193,7 +193,7 @@ FocusScope {
   Keys.priority: Keys.BeforeItem
   Keys.onPressed: event => {
     const chord = Chord.of(event)
-    if (chord !== "" && chord === view.newChatChord) {
+    if (chord !== "" && chord === view.newSessionChord) {
       pending = ""
       newSessionRequested()
       event.accepted = true

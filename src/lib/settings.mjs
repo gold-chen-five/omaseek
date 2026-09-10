@@ -28,7 +28,7 @@ export const DEFAULTS = {
   chatAgent: DEFAULT_AGENT,
   launcher: LAUNCHER_CHOICES[0],
   searchKey: DEFAULT_BINDS.search,
-  newChatKey: DEFAULT_BINDS.newChat
+  newSessionKey: DEFAULT_BINDS.newSession
 }
 
 function parse (source) {
@@ -64,7 +64,7 @@ export function readSettings (source) {
     chatAgent: agentId(config.chat_agent),
     launcher: oneOf(config.launcher, LAUNCHER_CHOICES, DEFAULTS.launcher),
     searchKey: bind(config.search_key, DEFAULTS.searchKey),
-    newChatKey: bind(config.new_chat_key, DEFAULTS.newChatKey),
+    newSessionKey: bind(config.new_session_key, DEFAULTS.newSessionKey),
     sequences: keymap.sequences
   }
 }
@@ -94,7 +94,7 @@ export function writeSettings (settings, source) {
   config.chat_agent = agentId(settings.chatAgent)
   config.launcher = oneOf(settings.launcher, LAUNCHER_CHOICES, DEFAULTS.launcher)
   config.search_key = bind(settings.searchKey, DEFAULTS.searchKey)
-  config.new_chat_key = bind(settings.newChatKey, DEFAULTS.newChatKey)
+  config.new_session_key = bind(settings.newSessionKey, DEFAULTS.newSessionKey)
 
   return JSON.stringify(config, null, 2) + '\n'
 }
@@ -180,13 +180,13 @@ export function settingsRows (settings, engine = 'unknown', agents = null) {
       value: settings.searchKey
     },
     {
-      key: 'newChatKey',
+      key: 'newSessionKey',
       type: 'text',
       normalize: 'bind',
-      label: 'New chat',
+      label: 'New session',
       hint: 'forgets the conversation and starts one, from the field or the transcript',
-      placeholder: DEFAULTS.newChatKey,
-      value: settings.newChatKey
+      placeholder: DEFAULTS.newSessionKey,
+      value: settings.newSessionKey
     }
   ]
 }

@@ -27,7 +27,7 @@ const SPELLED = {
 
 export const DEFAULT_BINDS = {
   search: 'enter',
-  newChat: 'ctrl+c'
+  newSession: 'ctrl+c'
 }
 
 /** "ctrl+c" -> "C-c", "enter" -> "Return". Null when it is not a chord. */

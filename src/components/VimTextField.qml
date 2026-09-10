@@ -44,14 +44,14 @@ Ui.TextField {
   // so rebinding search really does move it off enter rather than adding a
   // second key that does the same thing.
   property string searchChord: "Return"
-  property string newChatChord: "C-c"
+  property string newSessionChord: "C-c"
 
   signal submitted()
   signal cancelled()                        // Esc from normal mode
   signal steppedDown()                      // j / Down: the results are the "line" below
   signal requestedSettings()                // Ctrl+S (or Ctrl+,) in any mode
   signal tabbed()                           // Tab in any mode: the panel switches search <-> ai
-  signal newSessionRequested()              // the new-chat chord: start over
+  signal newSessionRequested()              // the new-session chord: start over
 
   readonly property bool normalish: mode !== "insert"
 
@@ -385,7 +385,7 @@ Ui.TextField {
     // the next question in.
     const chord = Chord.of(event)
 
-    if (chord !== "" && chord === field.newChatChord) {
+    if (chord !== "" && chord === field.newSessionChord) {
       field.newSessionRequested()
       event.accepted = true
       return

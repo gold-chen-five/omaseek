@@ -119,7 +119,7 @@ function askStatusText ({ status, errorMessage, agent, selecting }) {
     case 'ok':
       return selecting
         ? 'enter hands the selection to the agent · y yanks · esc drops it'
-        : 'j/k move · v select · enter hands off · i asks more · ctrl+n new chat'
+        : 'j/k move · v select · enter hands off · i asks more · ctrl+c new session'
     default:
       return 'enter asks · tab search · ctrl+s settings'
   }

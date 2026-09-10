@@ -11,7 +11,7 @@ Two of these are rebindable in settings and stored in
 |---|---|---|---|
 | Leave insert with | `escape_sequence` | `jk` | typed within vim's timeoutlen, leaves insert |
 | Search | `search_key` | `enter` | runs the query — the button beside the field |
-| New chat | `new_chat_key` | `ctrl+c` | forgets the conversation and starts one |
+| New session | `new_session_key` | `ctrl+c` | forgets the conversation and starts one |
 
 A binding is written the way a person says it: a named key (`enter`, `esc`,
 `tab`, `space`, an arrow, `home`, `end`), a single character, or `ctrl+`
@@ -72,7 +72,7 @@ them.
 | `gv` | reselect what was last selected |
 | `y` | yank the selection, or the whole transcript |
 | `enter` | hand the selection to the agent in a terminal |
-| `ctrl+c` (the new-chat key) | start a new conversation |
+| `ctrl+c` (the new-session key) | start a new conversation |
 | `i`, `/` | back to the field, typing |
 | `esc` | drop the selection, else back to the field |
 
