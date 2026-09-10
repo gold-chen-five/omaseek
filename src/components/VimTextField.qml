@@ -42,7 +42,7 @@ Ui.TextField {
   signal submitted()
   signal cancelled()                        // Esc from normal mode
   signal steppedDown()                      // j / Down: the results are the "line" below
-  signal requestedSettings()                // Ctrl+, in any mode
+  signal requestedSettings()                // Ctrl+S (or Ctrl+,) in any mode
 
   readonly property bool normalish: mode !== "insert"
 
@@ -357,8 +357,9 @@ Ui.TextField {
     const ctrl = (event.modifiers & Qt.ControlModifier) !== 0
 
     // Reaches the settings page from either mode, so it is never a question of
-    // which one you happen to be in.
-    if (ctrl && event.key === Qt.Key_Comma) {
+    // which one you happen to be in. Ctrl+, still works: it was the original
+    // binding, and muscle memory outlives a rename.
+    if (ctrl && (event.key === Qt.Key_S || event.key === Qt.Key_Comma)) {
       field.requestedSettings()
       event.accepted = true
       return
