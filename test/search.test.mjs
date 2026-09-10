@@ -106,3 +106,15 @@ test('the settings and setup views name their keys instead of search state', () 
   assert.match(statusText({ view: 'search', status: 'ok', count: 10, page: 1 }), /^page 1/)
 })
 
+test('AI mode names the agent while it thinks and its keys once it has answered', () => {
+  assert.equal(statusText({ panelMode: 'ai', status: 'thinking', agent: 'claude' }), 'asking claude…')
+  assert.match(statusText({ panelMode: 'ai', status: 'ok' }), /v select/)
+  assert.match(statusText({ panelMode: 'ai', status: 'ok', selecting: true }), /hands the selection/)
+  assert.equal(statusText({ panelMode: 'ai', status: 'error', errorMessage: 'nope' }), 'nope')
+  assert.match(statusText({ panelMode: 'ai', status: 'idle' }), /tab search/)
+  assert.match(statusText({ panelMode: 'ai', view: 'settings', status: 'ok' }), /esc back/, 'the settings view wins')
+  assert.equal(modeLabel({ panelMode: 'ai', focusArea: 'search', mode: 'insert' }), 'AI · INSERT')
+  assert.equal(modeLabel({ panelMode: 'ai', focusArea: 'results', mode: 'normal' }), 'AI · ANSWER')
+  assert.equal(modeLabel({ panelMode: 'ai', focusArea: 'results', mode: 'normal', selecting: true }), 'AI · VISUAL')
+})
+

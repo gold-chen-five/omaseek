@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   readSettings, writeSettings, settingsRows, cycle, normalizeSequence, ENGINE_STATES,
+  LAUNCHER_CHOICES, DEFAULT_AGENT,
   PAGE_SIZE_CHOICES, DEFAULTS
 } from '../src/lib/settings.mjs'
 import { DEFAULT_TIMEOUT_MS } from '../src/lib/keymap.mjs'
@@ -128,5 +129,36 @@ test('the engine row is never written to the config', () => {
   const out = writeSettings(readSettings(''), '{"searxng_url":"http://x:1"}')
   assert.equal(JSON.parse(out).engine, undefined)
   assert.equal(JSON.parse(out).searxng_url, 'http://x:1')
+})
+
+test('the chat agent and launcher read, default and round-trip', () => {
+  assert.equal(readSettings('').chatAgent, DEFAULT_AGENT)
+  assert.equal(readSettings('').launcher, 'terminal')
+  assert.equal(readSettings('{"chat_agent":"hermes","launcher":"herdr"}').chatAgent, 'hermes')
+  assert.equal(readSettings('{"chat_agent":"hermes","launcher":"herdr"}').launcher, 'herdr')
+  assert.equal(readSettings('{"launcher":"screen"}').launcher, 'terminal', 'unknown launcher falls back')
+  assert.equal(readSettings('{"chat_agent":"  "}').chatAgent, DEFAULT_AGENT)
+  const out = JSON.parse(writeSettings({ ...DEFAULTS, chatAgent: 'codex', launcher: 'tmux' }, ''))
+  assert.equal(out.chat_agent, 'codex')
+  assert.equal(out.launcher, 'tmux')
+})
+
+test('the agent row offers default plus whatever is installed', () => {
+  const agents = { agents: [{ id: 'claude', name: 'Claude Code' }, { id: 'hermes', name: 'Hermes' }], default: 'claude', configured: false }
+  const row = settingsRows(readSettings('{"chat_agent":"hermes"}'), 'running', agents).find(r => r.key === 'chatAgent')
+  assert.deepEqual(row.options, ['default', 'claude', 'hermes'])
+  assert.equal(row.value, 'hermes')
+  assert.match(row.hint, /unset/)
+  // An agent named in the config but not installed shows as default rather
+  // than as a chip that is not there.
+  const gone = settingsRows(readSettings('{"chat_agent":"grok"}'), 'running', agents).find(r => r.key === 'chatAgent')
+  assert.equal(gone.value, 'default')
+  assert.ok(gone.options.indexOf(gone.value) !== -1)
+  // Before the list arrives the row still has a selectable value.
+  const early = settingsRows(readSettings(''), 'running', null).find(r => r.key === 'chatAgent')
+  assert.deepEqual(early.options, ['default'])
+  assert.equal(cycle(early, 1), 'default')
+  const launcher = settingsRows(readSettings(''), 'running', agents).find(r => r.key === 'launcher')
+  assert.deepEqual(launcher.options, LAUNCHER_CHOICES)
 })
 

@@ -1,0 +1,326 @@
+#!/usr/bin/env python3
+"""Ask an AI coding agent from the panel, or hand it the conversation.
+
+    ./bin/ask --agents                                   which agents are here, and the default
+    echo '{"question": "…", "history": []}' | ./bin/ask  one answer, as JSON
+    echo '{"prompt": "…"}' | ./bin/ask --launch          open the agent on that prompt
+    ./bin/ask --json '{"question": "…"}'                 the same, payload as an argument
+
+Every agent CLI Omarchy knows has a print mode — `claude -p`, `codex exec`,
+`hermes chat -q` and so on — and that is all "chat" is here: the panel keeps
+the conversation, and each turn runs one process with the conversation in
+the prompt. No API keys, no SDK: whatever the user already signed the CLI
+into is what answers. Stdlib only, like bin/search.
+
+The interactive spellings — which flag means "don't stop to ask", where the
+prompt goes — are copied from omarchy-agent so a hand-off from the panel
+starts the agent the way the Super+A keybinding would. When the agent is
+Omarchy's default, omarchy-agent itself is run, so the two never drift.
+
+Output is always one JSON object:
+    {"ok": true, "agents": [...], "default": "claude"}
+    {"ok": true, "text": "…", "agent": "claude"}
+    {"ok": true, "launched": "claude", "launcher": "terminal"}
+    {"ok": false, "error": "usage"|"agent"|"launcher", "message": "…"}
+"""
+
+import json
+import os
+import shlex
+import shutil
+import subprocess
+import sys
+
+CONFIG_PATH = os.path.join(
+    os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.environ["HOME"], ".config"),
+    "jonas.search", "config.json",
+)
+# The chat runs somewhere with no project in it: an agent started in $HOME
+# or a repo would read that directory's instructions into a web question.
+WORK_DIR = os.path.join(
+    os.environ.get("XDG_CACHE_HOME") or os.path.join(os.environ["HOME"], ".cache"),
+    "jonas.search", "ask",
+)
+TIMEOUT = 240
+LAUNCHERS = ("terminal", "tmux", "herdr")
+
+# In omarchy-default-agent's order. `chat` is the print-mode command with the
+# prompt appended; `launch` is the interactive one, from omarchy-agent.
+AGENTS = [
+    {
+        "id": "claude", "name": "Claude Code",
+        "chat": ["claude", "-p", "--output-format", "text",
+                 "--allowedTools", "WebSearch", "WebFetch", "--"],
+        "launch": ["claude", "--permission-mode", "auto", "--"],
+    },
+    {
+        "id": "codex", "name": "Codex",
+        # exec narrates on stdout too; the final message alone lands in -o.
+        "chat": ["codex", "exec", "--skip-git-repo-check", "--color", "never", "-o", "{last}"],
+        "launch": ["codex", "--approve-for-me", "--"],
+    },
+    {
+        "id": "opencode", "name": "OpenCode",
+        "chat": ["opencode", "run"],
+        "launch": ["opencode", "--auto", "--prompt"],
+    },
+    {
+        "id": "gemini", "name": "Gemini",
+        "chat": ["gemini", "-p"],
+        "launch": ["gemini", "--yolo", "--prompt-interactive"],
+    },
+    {
+        "id": "hermes", "name": "Hermes",
+        "chat": ["hermes", "chat", "-Q", "-q"],
+        "launch": ["hermes", "chat", "--yolo", "--tui", "--query"],
+        "launch_env_unset": ["HERMES_SESSION_SOURCE"],
+        "launch_joined_value": True,       # --query=<prompt>, as omarchy-agent spells it
+    },
+    {
+        "id": "copilot", "name": "GitHub Copilot",
+        "chat": ["copilot", "-p"],
+        "launch": ["copilot", "--allow-all", "--interactive"],
+    },
+    {
+        "id": "cursor-agent", "name": "Cursor CLI",
+        "chat": ["cursor-agent", "-p", "--output-format", "text", "--trust"],
+        "launch": ["cursor-agent", "--yolo", "--trust", "agent", "--"],
+    },
+]
+
+
+def emit(obj):
+    json.dump(obj, sys.stdout, ensure_ascii=False)
+    sys.stdout.write("\n")
+
+
+def fail(error, message):
+    emit({"ok": False, "error": error, "message": message})
+    sys.exit(0)
+
+
+def read_config():
+    try:
+        with open(CONFIG_PATH, encoding="utf-8") as handle:
+            config = json.load(handle)
+    except (OSError, ValueError):
+        return {}
+    return config if isinstance(config, dict) else {}
+
+
+def read_payload(argv):
+    """The JSON payload: --json '<object>' from the panel, or stdin by hand.
+
+    An argument rather than a pipe, because Quickshell's Process is built
+    around reading, and the history is capped anyway (see build_prompt)."""
+    if "--json" in argv:
+        at = argv.index("--json")
+        if at + 1 >= len(argv):
+            fail("usage", "--json needs a value")
+        raw = argv[at + 1]
+        del argv[at:at + 2]
+    else:
+        raw = sys.stdin.read() if not sys.stdin.isatty() else ""
+    if not raw.strip():
+        return {}
+    try:
+        payload = json.loads(raw)
+    except ValueError:
+        fail("usage", "stdin is not valid JSON")
+    return payload if isinstance(payload, dict) else {}
+
+
+def installed_agents():
+    return [agent for agent in AGENTS if shutil.which(agent["id"])]
+
+
+def omarchy_default():
+    """What `omarchy default agent` was set to, or '' — Omarchy ships unset."""
+    try:
+        out = subprocess.run(["omarchy-default-agent"], capture_output=True,
+                             text=True, timeout=5).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return out
+
+
+def resolve_agent(requested, available):
+    """'default' or an id -> the agent record, and whether it is Omarchy's own default."""
+    default_id = omarchy_default()
+    if requested in ("", None, "default"):
+        for agent in available:
+            if agent["id"] == default_id:
+                return agent, True
+        # Omarchy leaves the default unset until the user picks one. The panel
+        # is more useful answering than lecturing, so the first installed
+        # agent stands in — the settings row says which.
+        if available:
+            return available[0], False
+        fail("agent", "no supported AI agent is installed — see `omarchy default agent`")
+    for agent in available:
+        if agent["id"] == requested:
+            return agent, agent["id"] == default_id
+    fail("agent", f"{requested} is not installed")
+
+
+def build_prompt(question, history):
+    """The whole conversation, since a print-mode process remembers nothing."""
+    lines = [
+        "You are answering inside a small desktop search panel. Be direct and",
+        "reasonably brief; use plain Markdown (paragraphs, lists, code) and no",
+        "tables. Search the web when the question needs current facts.",
+        "",
+    ]
+    # The last few turns are plenty of context and keep the argument short.
+    history = history[-8:]
+    if history:
+        lines.append("Conversation so far:")
+        for turn in history:
+            role = "User" if turn.get("role") == "user" else "Assistant"
+            lines.append(f"{role}: {turn.get('text', '')}")
+        lines.append("")
+    lines.append(f"User: {question}")
+    return "\n".join(lines)
+
+
+def run_chat(agent, prompt):
+    os.makedirs(WORK_DIR, exist_ok=True)
+    env = dict(os.environ)
+    for key in agent.get("launch_env_unset", []):
+        env.pop(key, None)
+    last = os.path.join(WORK_DIR, f"{agent['id']}.last")
+    command = [part.replace("{last}", last) for part in agent["chat"]] + [prompt]
+    try:
+        done = subprocess.run(
+            command, cwd=WORK_DIR, env=env,
+            capture_output=True, text=True, timeout=TIMEOUT,
+        )
+    except FileNotFoundError:
+        fail("agent", f"{agent['id']} is not installed")
+    except subprocess.TimeoutExpired:
+        fail("agent", f"{agent['name']} did not answer within {TIMEOUT}s")
+    text = done.stdout.strip()
+    if "{last}" in "".join(agent["chat"]):
+        try:
+            with open(last, encoding="utf-8") as handle:
+                text = handle.read().strip()
+        except OSError:
+            pass
+    if done.returncode != 0 and not text:
+        detail = done.stderr.strip().splitlines()[-1:] or [f"exit {done.returncode}"]
+        fail("agent", f"{agent['name']}: {detail[0]}")
+    if not text:
+        fail("agent", f"{agent['name']} returned nothing")
+    return text
+
+
+def interactive_command(agent, prompt):
+    if agent.get("launch_joined_value"):
+        return agent["launch"][:-1] + [agent["launch"][-1] + "=" + prompt]
+    return agent["launch"] + [prompt]
+
+
+def shell_line(agent, prompt):
+    """The interactive command as one shell string, for tmux and herdr."""
+    parts = []
+    unset = agent.get("launch_env_unset", [])
+    if unset:
+        parts += ["env"] + ["-u" + key for key in unset]
+    return shlex.join(parts + interactive_command(agent, prompt))
+
+
+def launch_terminal(agent, is_default, prompt):
+    if is_default:
+        command = ["omarchy-agent", "--prompt", prompt]
+    else:
+        command = ["omarchy-launch-tui", "--app-id=org.omarchy.agent"]
+        for key in agent.get("launch_env_unset", []):
+            command = ["env", "-u", key] + command   # env before the launcher: xdg-terminal-exec passes it on
+        command += interactive_command(agent, prompt)
+    subprocess.Popen(command, start_new_session=True,
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def launch_tmux(agent, prompt):
+    line = shell_line(agent, prompt)
+    session = "Work"                       # the one omarchy-launch-terminal-tmux attaches to
+    has = subprocess.run(["tmux", "has-session", "-t", session], capture_output=True)
+    if has.returncode != 0:
+        subprocess.run(["tmux", "new-session", "-d", "-s", session], check=False)
+    subprocess.run(["tmux", "new-window", "-t", session, "-n", agent["id"], line], check=False)
+    clients = subprocess.run(["tmux", "list-clients", "-t", session],
+                             capture_output=True, text=True).stdout.strip()
+    if not clients:
+        subprocess.Popen(["omarchy-launch-terminal-tmux"], start_new_session=True,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def launch_herdr(agent, prompt):
+    created = subprocess.run(
+        ["herdr", "tab", "create", "--label", agent["name"], "--focus"],
+        capture_output=True, text=True, timeout=15,
+    )
+    try:
+        result = json.loads(created.stdout)["result"]
+        pane = result["root_pane"]["pane_id"]
+    except (ValueError, KeyError, TypeError):
+        detail = created.stderr.strip() or created.stdout.strip() or "no answer from the herdr server"
+        fail("launcher", f"herdr could not open a tab: {detail}")
+    subprocess.run(["herdr", "pane", "run", pane, shell_line(agent, prompt)],
+                   capture_output=True, timeout=15)
+    # A bare `herdr` process is a client attached to the session; the server
+    # runs with arguments. No client means the tab opened somewhere invisible.
+    clients = subprocess.run(["pgrep", "-x", "-f", "herdr"], capture_output=True)
+    if clients.returncode != 0:
+        subprocess.Popen(["omarchy-launch-terminal-herdr"], start_new_session=True,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def main():
+    argv = sys.argv[1:]
+    config = read_config()
+    available = installed_agents()
+
+    if argv and argv[0] == "--agents":
+        default_id = omarchy_default()
+        emit({
+            "ok": True,
+            "agents": [{"id": a["id"], "name": a["name"]} for a in available],
+            "default": default_id if any(a["id"] == default_id for a in available)
+                       else (available[0]["id"] if available else ""),
+            "configured": bool(default_id),
+        })
+        return
+
+    payload = read_payload(argv)
+    requested = payload.get("agent") or config.get("chat_agent") or "default"
+    agent, is_default = resolve_agent(requested, available)
+
+    if argv and argv[0] == "--launch":
+        prompt = str(payload.get("prompt") or "").strip()
+        if not prompt:
+            fail("usage", "--launch needs a prompt")
+        launcher = payload.get("launcher") or config.get("launcher") or "terminal"
+        if launcher not in LAUNCHERS:
+            fail("usage", f"unknown launcher {launcher!r}")
+        if launcher != "terminal" and shutil.which(launcher) is None:
+            fail("launcher", f"{launcher} is not installed")
+        {"terminal": lambda: launch_terminal(agent, is_default, prompt),
+         "tmux": lambda: launch_tmux(agent, prompt),
+         "herdr": lambda: launch_herdr(agent, prompt)}[launcher]()
+        emit({"ok": True, "launched": agent["id"], "launcher": launcher})
+        return
+
+    if argv:
+        fail("usage", f"unknown argument {argv[0]!r}")
+
+    question = str(payload.get("question") or "").strip()
+    if not question:
+        fail("usage", "no question given")
+    history = payload.get("history") if isinstance(payload.get("history"), list) else []
+    text = run_chat(agent, build_prompt(question, history))
+    emit({"ok": True, "text": text, "agent": agent["id"]})
+
+
+if __name__ == "__main__":
+    main()

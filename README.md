@@ -21,6 +21,7 @@ Press **SUPER + D**.
 | `j` (in NORMAL) | step down into the results |
 | `Esc` (in NORMAL) | close the panel |
 | `Ctrl+W` / `Ctrl+U` | delete word back / to start (insert mode) |
+| `Tab` | switch the field between searching and asking (see *Ask*) |
 | `Ctrl+S` | settings |
 
 From NORMAL mode the result list is simply the line below, so `j` moves into
@@ -92,6 +93,34 @@ refetches — only `l` past the furthest page hits the network.
 
 Results open with `omarchy-launch-browser`, which respects your default browser.
 
+### Ask
+
+`Tab` turns the search bar into a question bar — the text stays, so a query
+that found nothing is one keystroke from being a question. Enter sends it to
+an AI coding agent already on the machine, in its print mode (`claude -p`,
+`codex exec`, `hermes chat -q`…), and the answer renders below as Markdown.
+The panel keeps the conversation, so a follow-up question sees the earlier
+turns. Nothing new to sign in to: whatever the CLI is signed into answers.
+
+`j` or `↓` steps into the answer, which reads with the same keys as the field:
+
+| Key | Action |
+|---|---|
+| `j` `k` `h` `l` `w` `b` `e` `0` `$` `gg` `G` | move the cursor |
+| `Ctrl+D` / `Ctrl+U` | half a screen |
+| `v` | start a selection; `Esc` drops it |
+| `y` | yank the selection (or the whole answer) to the clipboard |
+| `Enter` | hand the selection — or the whole answer — to the agent in a terminal |
+| `i` / `/` | back to the field, typing the next question |
+| `Esc` | back to the field, NORMAL mode |
+| `Tab` | back to searching |
+
+The hand-off is the point: read, select the bit that matters, `Enter`, and
+the agent opens with it as its prompt — in a fresh terminal the way Omarchy's
+own `Super+A` does, or in a new tmux window or herdr tab, whichever *Hand off
+to* is set to. Which agent answers and receives is *Ask* in settings; the
+default follows `omarchy default agent`.
+
 ## How it works
 
 ```
@@ -102,9 +131,11 @@ src/
     ConfigStore.qml    config.json, watched and written through
     Engine.qml         the SearXNG instance: probe it, start it, stop it
     SearchSession.qml  one query, its page cache, the backend process
+    AiSession.qml      the conversation with an agent, one process per turn
     VimTextField.qml   the vim mode machine and key dispatch
     ResultList.qml     the list, its cursor, and its keys
     ResultRow.qml      one result: favicon, title, domain, snippet
+    AnswerView.qml     the agent's answer, read and selected with vim keys
     SettingsPage.qml   the settings rows and their keys
     SetupPrompt.qml    shown when the instance is not running
     StatusLine.qml     mode on the left, search state on the right
@@ -116,6 +147,7 @@ src/
     settings.mjs       config text -> settings, and the settings-page rows
 bin/
   search               SearXNG client — stdlib Python, one request per page
+  ask                  agent client — lists them, runs a chat turn, opens a hand-off
   searxng-up           create or start the SearXNG container, idempotent
   dev-watch.sh         hot reload during development
   test                 runs the unit tests
@@ -297,6 +329,8 @@ moment you make them — there is no save button to forget.
 | SearXNG | *Start* · *Stop* | Not a setting so much as a switch: the row shows whether the instance answers, and `Enter` opens a terminal that runs `bin/searxng-up` (or `--stop`). Checked each time the page opens. |
 | Leave insert with | *typed* | The insert-mode escape sequence — any keys, not a fixed list. `Enter` opens the field, `Enter` again saves, `Esc` discards. Empty turns it off; a single character is refused, since binding one key would make that key untypable. |
 | Results per page | 5 · 10 · 15 · 20 | How many rows each page shows, however many SearXNG returns. |
+| Ask | default · *installed agents* | Which agent answers and receives a hand-off. *default* is `omarchy default agent`; when that is unset, the first installed one stands in and the row says so. The list is what `bin/ask --agents` finds. |
+| Hand off to | terminal · tmux · herdr | Where `Enter` on an answer opens the agent: a new terminal window (`omarchy-agent`), a new window in the tmux *Work* session, or a new herdr tab. |
 
 The window the two keys must land inside is vim's own `timeoutlen` (1000 ms),
 so a sequence that works in your vimrc works here. It is not a setting; set

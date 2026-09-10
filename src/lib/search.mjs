@@ -79,12 +79,14 @@ export function mergeResults (existing = [], incoming = []) {
  * cursor is on and whether another one exists.
  */
 export function statusText ({
-  view = 'search', status, count = 0, query = '', page = 1,
-  hasNext = false, loadingPage = false, errorMessage = '', backend = ''
+  view = 'search', panelMode = 'search', status, count = 0, query = '', page = 1,
+  hasNext = false, loadingPage = false, errorMessage = '', backend = '',
+  agent = '', selecting = false
 } = {}) {
   // The other two views have no search state to report, only their keys.
   if (view === 'settings') return 'j/k rows · h/l change · enter press · saved as you go · esc back'
   if (view === 'setup') return 'h/l choose · enter confirm · esc not now'
+  if (panelMode === 'ai') return askStatusText({ status, errorMessage, agent, selecting })
 
   switch (status) {
     case 'loading':
@@ -104,9 +106,32 @@ export function statusText ({
   }
 }
 
+/**
+ * The AI half of the panel. The agent is named while it is thinking, because
+ * a ten-second wait with no name on it reads as a hang.
+ */
+function askStatusText ({ status, errorMessage, agent, selecting }) {
+  switch (status) {
+    case 'thinking':
+      return agent ? `asking ${agent}…` : 'asking…'
+    case 'error':
+      return errorMessage
+    case 'ok':
+      return selecting
+        ? 'enter hands the selection to the agent · y yanks · esc drops it'
+        : 'j/k move · v select · enter hands off · i asks more · tab search'
+    default:
+      return 'enter asks · tab search · ctrl+s settings'
+  }
+}
+
 /** Left-hand side of the status strip: the view, or the vim mode inside it. */
-export function modeLabel ({ view = 'search', focusArea, mode }) {
+export function modeLabel ({ view = 'search', panelMode = 'search', focusArea, mode, selecting = false }) {
   if (view === 'settings') return 'SETTINGS'
   if (view === 'setup') return 'SETUP'
+  if (panelMode === 'ai') {
+    if (focusArea === 'results') return selecting ? 'AI · VISUAL' : 'AI · ANSWER'
+    return 'AI · ' + String(mode).toUpperCase()
+  }
   return focusArea === 'results' ? 'RESULTS' : String(mode).toUpperCase()
 }

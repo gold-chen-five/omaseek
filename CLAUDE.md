@@ -20,6 +20,8 @@ node --test --test-name-pattern 'iw'    # one test by name
 
 ./bin/search "python asyncio" | jq      # exercise the backend on its own
 ./bin/search --next "$(./bin/search rust | jq -c .next)" | jq   # page 2
+./bin/ask --agents | jq                 # which agent CLIs are installed, and the default
+./bin/ask --json '{"question":"…"}'     # one chat turn through the configured agent
 
 ./bin/dev-watch.sh                      # hot reload while editing (Ctrl-C to stop)
 omarchy-shell shell rescanPlugins       # manual reload
@@ -87,6 +89,20 @@ than served straight from SearXNG, because a SearXNG page is however many
 engines answered in time. Rows are de-duplicated on URL *and* domain+title, in
 `absorb()` and again in `search.mjs`.
 
+### bin/ask — the AI half
+
+Same shape as `bin/search`: a separate stdlib-Python process, one JSON object
+out, exit 0 on handled failure. It speaks to **agent CLIs already installed**
+(`claude`, `codex`, `opencode`, `gemini`, `hermes`, `copilot`, `cursor-agent`)
+through their print modes, so there is no API key and no SDK — do not add one.
+The interactive spellings for a hand-off are copied from Omarchy's
+`omarchy-agent`; when the agent is Omarchy's default, `omarchy-agent --prompt`
+itself is run so the two never drift. The conversation lives in `AiSession.qml`
+and travels in the prompt (last 8 turns) because print mode remembers nothing.
+The payload goes in as `--json '<object>'`, not stdin. Launchers: `terminal`
+(`omarchy-launch-tui`), `tmux` (new window in the *Work* session), `herdr`
+(`herdr tab create` → `herdr pane run`).
+
 ### Search.qml and the stores
 
 `Search.qml` is wiring: it decides which view shows (`view`: `search` |
@@ -103,10 +119,13 @@ plugins keep state in a `Service.qml`:
   in a terminal. Paths come from `Qt.resolvedUrl` so the dev symlink works.
 - `SearchSession.qml` — the query, the page cache (`pages`/`pageIndex` — `h`
   never refetches), the `ListModel` the list paints, and the `Process` that
-  runs the backend. Raises `engineDown`, `landed`, `pageShown`.
+  runs the backend. Raises `engineDown`, `pageShown`.
+- `AiSession.qml` — the transcript, the agent list from `bin/ask --agents`,
+  `ask()`, `launch()`. `AnswerView.qml` reads the transcript with vim keys
+  driven by the TextEdit's own layout (`positionAt`/`positionToRectangle`).
 
-Each view owns its own keys (`ResultList`, `SettingsPage`, `SetupPrompt`,
-`VimTextField`) and raises intent as signals — `escaped`, `settingsRequested`,
+Each view owns its own keys (`ResultList`, `AnswerView`, `SettingsPage`,
+`SetupPrompt`, `VimTextField`) and raises intent as signals — `escaped`, `settingsRequested`,
 `closed` — rather than reaching into the panel. Add a key to the view it
 belongs to, and a new piece of state to the store that owns it; `Search.qml`
 should only ever gain a signal connection.

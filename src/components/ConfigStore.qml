@@ -29,7 +29,9 @@ Item {
     const next = {
       escapeSequence: settings.escapeSequence,
       escapeTimeoutMs: settings.escapeTimeoutMs,
-      resultsPerPage: settings.resultsPerPage
+      resultsPerPage: settings.resultsPerPage,
+      chatAgent: settings.chatAgent,
+      launcher: settings.launcher
     }
     next[key] = value
 

@@ -131,8 +131,18 @@ Item {
     status = "ok"
     errorMessage = ""
     backend = payload.backend ?? ""
-    pages = wasPaging ? [...pages, { rows: rows, next: payload.next ?? null }] : [{ rows: rows, next: payload.next ?? null }]
-    showPage(pages.length - 1)
+    const page = { rows: rows, next: payload.next ?? null }
+    if (!wasPaging) {
+      pages = [page]
+      showPage(0)
+      return
+    }
+    // `h` is not blocked while a page loads, so the reader may have stepped
+    // back by the time it lands. Then it only joins the cache — jumping to
+    // it would yank them forward to a page they did not ask for.
+    const stillWaiting = pageIndex === pages.length - 1
+    pages = [...pages, page]
+    if (stillWaiting) showPage(pages.length - 1)
   }
 
   function fail (message) {

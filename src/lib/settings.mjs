@@ -12,10 +12,20 @@ export const PAGE_SIZE_CHOICES = [5, 10, 15, 20]
 // There is one backend — a SearXNG instance you run yourself — so there is no
 // engine to choose. Its address lives in the config file as `searxng_url`,
 // hand-edited, because it is set once per machine and never toggled.
+// Where a hand-off from the AI answer opens the agent: a fresh terminal
+// window (omarchy-agent's own way), a new tmux window in the Work session,
+// or a new herdr tab. The chat agent is 'default' — whatever `omarchy default
+// agent` is — or one id from bin/ask --agents; that list is discovered at
+// runtime, so it is not declared here.
+export const LAUNCHER_CHOICES = ['terminal', 'tmux', 'herdr']
+export const DEFAULT_AGENT = 'default'
+
 export const DEFAULTS = {
   escapeSequence: DEFAULT_SEQUENCES[0],
   escapeTimeoutMs: DEFAULT_TIMEOUT_MS,
-  resultsPerPage: 10
+  resultsPerPage: 10,
+  chatAgent: DEFAULT_AGENT,
+  launcher: LAUNCHER_CHOICES[0]
 }
 
 function parse (source) {
@@ -48,8 +58,17 @@ export function readSettings (source) {
     escapeSequence: keymap.sequences.length > 0 ? keymap.sequences[0] : '',
     escapeTimeoutMs: keymap.timeoutMs,
     resultsPerPage: oneOf(config.resultsPerPage ?? config.results_per_page, PAGE_SIZE_CHOICES, DEFAULTS.resultsPerPage),
+    chatAgent: agentId(config.chat_agent),
+    launcher: oneOf(config.launcher, LAUNCHER_CHOICES, DEFAULTS.launcher),
     sequences: keymap.sequences
   }
+}
+
+// Any non-empty id is kept: which agents exist is only known at runtime, and
+// bin/ask falls back to the default when the named one is not installed.
+function agentId (value) {
+  const id = typeof value === 'string' ? value.trim() : ''
+  return id === '' ? DEFAULT_AGENT : id
 }
 
 /**
@@ -61,6 +80,8 @@ export function writeSettings (settings, source) {
 
   config.escape_sequence = normalizeSequence(settings.escapeSequence) ?? DEFAULTS.escapeSequence
   config.results_per_page = oneOf(settings.resultsPerPage, PAGE_SIZE_CHOICES, DEFAULTS.resultsPerPage)
+  config.chat_agent = agentId(settings.chatAgent)
+  config.launcher = oneOf(settings.launcher, LAUNCHER_CHOICES, DEFAULTS.launcher)
 
   return JSON.stringify(config, null, 2) + '\n'
 }
@@ -76,9 +97,15 @@ export const ENGINE_STATES = ['unknown', 'running', 'stopped']
  * the one thing about the backend a person does from the panel. The row is
  * `type: 'action'`: no value to store, only a button to press.
  */
-export function settingsRows (settings, engine = 'unknown') {
+export function settingsRows (settings, engine = 'unknown', agents = null) {
   const state = ENGINE_STATES.indexOf(engine) === -1 ? 'unknown' : engine
   const running = state === 'running'
+  const known = agents && Array.isArray(agents.agents) ? agents.agents : []
+  const agentIds = known.map(agent => agent.id)
+  const defaultId = agents && typeof agents.default === 'string' ? agents.default : ''
+  const chatAgent = settings.chatAgent === DEFAULT_AGENT || agentIds.indexOf(settings.chatAgent) !== -1
+    ? settings.chatAgent
+    : DEFAULT_AGENT
   return [
     {
       key: 'engine',
@@ -106,6 +133,25 @@ export function settingsRows (settings, engine = 'unknown') {
       hint: 'every page shows this many, however many SearXNG returns',
       options: PAGE_SIZE_CHOICES,
       value: settings.resultsPerPage
+    },
+    {
+      key: 'chatAgent',
+      type: 'choice',
+      label: 'Ask',
+      hint: agents === null ? 'finding installed agents…'
+        : known.length === 0 ? 'no supported agent installed — omarchy default agent <name>'
+        : agents.configured ? `default is ${defaultId}, from omarchy default agent`
+        : `default is ${defaultId} — omarchy default agent is unset, so the first installed stands in`,
+      options: [DEFAULT_AGENT].concat(agentIds),
+      value: chatAgent
+    },
+    {
+      key: 'launcher',
+      type: 'choice',
+      label: 'Hand off to',
+      hint: 'where enter on an answer opens the agent with it',
+      options: LAUNCHER_CHOICES,
+      value: settings.launcher
     }
   ]
 }

@@ -20,6 +20,7 @@ ListView {
   signal escaped()                       // esc: back to the field, normal mode
   signal insertRequested()               // i or /: back to the field, typing
   signal settingsRequested()
+  signal tabbed()                        // the panel switches search <-> ai
   signal nextPageRequested()
   signal previousPageRequested()
 
@@ -59,6 +60,8 @@ ListView {
 
     if (ctrl && (event.key === Qt.Key_S || event.key === Qt.Key_Comma)) {
       settingsRequested()
+    } else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
+      tabbed()
     } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
       activated(currentIndex)
     } else if (event.key === Qt.Key_Escape) {

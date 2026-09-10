@@ -43,6 +43,7 @@ Ui.TextField {
   signal cancelled()                        // Esc from normal mode
   signal steppedDown()                      // j / Down: the results are the "line" below
   signal requestedSettings()                // Ctrl+S (or Ctrl+,) in any mode
+  signal tabbed()                           // Tab in any mode: the panel switches search <-> ai
 
   readonly property bool normalish: mode !== "insert"
 
@@ -374,6 +375,15 @@ Ui.TextField {
     if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
       clearEscapePending()
       field.submitted()
+      event.accepted = true
+      return
+    }
+
+    // Tab never types or moves focus here — it is the panel's switch between
+    // searching and asking, from either mode, so it is taken before the modes.
+    if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
+      clearEscapePending()
+      field.tabbed()
       event.accepted = true
       return
     }
