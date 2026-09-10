@@ -199,6 +199,24 @@ per page, so holding `j` through many pages is the way to find the limit. When
 it happens the panel says so plainly instead of pretending there were no
 results.
 
+## Settings
+
+`Ctrl+,` from anywhere in the panel opens the settings page. `j`/`k` moves
+between rows, `h`/`l` picks a value, `Esc` goes back. Changes are written the
+moment you make them — there is no save button to forget.
+
+| Setting | Choices | What it does |
+|---|---|---|
+| Search engine | `auto` · `duckduckgo` · `exa` | `auto` tries DuckDuckGo and falls through to Exa when it is blocked. Pinning an engine means a block is reported rather than silently substituted. |
+| Leave insert with | `jk` · `kj` · `jj` · `off` | The insert-mode escape sequence. |
+| Sequence window | 150–500 ms | How long the two keys may take. |
+| Results per page | 5 · 10 · 15 · 20 | Applies to both engines. |
+
+Everything is stored in `~/.config/jonas.search/config.json`, which stays
+hand-editable — the page writes only the keys it owns and leaves anything else
+in the file alone. The file is watched, so an edit outside the panel is picked
+up on the next summon.
+
 ## Install
 
 ```bash

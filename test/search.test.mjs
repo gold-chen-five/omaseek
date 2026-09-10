@@ -4,7 +4,18 @@ import { describeError, normalizeRow, mergeResults, statusText, modeLabel } from
 
 test('known backend errors get a human message', () => {
   assert.equal(describeError({ error: 'network' }), 'No network connection')
-  assert.match(describeError({ error: 'blocked' }), /declined the request/)
+})
+
+test('a block shows what the engine actually said', () => {
+  assert.match(
+    describeError({ error: 'blocked', message: "You've hit Exa's free MCP rate limit." }),
+    /free MCP rate limit/,
+    'each engine refuses differently; a generic line would hide which and why'
+  )
+  assert.match(
+    describeError({ error: 'blocked', message: 'DuckDuckGo is showing an anti-bot challenge' }),
+    /anti-bot challenge/
+  )
 })
 
 test('an unknown error falls back to the backend message, then a default', () => {

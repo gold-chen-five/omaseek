@@ -6,12 +6,18 @@
 
 const ERROR_MESSAGES = {
   network: 'No network connection',
-  blocked: 'DuckDuckGo declined the request — try again shortly',
   auth: 'Exa now requires authentication — the free endpoint has changed'
 }
 
-/** Backend failure payload -> one line a person can act on. */
+/**
+ * Backend failure payload -> one line a person can act on.
+ *
+ * A block carries its own message because either engine can refuse and each
+ * says something different — DuckDuckGo shows a challenge, Exa names its free
+ * rate limit and how to lift it. A generic line would throw that away.
+ */
 export function describeError ({ error, message } = {}) {
+  if (error === 'blocked' && message) return message
   return ERROR_MESSAGES[error] ?? message ?? 'Search failed'
 }
 

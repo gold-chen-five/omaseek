@@ -6,6 +6,7 @@ import qs.Commons
 import qs.Ui
 import "components"
 import "lib/search.mjs" as SearchLib
+import "lib/settings.mjs" as SettingsLib
 import "lib/keymap.mjs" as KeymapLib
 
 // DuckDuckGo search overlay.
@@ -47,7 +48,14 @@ Item {
   // panel opens rather than at the next shell restart — and a file created after
   // the shell started still counts.
   readonly property string configPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/jonas.search/config.json"
+  readonly property string configDir: configPath.replace(/\/[^\/]*$/, "")
   property var keymap: KeymapLib.readKeymap("")
+  property string configSource: ""             // kept so a write preserves unknown keys
+  property var settings: SettingsLib.readSettings("")
+
+  property string view: "search"               // search | settings
+  property int settingsCursor: 0
+  readonly property var settingsRows: SettingsLib.settingsRows(settings)
 
   // Resolved so the backend is found through the dev symlink.
   readonly property string backendPath: Qt.resolvedUrl("../bin/search").toString().replace(/^file:\/\//, "")
@@ -61,9 +69,62 @@ Item {
   readonly property var borderSpec: Border.surfaceSpec("menu", "border", Color.menu.border, Math.max(1, Style.space(2)))
   readonly property string fontFamily: Style.font.menuFamily
 
+  function applyConfig (source) {
+    configSource = source
+    keymap = KeymapLib.readKeymap(source)
+    settings = SettingsLib.readSettings(source)
+  }
+
+  // A change is written straight through — there is no save button to forget.
+  function changeSetting (key, value) {
+    const next = {
+      engine: settings.engine,
+      escapeSequence: settings.escapeSequence,
+      escapeTimeoutMs: settings.escapeTimeoutMs,
+      resultsPerPage: settings.resultsPerPage
+    }
+    next[key] = value
+
+    const source = SettingsLib.writeSettings(next, configSource)
+    applyConfig(source)                       // reflect it now; the watcher confirms
+    persistConfig(source)
+  }
+
+  // setText fails silently when the directory is missing, which is exactly the
+  // state a machine is in before its first settings change — so the directory
+  // is created first and the write waits for it.
+  function persistConfig (source) {
+    configWriter.pending = source
+    configWriter.command = ["mkdir", "-p", root.configDir]
+    configWriter.running = true
+  }
+
+  function cycleSetting (delta) {
+    const row = settingsRows[settingsCursor]
+    if (row) changeSetting(row.key, SettingsLib.cycle(row, delta))
+  }
+
+  function moveSettingsCursor (delta) {
+    const count = settingsRows.length
+    if (count === 0) return
+    settingsCursor = Math.max(0, Math.min(count - 1, settingsCursor + delta))
+  }
+
+  function openSettings () {
+    view = "settings"
+    settingsCursor = 0
+    Qt.callLater(() => settingsPage.forceActiveFocus())
+  }
+
+  function closeSettings () {
+    view = "search"
+    focusSearch(false)
+  }
+
   function open (payloadJson) {
     configFile.reload()
     opened = true
+    view = "search"
     focusArea = "search"
     status = "idle"
     errorMessage = ""
@@ -217,9 +278,21 @@ Item {
     watchChanges: true
     printErrors: false
 
-    onLoaded: root.keymap = KeymapLib.readKeymap(text())
-    onLoadFailed: root.keymap = KeymapLib.readKeymap("")   // absent or unreadable: defaults
+    onLoaded: root.applyConfig(text())
+    onLoadFailed: root.applyConfig("")                     // absent or unreadable: defaults
     onFileChanged: reload()
+  }
+
+  Process {
+    id: configWriter
+
+    property string pending: ""
+
+    onExited: {
+      if (!configWriter.pending) return
+      configFile.setText(configWriter.pending)
+      configWriter.pending = ""
+    }
   }
 
   Process {
@@ -301,6 +374,7 @@ Item {
           onSubmitted: root.runSearch()
           onCancelled: root.dismiss()
           onSteppedDown: if (resultsModel.count > 0) root.focusResults()
+          onRequestedSettings: root.openSettings()
         }
 
         StatusLine {
@@ -311,8 +385,10 @@ Item {
           accent: root.accent
           fontFamily: root.fontFamily
           isError: root.status === "error"
-          mode: SearchLib.modeLabel({ focusArea: root.focusArea, mode: input.mode })
-          detail: SearchLib.statusText({
+          mode: root.view === "settings" ? "SETTINGS" : SearchLib.modeLabel({ focusArea: root.focusArea, mode: input.mode })
+          detail: root.view === "settings"
+            ? "j/k rows · h/l change · saved as you go · esc back"
+            : SearchLib.statusText({
             status: root.status,
             count: resultsModel.count,
             query: root.lastQuery,
@@ -324,9 +400,45 @@ Item {
           })
         }
 
+        SettingsPage {
+          id: settingsPage
+
+          visible: root.view === "settings"
+          width: parent.width
+          rows: root.settingsRows
+          cursor: root.settingsCursor
+          foreground: root.foreground
+          accent: root.accent
+          fontFamily: root.fontFamily
+
+          onChanged: (key, value) => root.changeSetting(key, value)
+
+          Keys.priority: Keys.BeforeItem
+          Keys.onPressed: event => {
+            if (event.key === Qt.Key_Escape) {
+              root.closeSettings()
+            } else if (event.key === Qt.Key_Down || event.text === "j") {
+              root.moveSettingsCursor(1)
+            } else if (event.key === Qt.Key_Up || event.text === "k") {
+              root.moveSettingsCursor(-1)
+            } else if (event.key === Qt.Key_Right || event.text === "l"
+                       || event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+              root.cycleSetting(1)
+            } else if (event.key === Qt.Key_Left || event.text === "h") {
+              root.cycleSetting(-1)
+            } else if (event.text === "g") {
+              root.settingsCursor = 0
+            } else if (event.text === "G") {
+              root.settingsCursor = root.settingsRows.length - 1
+            }
+            event.accepted = true
+          }
+        }
+
         ResultList {
           id: resultsList
 
+          visible: root.view === "search"
           width: parent.width
           height: parent.height - input.height - statusLine.height - Style.spacing.md * 2
           model: resultsModel
@@ -342,7 +454,9 @@ Item {
             const rowHeight = Math.max(1, resultsList.contentHeight / Math.max(1, resultsList.count))
             const pageStep = Math.max(1, Math.floor(resultsList.height / rowHeight / 2))
 
-            if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+            if (ctrl && event.key === Qt.Key_Comma) {
+              root.openSettings()
+            } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
               root.openResult(resultsList.currentIndex)
             } else if (event.key === Qt.Key_Escape) {
               root.focusSearch(false)

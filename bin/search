@@ -41,6 +41,11 @@ ICON_ENDPOINT = "https://external-content.duckduckgo.com/ip3/"
 # Every query is a fresh process, so without this each search would arrive as a
 # brand-new cookieless client — which is what DuckDuckGo's bot protection looks
 # for. Persisting the jar makes a series of searches read as one session.
+CONFIG_PATH = os.path.join(
+    os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"),
+    "jonas.search", "config.json",
+)
+
 CACHE_DIR = os.path.join(
     os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"),
     "jonas.search",
@@ -63,7 +68,9 @@ MAX_RESULTS = 30
 # request and 15 for later offsets — so chunks are accumulated in a session
 # buffer and sliced evenly. A 15-result fetch covers one and a half pages,
 # which means fewer requests and less chance of being rate limited.
-PAGE_SIZE = 10
+PAGE_SIZE = 10          # overridden by results_per_page in the config
+PAGE_SIZE_CHOICES = (5, 10, 15, 20)
+ENGINES = ("auto", "duckduckgo", "exa")
 # Never burst: a single page turn may top the buffer up at most this many times.
 MAX_FETCHES_PER_PAGE = 3
 
@@ -229,18 +236,28 @@ def exa_cache_path(query):
 EXA_RECORD_RE = re.compile(r"^Title:\s*(?P<title>.*)\nURL:\s*(?P<url>\S+)", re.M)
 
 
-def exa_payload_text(body):
-    """The endpoint replies as JSON or as SSE; both wrap the same envelope."""
+def exa_payload(body):
+    """The endpoint replies as JSON or as SSE; both wrap the same envelope.
+
+    A refusal arrives as HTTP 200 with the same shape — the giveaway is
+    `_meta["ai.exa/rateLimited"]` and prose where the results should be — so
+    the flag is carried out alongside the text rather than discarded.
+    """
 
     def extract(chunk):
         try:
             data = json.loads(chunk)
         except ValueError:
             return None
-        content = (data.get("result") or {}).get("content") or []
+        result = data.get("result") or {}
+        content = result.get("content") or []
         for item in content:
             if item.get("text"):
-                return item["text"]
+                meta = result.get("_meta") or {}
+                return {
+                    "text": item["text"],
+                    "rate_limited": bool(meta.get("ai.exa/rateLimited")),
+                }
         return None
 
     stripped = body.strip()
@@ -336,10 +353,21 @@ def exa_fetch(query):
     except TimeoutError:
         raise SearchError("network", "Exa request timed out")
 
-    text = exa_payload_text(raw)
-    if not text:
+    payload = exa_payload(raw)
+    if not payload:
         raise SearchError("http", "Exa returned an unreadable response")
-    return parse_exa_text(text)
+
+    if payload["rate_limited"]:
+        # Exa's own wording is the most useful thing to show: it names the
+        # limit and what to do about it.
+        raise SearchError("blocked", " ".join(payload["text"].split())[:200])
+
+    rows = parse_exa_text(payload["text"])
+    if not rows:
+        # A successful search always contains records. Prose instead means a
+        # refusal of some other shape — never report that as "no results".
+        raise SearchError("blocked", " ".join(payload["text"].split())[:200] or "Exa returned no results")
+    return rows
 
 
 def search_duckduckgo(fields, offset):
@@ -353,6 +381,27 @@ def search_duckduckgo(fields, offset):
             return [], None
         raise SearchError("blocked", "no results found in response")
     return results, extract_next(page, offset)
+
+
+def read_config():
+    """Settings written by the panel's settings page. Absent or broken config
+    means defaults — a typo should cost one setting, not the search."""
+    try:
+        with open(CONFIG_PATH, encoding="utf-8") as handle:
+            config = json.load(handle)
+    except (OSError, ValueError):
+        return {}
+    return config if isinstance(config, dict) else {}
+
+
+def configured_engine(config):
+    engine = config.get("engine")
+    return engine if engine in ENGINES else "auto"
+
+
+def configured_page_size(config):
+    size = config.get("results_per_page")
+    return size if size in PAGE_SIZE_CHOICES else PAGE_SIZE
 
 
 def session_path(query):
@@ -400,8 +449,20 @@ def absorb(session, incoming):
     return added
 
 
-def start_session(query):
-    """A fresh query: DuckDuckGo first, Exa if it refuses."""
+def start_exa_session(query):
+    session = {"query": query, "rows": [], "next": None, "backend": "exa"}
+    absorb(session, exa_fetch(query))
+    return session               # Exa has no offset; one batch is all of it
+
+
+def start_session(query, engine="auto"):
+    """A fresh query, on whichever engine the settings ask for."""
+    if engine == "exa":
+        try:
+            return start_exa_session(query)
+        except SearchError as only:
+            fail(only.kind, only.message)
+
     session = {"query": query, "rows": [], "next": None, "backend": "duckduckgo"}
     try:
         rows, following = search_duckduckgo({"q": query}, 0)
@@ -409,15 +470,13 @@ def start_session(query):
         session["next"] = following
         return session
     except SearchError as primary:
-        pass
+        if engine == "duckduckgo":
+            fail(primary.kind, primary.message)   # pinned: no silent substitution
 
-    session["backend"] = "exa"
     try:
-        absorb(session, exa_fetch(query))
+        return start_exa_session(query)
     except SearchError as fallback:
         fail(primary.kind, f"{primary.message}; Exa fallback also failed: {fallback.message}")
-    session["next"] = None       # Exa has no offset; one batch is all of it
-    return session
 
 
 def grow_session(session, target):
@@ -461,6 +520,11 @@ def emit_page(session, offset):
 
 
 def main():
+    global PAGE_SIZE
+    config = read_config()
+    engine = configured_engine(config)
+    PAGE_SIZE = configured_page_size(config)
+
     argv = sys.argv[1:]
 
     if argv and argv[0] == "--next":
@@ -477,7 +541,7 @@ def main():
         offset = max(0, int(payload.get("s") or 0))
 
         # Paging back is free: the buffer already holds those rows.
-        session = load_session(query) or start_session(query)
+        session = load_session(query) or start_session(query, engine)
         emit_page(session, offset)
         return
 
@@ -486,7 +550,7 @@ def main():
         fail("usage", "no query given")
 
     # Enter always searches afresh rather than serving a stale buffer.
-    emit_page(start_session(query), 0)
+    emit_page(start_session(query, engine), 0)
 
 
 if __name__ == "__main__":

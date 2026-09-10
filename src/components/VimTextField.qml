@@ -40,6 +40,7 @@ Ui.TextField {
   signal submitted()
   signal cancelled()                        // Esc from normal mode
   signal steppedDown()                      // j / Down: the results are the "line" below
+  signal requestedSettings()                // Ctrl+, in any mode
 
   readonly property bool normalish: mode !== "insert"
 
@@ -318,6 +319,14 @@ Ui.TextField {
   Keys.priority: Keys.BeforeItem
   Keys.onPressed: event => {
     const ctrl = (event.modifiers & Qt.ControlModifier) !== 0
+
+    // Reaches the settings page from either mode, so it is never a question of
+    // which one you happen to be in.
+    if (ctrl && event.key === Qt.Key_Comma) {
+      field.requestedSettings()
+      event.accepted = true
+      return
+    }
 
     if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
       clearEscapePending()
