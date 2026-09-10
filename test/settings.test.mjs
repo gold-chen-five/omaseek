@@ -111,18 +111,21 @@ test('cycling covers every option and returns', () => {
   assert.equal(value, PAGE_SIZE_CHOICES[0])
 })
 
-test('the engine row offers the opposite of what the instance is doing', () => {
+test('the engine row is a switch showing whether the instance runs, and flipping it does the opposite', () => {
   const row = state => settingsRows(readSettings(''), state).find(r => r.key === 'engine')
+  assert.equal(row('running').type, 'toggle')
+  assert.equal(row('running').value, true)
   assert.equal(row('running').action, 'stop')
-  assert.equal(row('running').actionLabel, 'Stop')
+  assert.equal(row('stopped').value, false)
   assert.equal(row('stopped').action, 'start')
-  assert.equal(row('stopped').actionLabel, 'Start')
-  // Unknown is not a state the button can act on wrongly: starting an
-  // instance that is already up is a no-op in bin/searxng-up.
-  assert.equal(row('unknown').action, 'start')
-  assert.equal(row('garbage').value, 'unknown')
-  assert.equal(row(undefined).value, 'unknown')
-  for (const state of ENGINE_STATES) assert.equal(row(state).type, 'action')
+  // Until the probe answers the switch is off and busy, so nothing can be
+  // flipped on a guess; starting an instance that is up is a no-op anyway.
+  assert.equal(row('unknown').value, false)
+  assert.equal(row('unknown').busy, true)
+  assert.equal(row('running').busy, false)
+  assert.equal(row('garbage').busy, true)
+  assert.equal(row(undefined).busy, true)
+  for (const state of ENGINE_STATES) assert.equal(row(state).type, 'toggle')
 })
 
 test('the engine row is never written to the config', () => {

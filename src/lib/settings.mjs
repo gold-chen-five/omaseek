@@ -123,14 +123,14 @@ export function settingsRows (settings, engine = 'unknown', agents = null) {
     { type: 'section', label: 'Search' },
     {
       key: 'engine',
-      type: 'action',
+      type: 'toggle',
       label: 'SearXNG',
       hint: state === 'unknown' ? 'checking whether the instance answers…'
         : running ? 'running — searches go through it'
         : 'not running — start it to search',
-      action: running ? 'stop' : 'start',
-      actionLabel: running ? 'Stop' : 'Start',
-      value: state
+      action: running ? 'stop' : 'start',   // what flipping it does
+      busy: state === 'unknown',            // the probe has not answered yet
+      value: running
     },
     {
       key: 'resultsPerPage',

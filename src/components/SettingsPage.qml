@@ -23,7 +23,7 @@ FocusScope {
   property string fontFamily: Style.font.menuFamily
 
   signal changed(string key, var value)
-  signal activated(string key, string action) // an action row's button was pressed
+  signal activated(string key, string action) // a toggle row was flipped
   signal closed()                            // esc, or the chord that opened the page
   signal editingFinished()                   // hand the keyboard back to Search.qml
 
@@ -61,10 +61,14 @@ FocusScope {
     return 0
   }
 
-  // h/l on a choice row; nothing on the others.
+  // h/l on a choice row steps it; on a toggle row l is on and h is off, and
+  // only a flip that changes something fires — starting a running instance
+  // would open a terminal for nothing.
   function cycle (delta) {
     const row = rows[cursor]
-    if (row && row.type === "choice") changed(row.key, SettingsLib.cycle(row, delta))
+    if (!row) return
+    if (row.type === "choice") changed(row.key, SettingsLib.cycle(row, delta))
+    else if (row.type === "toggle" && !row.busy && (delta > 0) !== (row.value === true)) activated(row.key, row.action)
   }
 
   // Enter opens what can be opened: a typed row for editing, an action row
@@ -76,7 +80,7 @@ FocusScope {
     const row = rows[cursor]
     if (!row) return
     if (row.type === "text") beginEdit(cursor)
-    else if (row.type === "action") activated(row.key, row.action)
+    else if (row.type === "toggle") { if (!row.busy) activated(row.key, row.action) }
     else if (row.control === "dropdown") dropdownIndex = cursor
   }
 
@@ -213,7 +217,7 @@ FocusScope {
             width: parent.width
             height: Math.max(labels.implicitHeight, inlineChips.visible ? inlineChips.implicitHeight : 0,
                              picker.visible ? picker.implicitHeight : 0,
-                             actionButton.visible ? actionButton.implicitHeight : 0,
+                             engineSwitch.visible ? engineSwitch.implicitHeight : 0,
                              sequenceField.visible ? sequenceField.implicitHeight : 0)
 
             Column {
@@ -240,7 +244,6 @@ FocusScope {
                 // A section row carries no hint, and an undefined binding is
                 // a warning on every repaint even while the body is hidden.
                 text: settingRow.modelData.hint || ""
-                leftPadding: Style.spacing.md   // stepped in under the label it explains
                 color: page.foreground
                 opacity: 0.55
                 font.family: page.fontFamily
@@ -252,23 +255,22 @@ FocusScope {
               }
             }
 
-            // An action row has nothing to pick, only something to do. The
-            // button lights up with the row cursor so Enter visibly lands on it.
-            Button {
-              id: actionButton
+            // A toggle row: the switch shows the state, flipping it acts. It
+            // lights up with the row cursor so Enter visibly lands on it, and
+            // goes busy while the probe is still out so a flip cannot race it.
+            ToggleSwitch {
+              id: engineSwitch
 
-              visible: settingRow.modelData.type === "action"
+              visible: settingRow.modelData.type === "toggle"
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
-              text: settingRow.modelData.actionLabel || ""
-              active: true                       // filled, like the field's buttons
+              checked: settingRow.modelData.value === true
+              busy: settingRow.modelData.busy === true
               hasCursor: settingRow.hasCursor
               foreground: page.foreground
               accent: page.accent
-              fontFamily: page.fontFamily
-              fontSize: Style.font.body
 
-              onClicked: {
+              onToggled: {
                 settingRow.owner.cursor = settingRow.index
                 settingRow.owner.activated(settingRow.modelData.key, settingRow.modelData.action)
               }

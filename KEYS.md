@@ -81,8 +81,8 @@ them.
 | key | does |
 |---|---|
 | `j` `k` | move between rows, stepping over section headings |
-| `h` `l` | change the value under the cursor |
-| `enter`, `i` | open a typed row for editing, press an action row's button, or open a dropdown |
+| `h` `l` | change the value under the cursor; on the SearXNG switch, off and on |
+| `enter`, `i` | open a typed row for editing, flip the SearXNG switch, or open a dropdown |
 | `gg` `G` | first, last row |
 | `enter` while editing | commit |
 | `esc` while editing | cancel |
