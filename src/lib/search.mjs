@@ -5,20 +5,18 @@
 // under node rather than by clicking through a live search.
 
 const ERROR_MESSAGES = {
-  network: 'No network connection',
-  auth: 'Exa now requires authentication — the free endpoint has changed'
+  network: 'No network connection'
 }
 
 /**
  * Backend failure payload -> one line a person can act on.
  *
- * A block carries its own message because either engine can refuse and each
- * says something different — DuckDuckGo shows a challenge, Exa names its free
- * rate limit and how to lift it. A generic line would throw that away.
+ * The backend's own message wins wherever it has one: it names the instance,
+ * the port, or the exact settings.yml key to change, all of which a generic
+ * line would throw away.
  */
 export function describeError ({ error, message } = {}) {
-  if (error === 'blocked' && message) return message
-  return ERROR_MESSAGES[error] ?? message ?? 'Search failed'
+  return message ?? ERROR_MESSAGES[error] ?? 'Search failed'
 }
 
 /** Backend row -> the exact shape the ListModel delegate expects. */
@@ -41,9 +39,9 @@ function identity (row) {
  * Merges a freshly fetched page into rows already on screen.
  *
  * Rows are de-duplicated twice over: on URL, because engines repeat hits
- * either side of a page boundary, and on domain+title, because Exa in
- * particular returns the same document under several canonical paths and a
- * URL comparison never catches those.
+ * either side of a page boundary, and on domain+title, because engines return
+ * the same document under several canonical paths and a URL comparison never
+ * catches those.
  *
  * Returns the additions rather than a whole new list: the caller appends to a
  * live ListModel and needs to know whether the page advanced anything.
@@ -81,12 +79,12 @@ export function mergeResults (existing = [], incoming = []) {
  * cursor is on and whether another one exists.
  */
 export function statusText ({
-  status, count = 0, query = '', page = 1,
+  view = 'search', status, count = 0, query = '', page = 1,
   hasNext = false, loadingPage = false, errorMessage = '', backend = ''
 } = {}) {
-  // Naming the fallback matters: results still appeared, but they came from
-  // somewhere else, and silently swapping engines would be misleading.
-  const via = backend === 'exa' ? ' · via Exa' : ''
+  // The other two views have no search state to report, only their keys.
+  if (view === 'settings') return 'j/k rows · h/l change · enter press · saved as you go · esc back'
+  if (view === 'setup') return 'h/l choose · enter confirm · esc not now'
 
   switch (status) {
     case 'loading':
@@ -98,15 +96,17 @@ export function statusText ({
     case 'ok':
       if (loadingPage) return `page ${page + 1} · loading…`
       if (errorMessage) return errorMessage
-      return `page ${page} · ${count} results${hasNext ? '' : ' · end'}${via} · h/l pages`
+      return `page ${page} · ${count} results${hasNext ? '' : ' · end'} · h/l pages`
     default:
       // The empty panel is the only place a first-timer looks, so this is
       // where the settings key has to be named.
-      return 'enter searches · esc normal · ctrl+, settings'
+      return 'enter searches · esc normal · ctrl+s settings'
   }
 }
 
-/** Left-hand side of the status strip. */
-export function modeLabel ({ focusArea, mode }) {
+/** Left-hand side of the status strip: the view, or the vim mode inside it. */
+export function modeLabel ({ view = 'search', focusArea, mode }) {
+  if (view === 'settings') return 'SETTINGS'
+  if (view === 'setup') return 'SETUP'
   return focusArea === 'results' ? 'RESULTS' : String(mode).toUpperCase()
 }

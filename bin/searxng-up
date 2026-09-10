@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+# Bring up the SearXNG instance this panel searches through.
+#
+# Idempotent by design: run it to create the container, to start it again
+# after a reboot, or just to check on it. It installs no packages and touches
+# nothing outside ~/.config/searxng and one container named `searxng`.
+#
+#   ./bin/searxng-up          create or start it, and wait until it answers
+#   ./bin/searxng-up --stop   stop it, keeping the container for a quick start
+#   ./bin/searxng-up --down   stop and remove the container (config is kept)
+#
+# Docker wants root unless you are in the `docker` group, so this asks for
+# sudo only for the calls that actually need it, and says so before it does.
+
+set -euo pipefail
+
+NAME=searxng
+PORT=8888
+IMAGE=searxng/searxng:latest
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/searxng"
+SETTINGS="$CONFIG_DIR/settings.yml"
+URL="http://localhost:$PORT"
+
+say()  { printf '\033[1m==>\033[0m %s\n' "$*"; }
+warn() { printf '\033[33m warn:\033[0m %s\n' "$*" >&2; }
+die()  { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
+
+command -v docker >/dev/null || die "docker is not installed — sudo pacman -S docker"
+
+# Work out once whether docker needs sudo, rather than sprinkling it about.
+docker=(docker)
+if ! docker info >/dev/null 2>&1; then
+  if ! systemctl is-active --quiet docker; then
+    say "starting the docker daemon — sudo needed"
+    sudo systemctl enable --now docker
+  fi
+  if ! docker info >/dev/null 2>&1; then
+    say "using sudo for docker (you are not in the 'docker' group)"
+    docker=(sudo docker)
+    "${docker[@]}" info >/dev/null 2>&1 || die "cannot talk to the docker daemon"
+  fi
+fi
+
+exists() { "${docker[@]}" ps -a --format '{{.Names}}' | grep -qx "$NAME"; }
+running() { "${docker[@]}" ps --format '{{.Names}}' | grep -qx "$NAME"; }
+
+# The panel's settings page calls this for its Stop button. A stopped
+# container comes back in a second; a removed one is recreated from the image.
+if [[ ${1:-} == --stop ]]; then
+  running || { say "$NAME is not running"; exit 0; }
+  "${docker[@]}" stop "$NAME" >/dev/null
+  say "stopped $NAME — run ./bin/searxng-up to start it again"
+  exit 0
+fi
+
+if [[ ${1:-} == --down ]]; then
+  exists || { say "no $NAME container to remove"; exit 0; }
+  "${docker[@]}" rm -f "$NAME" >/dev/null
+  say "removed the $NAME container — $CONFIG_DIR was left alone"
+  exit 0
+fi
+
+# SearXNG serves HTML only until told otherwise, and its limiter would block
+# the very plugin it is here to serve. Both are settled once, here.
+if [[ ! -f $SETTINGS ]]; then
+  say "writing $SETTINGS"
+  mkdir -p "$CONFIG_DIR"
+  secret=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
+  cat > "$SETTINGS" <<YAML
+# Settings for the jonas.search panel's SearXNG instance.
+# Minimal on purpose: anything not named here comes from SearXNG's defaults.
+use_default_settings: true
+
+server:
+  secret_key: "$secret"
+  # The limiter exists to stop strangers hammering a public instance. This one
+  # listens on localhost only and is queried by a local plugin — the one client
+  # it would end up blocking.
+  limiter: false
+  image_proxy: true
+
+search:
+  # SearXNG ships with html alone; the panel speaks JSON.
+  formats:
+    - html
+    - json
+
+outgoing:
+  # SearXNG waits on the upstream engines it queries, so the slowest one that
+  # still answers sets the pace. Trimming the ceiling from the 3s default cuts
+  # the tail without losing engines that were ever going to reply in time.
+  request_timeout: 2.0
+  max_request_timeout: 4.0
+  pool_connections: 100
+  pool_maxsize: 20
+  enable_http2: true
+YAML
+else
+  # The image chowns this file to its own user on first run, so it is usually
+  # no longer yours to edit — hence advice rather than an edit.
+  grep -q '^\s*-\s*json\s*$' "$SETTINGS" ||
+    warn "$SETTINGS does not enable the json format — the panel will get an HTTP 403"
+  grep -q '^outgoing:' "$SETTINGS" ||
+    warn "$SETTINGS has no 'outgoing:' block — searches wait the default 3s on
+       slow engines. See the SearXNG section of the README to trim that."
+fi
+
+if running; then
+  say "$NAME is already running"
+elif exists; then
+  say "starting the existing $NAME container"
+  "${docker[@]}" start "$NAME" >/dev/null
+else
+  say "creating the $NAME container (first run pulls ~200MB)"
+  "${docker[@]}" run -d \
+    --name "$NAME" \
+    --restart unless-stopped \
+    -p "127.0.0.1:$PORT:8080" \
+    -v "$CONFIG_DIR:/etc/searxng" \
+    "$IMAGE" >/dev/null
+fi
+
+# Bound to 127.0.0.1 above, so the instance is not reachable from the network.
+say "waiting for the JSON API on $URL"
+for attempt in $(seq 1 60); do
+  if python3 - "$URL" <<'PROBE' 2>/dev/null; then
+import json, sys, urllib.parse, urllib.request
+url = sys.argv[1] + "/search?" + urllib.parse.urlencode({"q": "ping", "format": "json"})
+with urllib.request.urlopen(url, timeout=3) as response:
+    sys.exit(0 if isinstance(json.load(response).get("results"), list) else 1)
+PROBE
+    say "ready — searching through $URL"
+    exit 0
+  fi
+  sleep 1
+done
+
+die "no JSON answer after 60s. Check: ${docker[*]} logs $NAME"

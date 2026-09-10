@@ -4,7 +4,7 @@
   "name": "Web search",
   "version": "1.0.0",
   "author": "jonas",
-  "description": "DuckDuckGo search with vim keybindings",
+  "description": "Web search with vim keybindings, through your own SearXNG",
   "kinds": [
     "overlay"
   ],

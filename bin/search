@@ -1,93 +1,64 @@
 #!/usr/bin/env python3
-"""Web search -> JSON on stdout. DuckDuckGo first, Exa as a fallback.
+"""Web search -> JSON on stdout, through a SearXNG instance you run yourself.
 
 Deliberately stdlib-only so the plugin has no venv and no dependencies.
-Kept out of QML so the fragile part (HTML parsing) is testable on its own:
+Kept out of QML so fetching and shaping stay testable on their own:
 
     ./bin/search "python asyncio" | jq
 
 Output is always a single JSON object:
-    {"ok": true,  "results": [...], "next": {...}|null, "backend": "duckduckgo"|"exa"}
-    {"ok": false, "error": "network"|"blocked"|"http"|"usage", "message": "..."}
+    {"ok": true,  "results": [...], "next": {...}|null, "backend": "searxng"}
+    {"ok": false, "error": "network"|"http"|"usage", "message": "...", "setup": true}
 
-DuckDuckGo is free and needs no key, but blocks under load. When it does the
-query falls through to Exa's MCP endpoint, which also answers without a key.
-Neither backend costs anything and neither needs configuring.
+`--status` asks only whether the instance is up, for the settings page:
+    {"ok": true, "running": true|false, "url": "http://localhost:8888"}
 
-The ok/false cases are distinguished on purpose: a blocked request and a
-query with genuinely zero hits look identical to a naive parser, and the
-panel must not tell the user "No results" when it was actually rebuffed.
+SearXNG is a metasearch engine: it queries the upstream engines on your behalf
+and hands back merged results, so this panel talks only to a service you run.
+That is the whole reason there is one backend and no scraping — nothing here
+pretends to be a browser, and nothing here is subject to anyone else's terms.
+See bin/searxng-up for getting one running.
 
-Pagination: DuckDuckGo ignores a bare offset. The next page is only served
-if the whole hidden form from the previous response is echoed back — vqd,
-kl and nextParams included — so `next` carries that form verbatim and comes
-back in as `--next '<json>'`.
+`setup: true` marks the single failure a person can fix from the panel: the
+instance is simply not running, so the panel offers to start it. Everything
+else is reported as-is, because guessing would be worse than saying what broke.
 """
 
 import hashlib
-import http.cookiejar
-import html
 import json
 import os
-import re
 import sys
 import urllib.error
 import urllib.parse
 import urllib.request
 
-ENDPOINT = "https://html.duckduckgo.com/html/"
-ICON_ENDPOINT = "https://external-content.duckduckgo.com/ip3/"
+SEARXNG_DEFAULT_URL = "http://localhost:8888"
+# Short on purpose: this sits behind a keypress, and a wedged instance should
+# say so quickly rather than holding the panel. SearXNG's own upstream timeout
+# (outgoing.request_timeout in settings.yml) is what bounds a normal search.
+TIMEOUT = 8
 
-# Every query is a fresh process, so without this each search would arrive as a
-# brand-new cookieless client — which is what DuckDuckGo's bot protection looks
-# for. Persisting the jar makes a series of searches read as one session.
 CONFIG_PATH = os.path.join(
     os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"),
     "jonas.search", "config.json",
 )
-
 CACHE_DIR = os.path.join(
     os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"),
     "jonas.search",
 )
-COOKIE_PATH = os.path.join(CACHE_DIR, "cookies.txt")
 
-# Exa's MCP endpoint answers without an API key — the same endpoint opencode
-# uses, and why its web search costs nothing. Exa's metered API at api.exa.ai
-# is a separate product this deliberately does not touch.
-EXA_ENDPOINT = "https://mcp.exa.ai/mcp"
-# The endpoint has no offset parameter, so one call is paged locally from a
-# cache: one request serves several pages.
-EXA_BATCH = 30
-TIMEOUT = 12
-EXA_TIMEOUT = 25   # the MCP endpoint is slower than scraping a page
-MAX_RESULTS = 30
+# A favicon CDN, not a search backend: it is sent a bare domain, never a query.
+# ResultRow falls back to the domain's initial whenever it does not answer.
+ICON_ENDPOINT = "https://external-content.duckduckgo.com/ip3/"
 
-# Every page shows the same number of results regardless of backend. Engines
-# disagree wildly about page size — DuckDuckGo returns 10 for the first
-# request and 15 for later offsets — so chunks are accumulated in a session
-# buffer and sliced evenly. A 15-result fetch covers one and a half pages,
-# which means fewer requests and less chance of being rate limited.
+# Every page shows the same number of results. SearXNG pages vary in size —
+# how many upstream engines answered in time decides it — so chunks are
+# accumulated in a session buffer and sliced evenly from there.
 PAGE_SIZE = 10          # overridden by results_per_page in the config
+ENGINES = []            # overridden by searxng_engines in the config
 PAGE_SIZE_CHOICES = (5, 10, 15, 20)
-ENGINES = ("auto", "duckduckgo", "exa")
 # Never burst: a single page turn may top the buffer up at most this many times.
 MAX_FETCHES_PER_PAGE = 3
-
-# A plain urllib UA gets a challenge page; a browser UA gets results.
-UA = (
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
-)
-
-RESULT_SPLIT = '<div class="result results_links results_links_deep web-result'
-LINK_RE = re.compile(
-    r'<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', re.S
-)
-SNIPPET_RE = re.compile(r'class="result__snippet"[^>]*>(.*?)</a>', re.S)
-TAG_RE = re.compile(r"<[^>]+>")
-FORM_RE = re.compile(r"<form[^>]*>.*?</form>", re.S)
-INPUT_RE = re.compile(r'<input[^>]*name="([^"]+)"[^>]*value="([^"]*)"')
 
 
 def emit(obj):
@@ -95,292 +66,22 @@ def emit(obj):
     sys.stdout.write("\n")
 
 
-def fail(error, message):
-    emit({"ok": False, "error": error, "message": message})
+def fail(error, message, setup=False):
+    payload = {"ok": False, "error": error, "message": message}
+    if setup:
+        payload["setup"] = True
+    emit(payload)
     sys.exit(0)  # A handled failure is still a well-formed answer.
 
 
 class SearchError(Exception):
-    """A backend gave up. Raised rather than exiting so main() can fall back."""
+    """The instance gave up. Raised rather than exited so callers can add context."""
 
-    def __init__(self, kind, message):
+    def __init__(self, kind, message, setup=False):
         super().__init__(message)
         self.kind = kind
         self.message = message
-
-
-def clean(fragment):
-    """HTML fragment -> plain text."""
-    return html.unescape(TAG_RE.sub("", fragment)).strip()
-
-
-def unwrap(href):
-    """DDG wraps some links as //duckduckgo.com/l/?uddg=<encoded>."""
-    if href.startswith("//"):
-        href = "https:" + href
-    try:
-        query = urllib.parse.parse_qs(urllib.parse.urlparse(href).query)
-    except ValueError:
-        return href
-    target = query.get("uddg")
-    return urllib.parse.unquote(target[0]) if target else href
-
-
-def opener():
-    jar = http.cookiejar.MozillaCookieJar(COOKIE_PATH)
-    try:
-        jar.load(ignore_discard=True, ignore_expires=True)
-    except (OSError, http.cookiejar.LoadError):
-        pass  # first run, or an unreadable jar — start fresh
-    return urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar)), jar
-
-
-def save_cookies(jar):
-    try:
-        os.makedirs(os.path.dirname(COOKIE_PATH), exist_ok=True)
-        jar.save(ignore_discard=True, ignore_expires=True)
-    except OSError:
-        pass  # a missing cache dir must not fail a search
-
-
-def fetch(fields):
-    data = urllib.parse.urlencode(fields).encode()
-    request = urllib.request.Request(
-        ENDPOINT,
-        data=data,
-        headers={
-            "User-Agent": UA,
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Origin": "https://html.duckduckgo.com",
-            "Referer": "https://html.duckduckgo.com/",
-            "Sec-Fetch-Dest": "document",
-            "Sec-Fetch-Mode": "navigate",
-            "Sec-Fetch-Site": "same-origin",
-            "Sec-Fetch-User": "?1",
-            "Upgrade-Insecure-Requests": "1",
-        },
-    )
-    send, jar = opener()
-    try:
-        with send.open(request, timeout=TIMEOUT) as response:
-            page = response.read().decode("utf-8", "replace")
-        save_cookies(jar)
-        return page
-    except urllib.error.HTTPError as exc:
-        if exc.code in (202, 403, 429):
-            raise SearchError("blocked", f"DuckDuckGo returned HTTP {exc.code}")
-        raise SearchError("http", f"HTTP {exc.code}")
-    except urllib.error.URLError as exc:
-        raise SearchError("network", str(exc.reason))
-    except TimeoutError:
-        raise SearchError("network", f"timed out after {TIMEOUT}s")
-
-
-def parse(page):
-    results = []
-    for block in page.split(RESULT_SPLIT)[1:]:
-        if "result--ad" in block:
-            continue
-        link = LINK_RE.search(block)
-        if not link:
-            continue
-        url = unwrap(html.unescape(link.group(1)))
-        title = clean(link.group(2))
-        if not title or not url.startswith("http"):
-            continue
-        snippet = SNIPPET_RE.search(block)
-        netloc = urllib.parse.urlparse(url).netloc
-        results.append(
-            {
-                "title": title,
-                "url": url,
-                "snippet": clean(snippet.group(1)) if snippet else "",
-                "display_url": netloc,
-                # DDG serves a favicon per domain; derived rather than scraped
-                # from the markup so it survives a layout change.
-                "icon": ICON_ENDPOINT + netloc + ".ico" if netloc else "",
-            }
-        )
-        if len(results) >= MAX_RESULTS:
-            break
-    return results
-
-
-def extract_next(page, current_offset):
-    """The forward nav form, verbatim. Pages past the first also carry a
-    'previous' form, so take the one with the largest offset."""
-    best = None
-    best_offset = current_offset
-    for form in FORM_RE.findall(page):
-        fields = dict(INPUT_RE.findall(form))
-        if "s" not in fields:
-            continue
-        try:
-            offset = int(fields["s"])
-        except ValueError:
-            continue
-        if offset > best_offset:
-            best, best_offset = {k: html.unescape(v) for k, v in fields.items()}, offset
-    return best
-
-
-def exa_cache_path(query):
-    digest = hashlib.sha256(query.encode("utf-8")).hexdigest()[:16]
-    return os.path.join(CACHE_DIR, f"exa-{digest}.json")
-
-
-# A record is a Title line immediately followed by a URL line; requiring both
-# avoids mistaking a "Title:" inside highlight prose for a new result.
-EXA_RECORD_RE = re.compile(r"^Title:\s*(?P<title>.*)\nURL:\s*(?P<url>\S+)", re.M)
-
-
-def exa_payload(body):
-    """The endpoint replies as JSON or as SSE; both wrap the same envelope.
-
-    A refusal arrives as HTTP 200 with the same shape — the giveaway is
-    `_meta["ai.exa/rateLimited"]` and prose where the results should be — so
-    the flag is carried out alongside the text rather than discarded.
-    """
-
-    def extract(chunk):
-        try:
-            data = json.loads(chunk)
-        except ValueError:
-            return None
-        result = data.get("result") or {}
-        content = result.get("content") or []
-        for item in content:
-            if item.get("text"):
-                meta = result.get("_meta") or {}
-                return {
-                    "text": item["text"],
-                    "rate_limited": bool(meta.get("ai.exa/rateLimited")),
-                }
-        return None
-
-    stripped = body.strip()
-    if stripped.startswith("{"):
-        direct = extract(stripped)
-        if direct:
-            return direct
-
-    for line in body.split("\n"):
-        if line.startswith("data: "):
-            found = extract(line[6:])
-            if found:
-                return found
-    return None
-
-
-def parse_exa_text(text):
-    """Exa returns prose records for an LLM, not JSON. Recover the fields.
-
-    De-duplication happens here rather than downstream because Exa returns the
-    same document under several canonical paths (/book/ and /stable/book/), and
-    the batch is sliced into pages later — a duplicate pair straddling a page
-    boundary would survive any per-page filtering.
-    """
-    rows = []
-    seen_urls = set()
-    seen_docs = set()
-    matches = list(EXA_RECORD_RE.finditer(text))
-    for index, match in enumerate(matches):
-        url = match.group("url").strip()
-        if not url.startswith("http"):
-            continue
-
-        body_end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
-        body = text[match.end():body_end]
-        snippet = body.split("Highlights:", 1)[1] if "Highlights:" in body else body
-        snippet = " ".join(snippet.split()).strip(". ")
-
-        netloc = urllib.parse.urlparse(url).netloc
-        title = match.group("title").strip() or netloc
-        document = (netloc, title.lower())
-        if url in seen_urls or document in seen_docs:
-            continue
-        seen_urls.add(url)
-        seen_docs.add(document)
-
-        rows.append({
-            "title": title,
-            "url": url,
-            "snippet": snippet[:300],
-            "display_url": netloc,
-            "icon": ICON_ENDPOINT + netloc + ".ico" if netloc else "",
-        })
-    return rows
-
-
-def exa_fetch(query):
-    body = json.dumps({
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "tools/call",
-        "params": {
-            "name": "web_search_exa",
-            "arguments": {
-                "query": query,
-                "type": "auto",
-                "numResults": EXA_BATCH,
-                "livecrawl": "fallback",
-            },
-        },
-    }).encode()
-
-    request = urllib.request.Request(
-        EXA_ENDPOINT,
-        data=body,
-        headers={
-            "Content-Type": "application/json",
-            "Accept": "application/json, text/event-stream",
-            "User-Agent": UA,
-        },
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=EXA_TIMEOUT) as response:
-            raw = response.read().decode("utf-8", "replace")
-    except urllib.error.HTTPError as exc:
-        if exc.code in (401, 403):
-            # The keyless endpoint is undocumented; this is how it would look
-            # if Exa ever put it behind authentication.
-            raise SearchError("auth", "Exa now requires authentication")
-        raise SearchError("http", f"Exa returned HTTP {exc.code}")
-    except urllib.error.URLError as exc:
-        raise SearchError("network", str(exc.reason))
-    except TimeoutError:
-        raise SearchError("network", "Exa request timed out")
-
-    payload = exa_payload(raw)
-    if not payload:
-        raise SearchError("http", "Exa returned an unreadable response")
-
-    if payload["rate_limited"]:
-        # Exa's own wording is the most useful thing to show: it names the
-        # limit and what to do about it.
-        raise SearchError("blocked", " ".join(payload["text"].split())[:200])
-
-    rows = parse_exa_text(payload["text"])
-    if not rows:
-        # A successful search always contains records. Prose instead means a
-        # refusal of some other shape — never report that as "no results".
-        raise SearchError("blocked", " ".join(payload["text"].split())[:200] or "Exa returned no results")
-    return rows
-
-
-def search_duckduckgo(fields, offset):
-    page = fetch(fields)
-    if "challenge" in page or "confirm this search was made by a human" in page:
-        raise SearchError("blocked", "DuckDuckGo is showing an anti-bot challenge")
-
-    results = parse(page)
-    if not results:
-        if "no-results" in page or "No results." in page:
-            return [], None
-        raise SearchError("blocked", "no results found in response")
-    return results, extract_next(page, offset)
+        self.setup = setup      # fixable by running bin/searxng-up
 
 
 def read_config():
@@ -394,14 +95,97 @@ def read_config():
     return config if isinstance(config, dict) else {}
 
 
-def configured_engine(config):
-    engine = config.get("engine")
-    return engine if engine in ENGINES else "auto"
+def configured_url(config):
+    """Base URL of the instance. Hand-edited; the panel does not own it."""
+    url = config.get("searxng_url")
+    if isinstance(url, str) and url.strip():
+        return url.strip().rstrip("/")
+    return SEARXNG_DEFAULT_URL
+
+
+def configured_engines(config):
+    """Which engines to ask, by SearXNG name. Hand-edited, like the URL.
+
+    SearXNG answers when every engine in the category has, so one slow engine
+    sets the pace for all of them — and its defaults include ones that only
+    ever fill an infobox this panel never shows. Naming the engines that
+    actually return rows (measured here: 0.3s instead of 1.2s) is the single
+    biggest speed lever, and it needs no edit to the container's settings.
+    Empty or malformed means SearXNG's own choice.
+    """
+    engines = config.get("searxng_engines")
+    if not isinstance(engines, list):
+        return []
+    return [e.strip() for e in engines if isinstance(e, str) and e.strip()]
 
 
 def configured_page_size(config):
     size = config.get("results_per_page")
     return size if size in PAGE_SIZE_CHOICES else PAGE_SIZE
+
+
+def fetch(base, query, pageno):
+    """One page from SearXNG. Real pagination — no hidden forms to echo back."""
+    params = {"q": query, "format": "json", "pageno": pageno}
+    if ENGINES:
+        params["engines"] = ",".join(ENGINES)
+    url = base + "/search?" + urllib.parse.urlencode(params)
+    request = urllib.request.Request(url, headers={"Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
+            payload = json.loads(response.read().decode("utf-8", "replace"))
+    except urllib.error.HTTPError as exc:
+        if exc.code in (403, 404):
+            # By far the most common misconfiguration: SearXNG ships with
+            # `formats: [html]`, so the JSON API 403s until it is turned on.
+            # Running the setup script will not fix an existing settings.yml,
+            # so this is deliberately not marked `setup`.
+            raise SearchError(
+                "http",
+                f"SearXNG refused the JSON API at {base} — add 'json' under "
+                "search.formats in settings.yml and restart it",
+            )
+        raise SearchError("http", f"SearXNG returned HTTP {exc.code}")
+    except urllib.error.URLError as exc:
+        raise SearchError(
+            "network", f"SearXNG is not reachable at {base} ({exc.reason})", setup=True
+        )
+    except TimeoutError:
+        raise SearchError("network", f"SearXNG timed out after {TIMEOUT}s")
+    except ValueError:
+        raise SearchError("http", "SearXNG returned an unreadable response")
+
+    return parse(payload)
+
+
+def instance_running(base):
+    """Whether SearXNG answers at all. /healthz costs it nothing upstream."""
+    try:
+        with urllib.request.urlopen(base + "/healthz", timeout=2) as response:
+            return 200 <= response.status < 300
+    except urllib.error.HTTPError:
+        return True         # it answered, however unhappily
+    except (urllib.error.URLError, TimeoutError, ValueError):
+        return False
+
+
+def parse(payload):
+    rows = []
+    for item in payload.get("results") or []:
+        url = (item.get("url") or "").strip()
+        if not url.startswith("http"):
+            continue
+        netloc = urllib.parse.urlparse(url).netloc
+        title = (item.get("title") or "").strip() or netloc
+        snippet = " ".join((item.get("content") or "").split())
+        rows.append({
+            "title": title,
+            "url": url,
+            "snippet": snippet[:300],
+            "display_url": netloc,
+            "icon": ICON_ENDPOINT + netloc + ".ico" if netloc else "",
+        })
+    return rows
 
 
 def session_path(query):
@@ -430,9 +214,9 @@ def save_session(session):
 def absorb(session, incoming):
     """Append new rows, dropping ones already buffered. Returns how many stuck.
 
-    Engines repeat hits across page boundaries, and Exa returns the same
-    document under several canonical paths, so identity is domain+title as
-    well as URL.
+    SearXNG merges and de-duplicates within a page, but the same document still
+    turns up across page boundaries and under several canonical paths, so
+    identity is domain+title as well as URL.
     """
     urls = {row["url"] for row in session["rows"]}
     documents = {(row["display_url"], row["title"].lower()) for row in session["rows"]}
@@ -449,34 +233,15 @@ def absorb(session, incoming):
     return added
 
 
-def start_exa_session(query):
-    session = {"query": query, "rows": [], "next": None, "backend": "exa"}
-    absorb(session, exa_fetch(query))
-    return session               # Exa has no offset; one batch is all of it
-
-
-def start_session(query, engine="auto"):
-    """A fresh query, on whichever engine the settings ask for."""
-    if engine == "exa":
-        try:
-            return start_exa_session(query)
-        except SearchError as only:
-            fail(only.kind, only.message)
-
-    session = {"query": query, "rows": [], "next": None, "backend": "duckduckgo"}
+def start_session(query, base):
+    session = {"query": query, "rows": [], "next": None, "backend": "searxng", "url": base}
     try:
-        rows, following = search_duckduckgo({"q": query}, 0)
-        absorb(session, rows)
-        session["next"] = following
-        return session
-    except SearchError as primary:
-        if engine == "duckduckgo":
-            fail(primary.kind, primary.message)   # pinned: no silent substitution
-
-    try:
-        return start_exa_session(query)
-    except SearchError as fallback:
-        fail(primary.kind, f"{primary.message}; Exa fallback also failed: {fallback.message}")
+        rows = fetch(base, query, 1)
+    except SearchError as refused:
+        fail(refused.kind, refused.message, setup=refused.setup)
+    absorb(session, rows)
+    session["next"] = {"pageno": 2} if rows else None
+    return session
 
 
 def grow_session(session, target):
@@ -484,48 +249,58 @@ def grow_session(session, target):
     fetches = 0
     while len(session["rows"]) < target and session["next"] and fetches < MAX_FETCHES_PER_PAGE:
         fetches += 1
-        offset = int(session["next"].get("s") or 0)
+        pageno = int(session["next"].get("pageno") or 2)
         try:
-            rows, following = search_duckduckgo(session["next"], offset)
+            rows = fetch(session["url"], session["query"], pageno)
         except SearchError:
             session["next"] = None       # stop offering more; keep what we have
             break
         added = absorb(session, rows)
-        session["next"] = following
+        session["next"] = {"pageno": pageno + 1} if rows else None
         if added == 0:
-            # The engine is repeating itself — it has run out of useful
-            # results. Stop rather than spending the remaining budget.
+            # Repeating itself means it has run out of useful results. Stop
+            # rather than spending the remaining budget.
             session["next"] = None
             break
     return session
 
 
 def emit_page(session, offset):
-    # One row beyond the page, so "is there a next page" is answered by what is
-    # actually buffered rather than by whether the engine still offers a link.
-    # Without the lookahead the last page advertises a successor that turns out
-    # to be empty.
-    grow_session(session, offset + PAGE_SIZE + 1)
+    # Fill the page, and not one row more. Asking for a lookahead row used to
+    # cost a whole extra request whenever a SearXNG page came back exactly
+    # PAGE_SIZE long — doubling the wait on a keypress to learn something the
+    # panel recovers from anyway. `next` is now offered whenever SearXNG still
+    # has a page to give; if that page turns out empty, the panel stays put and
+    # stops offering more.
+    grow_session(session, offset + PAGE_SIZE)
     save_session(session)
 
     rows = session["rows"]
     page = rows[offset:offset + PAGE_SIZE]
-    has_more = len(rows) > offset + PAGE_SIZE
+    has_more = len(rows) > offset + PAGE_SIZE or session["next"] is not None
     following = {"query": session["query"], "s": offset + PAGE_SIZE} if has_more else None
 
-    if not page and offset == 0:
-        emit({"ok": True, "results": [], "next": None, "backend": session["backend"]})
-        return
-    emit({"ok": True, "results": page, "next": following, "backend": session["backend"]})
+    empty = not page and offset == 0
+    emit({
+        "ok": True,
+        "results": [] if empty else page,
+        "next": None if empty else following,
+        "backend": session["backend"],
+    })
 
 
 def main():
-    global PAGE_SIZE
+    global PAGE_SIZE, ENGINES
     config = read_config()
-    engine = configured_engine(config)
+    base = configured_url(config)
     PAGE_SIZE = configured_page_size(config)
+    ENGINES = configured_engines(config)
 
     argv = sys.argv[1:]
+
+    if argv and argv[0] == "--status":
+        emit({"ok": True, "running": instance_running(base), "url": base})
+        return
 
     if argv and argv[0] == "--next":
         if len(argv) < 2:
@@ -541,7 +316,7 @@ def main():
         offset = max(0, int(payload.get("s") or 0))
 
         # Paging back is free: the buffer already holds those rows.
-        session = load_session(query) or start_session(query, engine)
+        session = load_session(query) or start_session(query, base)
         emit_page(session, offset)
         return
 
@@ -550,7 +325,7 @@ def main():
         fail("usage", "no query given")
 
     # Enter always searches afresh rather than serving a stale buffer.
-    emit_page(start_session(query, engine), 0)
+    emit_page(start_session(query, base), 0)
 
 
 if __name__ == "__main__":

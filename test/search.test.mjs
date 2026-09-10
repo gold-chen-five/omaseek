@@ -2,21 +2,14 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { describeError, normalizeRow, mergeResults, statusText, modeLabel } from '../src/lib/search.mjs'
 
-test('known backend errors get a human message', () => {
-  assert.equal(describeError({ error: 'network' }), 'No network connection')
+test('the backend message wins, because it names the port or the setting to fix', () => {
+  assert.equal(
+    describeError({ error: 'network', message: 'SearXNG is not reachable at http://localhost:8888' }),
+    'SearXNG is not reachable at http://localhost:8888'
+  )
+  assert.equal(describeError({ error: 'network' }), 'No network connection', 'a bare kind still reads')
 })
 
-test('a block shows what the engine actually said', () => {
-  assert.match(
-    describeError({ error: 'blocked', message: "You've hit Exa's free MCP rate limit." }),
-    /free MCP rate limit/,
-    'each engine refuses differently; a generic line would hide which and why'
-  )
-  assert.match(
-    describeError({ error: 'blocked', message: 'DuckDuckGo is showing an anti-bot challenge' }),
-    /anti-bot challenge/
-  )
-})
 
 test('an unknown error falls back to the backend message, then a default', () => {
   assert.equal(describeError({ error: 'weird', message: 'boom' }), 'boom')
@@ -56,7 +49,7 @@ test('the same page under different canonical urls collapses', () => {
     { url: 'https://doc.rust-lang.org/book/ch04.html', title: 'What is Ownership?', display_url: 'doc.rust-lang.org' },
     { url: 'https://doc.rust-lang.org/stable/book/ch04.html', title: 'What is Ownership?', display_url: 'doc.rust-lang.org' }
   ])
-  assert.equal(added.length, 1, 'Exa returns /book/ and /stable/book/ as separate hits')
+  assert.equal(added.length, 1, 'engines return /book/ and /stable/book/ as separate hits')
 })
 
 test('the same title on a different domain is kept', () => {
@@ -81,22 +74,11 @@ test('status line reflects each state', () => {
   assert.equal(statusText({ status: 'error', errorMessage: 'nope' }), 'nope')
   assert.match(statusText({ status: 'empty', query: 'zz' }), /No results for “zz”/)
   assert.match(statusText({ status: 'idle' }), /enter searches/)
-  assert.match(statusText({ status: 'idle' }), /ctrl\+, settings/, 'the settings key must be discoverable')
+  assert.match(statusText({ status: 'idle' }), /ctrl\+s settings/, 'the settings key must be discoverable')
 })
 
-test('a locked-down Exa endpoint is reported plainly', () => {
-  assert.match(describeError({ error: 'auth' }), /requires authentication/)
-})
 
-test('results served by the fallback say so', () => {
-  const line = statusText({ status: 'ok', count: 10, page: 1, hasNext: true, backend: 'exa' })
-  assert.match(line, /· via Exa/)
-})
 
-test('the default backend is not called out', () => {
-  const line = statusText({ status: 'ok', count: 10, page: 1, hasNext: true, backend: 'duckduckgo' })
-  assert.doesNotMatch(line, /via/)
-})
 
 test('status line names the current page', () => {
   assert.match(statusText({ status: 'ok', count: 10, page: 2, hasNext: true }), /^page 2 · 10 results · h\/l pages/)
@@ -114,4 +96,13 @@ test('fetching the next page announces the page being fetched', () => {
 test('mode label follows focus, not just the editor mode', () => {
   assert.equal(modeLabel({ focusArea: 'results', mode: 'normal' }), 'RESULTS')
   assert.equal(modeLabel({ focusArea: 'search', mode: 'insert' }), 'INSERT')
+  assert.equal(modeLabel({ view: 'settings', focusArea: 'results', mode: 'insert' }), 'SETTINGS')
+  assert.equal(modeLabel({ view: 'setup', focusArea: 'search', mode: 'normal' }), 'SETUP')
 })
+
+test('the settings and setup views name their keys instead of search state', () => {
+  assert.match(statusText({ view: 'settings', status: 'ok', count: 10 }), /esc back/)
+  assert.match(statusText({ view: 'setup', status: 'error', errorMessage: 'x' }), /h\/l choose/)
+  assert.match(statusText({ view: 'search', status: 'ok', count: 10, page: 1 }), /^page 1/)
+})
+

@@ -1,6 +1,7 @@
 # jonas.search — Omarchy web search panel
 
-A keybind-summoned DuckDuckGo search overlay for Omarchy 4, with vim keybindings.
+A keybind-summoned web search overlay for Omarchy 4, with vim keybindings.
+Searches go through a SearXNG instance you run yourself.
 Runs as a plugin inside the existing `omarchy-shell` Quickshell process, so it
 opens instantly and follows the active Omarchy theme with no configuration.
 
@@ -19,6 +20,7 @@ Press **SUPER + D**.
 | `j` / `↓` (in NORMAL) | step down into the results |
 | `Esc` (in NORMAL) | close the panel |
 | `Ctrl+W` / `Ctrl+U` | delete word back / to start (insert mode) |
+| `Ctrl+S` | settings |
 
 From NORMAL mode the result list is simply the line below, so `j` moves into
 it — the panel reads as one vertical buffer rather than two separate widgets.
@@ -94,18 +96,26 @@ Results open with `omarchy-launch-browser`, which respects your default browser.
 ```
 manifest.json          plugin manifest — overlay kind, keepLoaded for instant summon
 src/
-  Search.qml           entry point: layer-shell window, focus machine, wiring
+  Search.qml           entry point: layer-shell window, which view shows, who has focus
   components/
+    ConfigStore.qml    config.json, watched and written through
+    Engine.qml         the SearXNG instance: probe it, start it, stop it
+    SearchSession.qml  one query, its page cache, the backend process
     VimTextField.qml   the vim mode machine and key dispatch
-    ResultList.qml     the list and its cursor
+    ResultList.qml     the list, its cursor, and its keys
     ResultRow.qml      one result: favicon, title, domain, snippet
+    SettingsPage.qml   the settings rows and their keys
+    SetupPrompt.qml    shown when the instance is not running
     StatusLine.qml     mode on the left, search state on the right
   lib/
     motions.mjs        pure cursor motions
+    textobjects.mjs    iw, a", i( and the rest
     keymap.mjs         the insert-mode escape sequence and its config
     search.mjs         result merging, error and status strings
+    settings.mjs       config text -> settings, and the settings-page rows
 bin/
-  search               DuckDuckGo client with Exa fallback — stdlib Python
+  search               SearXNG client — stdlib Python, one request per page
+  searxng-up           create or start the SearXNG container, idempotent
   dev-watch.sh         hot reload during development
   test                 runs the unit tests
 test/                  node tests for src/lib
@@ -117,7 +127,7 @@ lives in `src/lib` as an ES module, and everything that needs Qt stays in QML.
 node, so the cursor arithmetic and the paging rules are tested directly:
 
 ```bash
-./bin/test          # 41 tests, no shell and no network
+./bin/test          # 72 tests, no shell and no network
 ```
 
 That is why `VimTextField.qml` holds only the mode machine and key dispatch —
@@ -136,84 +146,156 @@ HTML parsing is the fragile part, and this keeps it testable on its own:
 ./bin/search "python asyncio" | jq
 ```
 
-It distinguishes a network failure, a rebuffed request, and a genuinely empty
-result set, so the panel never reports "no results" when it was actually blocked.
+It distinguishes a network failure, a misconfigured JSON API, and a genuinely
+empty result set, so the panel never reports "no results" when the instance was
+never reached. The one failure a person can fix from the panel — the instance
+not running — is marked `setup: true`, and that is what raises the prompt.
 
-Pagination is not a simple offset — DuckDuckGo ignores a bare `s` parameter and
-only serves the next page when the *entire* hidden nav form is echoed back
-(`vqd`, `kl` and `nextParams` included). So `next` in the JSON carries that form
-verbatim and comes back in as `--next '<json>'`:
+Paging is a plain `pageno`, handed back as `--next '<json>'`:
 
 ```bash
 ./bin/search --next "$(./bin/search rust | jq -c .next)" | jq '.results[0]'
 ```
 
-Because each search is its own process, the client keeps a cookie jar at
-`~/.cache/jonas.search/cookies.txt` so a run of queries reads as one session
-rather than a stream of cookieless strangers.
+### SearXNG
 
-### Exa fallback
+The default backend is a **SearXNG instance you run yourself**. It is a
+metasearch engine: it queries the upstream engines on your behalf and hands
+back merged results, so the panel talks only to your own service. That settles
+the terms-of-service question the scraping backend raises, and it paginates
+properly — `pageno=2` rather than echoing a hidden form back.
 
-DuckDuckGo needs no key but blocks under load. When it does, the query falls
-through to **Exa's MCP endpoint** (`mcp.exa.ai/mcp`), which answers without an
-API key — so the fallback needs no configuration at all. The status line shows
-`· via Exa` so a swapped engine is never silent.
+Run it with one command — no arguments, no prior setup:
 
-This is the same endpoint [opencode](https://github.com/anomalyco/opencode)
-uses, and it is why its web search costs nothing:
-
-```ts
-export const EXA_URL = process.env.EXA_API_KEY
-  ? `https://mcp.exa.ai/mcp?exaApiKey=${...}`
-  : "https://mcp.exa.ai/mcp"
+```bash
+./bin/searxng-up
 ```
 
-There is no API key and no configuration. Exa's metered API (`api.exa.ai`,
-$7 per 1,000 searches) is a separate product this deliberately does not use,
-so nothing here can ever bill you.
+It starts the docker daemon if it is stopped, writes `~/.config/searxng/
+settings.yml` if it is missing, creates the container (or starts the one you
+already have), and waits until the JSON API actually answers before saying
+`ready`. Run it again any time: after a reboot, or just to check. It asks for
+sudo only where docker genuinely needs it, and says so first.
+`./bin/searxng-up --stop` stops the container and keeps it, so the next start is
+instant; `--down` removes it as well, keeping only the config.
 
-> The keyless endpoint is undocumented and carries no guarantee. It could gain
-> auth or rate limits at any time — it is a fallback, not a foundation.
+**Or let the panel ask.** When the instance is not running, the panel does not
+leave an error on screen you cannot act on — it explains what SearXNG is, that
+it runs in Docker, and that saying yes means a download and a password prompt,
+then waits for an answer:
+
+| Key | Action |
+|---|---|
+| `h` `l` / `←` `→` / `Tab` | move between *Not now* and *Start it* |
+| `Enter` | press the highlighted button (*Start it* is where you land) |
+| `Esc` | not now — back to the query, still typed |
+
+*Start it* opens a terminal and runs `bin/searxng-up`. The buttons are drawn
+the way the shell's own confirm dialog draws its, so saying yes here looks like
+saying yes to an update in the Omarchy menu.
+
+A terminal rather than a detached process, because sudo needs somewhere to
+prompt and a 200 MB first pull is worth watching.
+
+Point the panel at it in `~/.config/jonas.search/config.json`:
+
+```json
+{
+  "searxng_url": "http://localhost:8888"
+}
+```
+
+`searxng_url` defaults to `http://localhost:8888` and is hand-edited. It is the
+one backend — there is no engine to choose, and so no engine setting.
+
+### Speed
+
+A search costs one request, and its whole cost is SearXNG waiting on the
+upstream engines it queries — and it waits for *every* engine in the category,
+so the slowest one sets the pace for all of them. Out of the box that includes
+engines that only ever fill an infobox this panel never shows (`wikidata` runs
+around 0.9 s) and ones that are CAPTCHA'd and return nothing. Naming the
+engines that actually answer, in `~/.config/jonas.search/config.json`, is the
+biggest lever and needs no sudo:
+
+```json
+{
+  "searxng_engines": ["brave", "google cse", "wikipedia"]
+}
+```
+
+Measured locally that takes a query from ~1.1 s to ~0.3 s with the same rows.
+Use SearXNG's own names (the `/config` endpoint of your instance lists them
+with their `enabled` flag); leave the key out to let SearXNG choose. It is
+hand-edited, like `searxng_url` — the settings page preserves it.
+
+The second lever is the ceiling SearXNG waits under, in its `settings.yml`:
+
+```yaml
+outgoing:
+  request_timeout: 2.0        # default is 3.0
+  max_request_timeout: 4.0
+  enable_http2: true
+```
+
+`bin/searxng-up` writes that on a fresh install. The image chowns
+`settings.yml` to its own user on first run, so applying it to an instance you
+already have takes sudo:
+
+```bash
+sudo docker restart searxng   # after editing
+```
+
+**The JSON API must be enabled.** SearXNG ships with `formats: [html]`, so the
+panel gets an HTTP 403 until `settings.yml` says:
+
+```yaml
+search:
+  formats:
+    - html
+    - json
+```
+
+The panel names that exact fix when it sees the 403, rather than reporting a
+bare HTTP error — and `bin/searxng-up` writes the format in for you on a fresh
+install, or warns if an existing `settings.yml` lacks it.
+
+There is no fallback to anything else. An instance that is down raises the
+setup prompt rather than quietly searching somewhere you did not choose.
 
 ### Uniform pages
 
-Engines disagree about page size. DuckDuckGo returns 10 results for the first
-request and 15 for every offset after it; Exa returns one batch of 30 and has
-no offset parameter at all. Paging straight off either would give ragged pages.
+A SearXNG page is however many upstream engines answered in time, so paging
+straight off it would give ragged pages. Whatever a chunk contains is
+accumulated in a session buffer under `~/.cache/jonas.search/`, and pages are
+sliced from that at a fixed size — every page holds 10, except the last.
 
-So neither is paged directly. Whatever a chunk contains is accumulated in a
-session buffer under `~/.cache/jonas.search/`, and pages are sliced from that
-at a fixed size — every page holds 10, except the last.
-
-That also means fewer requests: a 15-result fetch covers one and a half pages,
+That also means fewer requests: a 25-result page covers two and a half of ours,
 paging backwards costs nothing, and a page turn tops the buffer up at most
 three times so it can never burst. Rows are de-duplicated on URL *and* on
-domain+title as they land, because engines repeat hits across page boundaries
-and Exa returns the same document under several canonical paths (`/book/` and
-`/stable/book/`).
+domain+title as they land, because the same document turns up across page
+boundaries and under several canonical paths (`/book/` and `/stable/book/`).
+
+The buffer is filled to the page and no further. Asking for one row beyond it
+— to know whether a next page exists — used to cost an entire extra request
+whenever a SearXNG page came back exactly ten long, doubling the wait on a
+keypress. `next` is offered whenever SearXNG still has a page to give; if it
+turns out empty, the panel stays put and stops offering more.
 
 The buffer is read only while paging. Pressing Enter always searches afresh.
 
-### Rate limiting
-
-DuckDuckGo will serve an anti-bot challenge ("select all squares containing a
-duck") if it sees too many requests too quickly, and the block lasts a while.
-Normal launcher use is nowhere near that threshold, but paging pulls a request
-per page, so holding `j` through many pages is the way to find the limit. When
-it happens the panel says so plainly instead of pretending there were no
-results.
-
 ## Settings
 
-`Ctrl+,` from anywhere in the panel opens the settings page. `j`/`k` moves
+`Ctrl+S` from anywhere in the panel opens the settings page (`Ctrl+,` still
+works — it was the original binding). `j`/`k` moves
 between rows, `h`/`l` picks a value, `Esc` goes back. Changes are written the
 moment you make them — there is no save button to forget.
 
 | Setting | Choices | What it does |
 |---|---|---|
-| Search engine | `auto` · `duckduckgo` · `exa` | `auto` tries DuckDuckGo and falls through to Exa when it is blocked. Pinning an engine means a block is reported rather than silently substituted. |
+| SearXNG | *Start* · *Stop* | Not a setting so much as a switch: the row shows whether the instance answers, and `Enter` opens a terminal that runs `bin/searxng-up` (or `--stop`). Checked each time the page opens. |
 | Leave insert with | *typed* | The insert-mode escape sequence — any keys, not a fixed list. `Enter` opens the field, `Enter` again saves, `Esc` discards. Empty turns it off; a single character is refused, since binding one key would make that key untypable. |
-| Results per page | 5 · 10 · 15 · 20 | Applies to both engines. |
+| Results per page | 5 · 10 · 15 · 20 | How many rows each page shows, however many SearXNG returns. |
 
 The window the two keys must land inside is vim's own `timeoutlen` (1000 ms),
 so a sequence that works in your vimrc works here. It is not a setting; set

@@ -7,11 +7,12 @@
 
 import { readKeymap, DEFAULT_SEQUENCES, DEFAULT_TIMEOUT_MS } from './keymap.mjs'
 
-export const ENGINES = ['auto', 'duckduckgo', 'exa']
 export const PAGE_SIZE_CHOICES = [5, 10, 15, 20]
 
+// There is one backend — a SearXNG instance you run yourself — so there is no
+// engine to choose. Its address lives in the config file as `searxng_url`,
+// hand-edited, because it is set once per machine and never toggled.
 export const DEFAULTS = {
-  engine: 'auto',
   escapeSequence: DEFAULT_SEQUENCES[0],
   escapeTimeoutMs: DEFAULT_TIMEOUT_MS,
   resultsPerPage: 10
@@ -42,7 +43,6 @@ export function readSettings (source) {
   const keymap = readKeymap(source)
 
   return {
-    engine: oneOf(config.engine, ENGINES, DEFAULTS.engine),
     // Empty means off. The keymap reader already handles strings, lists and
     // "", so show the first sequence it resolved.
     escapeSequence: keymap.sequences.length > 0 ? keymap.sequences[0] : '',
@@ -59,23 +59,37 @@ export function readSettings (source) {
 export function writeSettings (settings, source) {
   const config = parse(source)
 
-  config.engine = oneOf(settings.engine, ENGINES, DEFAULTS.engine)
   config.escape_sequence = normalizeSequence(settings.escapeSequence) ?? DEFAULTS.escapeSequence
   config.results_per_page = oneOf(settings.resultsPerPage, PAGE_SIZE_CHOICES, DEFAULTS.resultsPerPage)
 
   return JSON.stringify(config, null, 2) + '\n'
 }
 
-/** The rows the settings page shows, in order. */
-export function settingsRows (settings) {
+/** What the settings page knows about the SearXNG instance. */
+export const ENGINE_STATES = ['unknown', 'running', 'stopped']
+
+/**
+ * The rows the settings page shows, in order.
+ *
+ * `engine` is not a setting — it is whether the instance answered the last
+ * probe — but it belongs on the same page, because starting and stopping it is
+ * the one thing about the backend a person does from the panel. The row is
+ * `type: 'action'`: no value to store, only a button to press.
+ */
+export function settingsRows (settings, engine = 'unknown') {
+  const state = ENGINE_STATES.indexOf(engine) === -1 ? 'unknown' : engine
+  const running = state === 'running'
   return [
     {
       key: 'engine',
-      type: 'choice',
-      label: 'Search engine',
-      hint: 'auto tries DuckDuckGo, then Exa if it is blocked',
-      options: ENGINES,
-      value: settings.engine
+      type: 'action',
+      label: 'SearXNG',
+      hint: state === 'unknown' ? 'checking whether the instance answers…'
+        : running ? 'running — searches go through it'
+        : 'not running — start it to search',
+      action: running ? 'stop' : 'start',
+      actionLabel: running ? 'Stop' : 'Start',
+      value: state
     },
     {
       key: 'escapeSequence',
@@ -89,7 +103,7 @@ export function settingsRows (settings) {
       key: 'resultsPerPage',
       type: 'choice',
       label: 'Results per page',
-      hint: 'every page shows this many, whichever engine answers',
+      hint: 'every page shows this many, however many SearXNG returns',
       options: PAGE_SIZE_CHOICES,
       value: settings.resultsPerPage
     }
