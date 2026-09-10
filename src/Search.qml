@@ -275,7 +275,7 @@ Item {
             // default fits a dialog form; a search bar wants to be a line, not
             // a box, so it takes the tighter spelling the kit documents for
             // inline fields.
-            verticalPadding: Style.spacing.xs
+            verticalPadding: Style.spacing.sm
             placeholderText: root.panelMode === "ai" ? "Ask " + ai.agentName + "…" : "Search the web…"
             escapeSequences: config.keymap.sequences
             escapeTimeout: config.keymap.timeoutMs

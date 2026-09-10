@@ -181,9 +181,17 @@ layer-shell and open/close/dismiss/toggle contract mirrors
 
 ## Conventions
 
-- The repo lives outside `~/.config/omarchy/plugins/` and is symlinked in. Never
-  suggest `omarchy plugin remove` — it deletes through the symlink. Use
-  `rm ~/.config/omarchy/plugins/omaseek`.
+- The repo lives outside `~/.config/omarchy/plugins/` and is symlinked in. That
+  is a safety measure, not a preference: `omarchy-plugin-remove` checks for a
+  symlink first and only unlinks it, but a plugin folder that *is* a git
+  checkout takes the `rm -rf "$target"` branch, confirmed with "Its git repo
+  remains upstream" — no backup, on the assumption that anything worth keeping
+  is pushed. Developing in place would put a working tree behind that branch.
+  `omarchy-plugin-update` also runs `git fetch` and `merge --ff-only` on any
+  plugin directory with a `.git`, which is not something to point at a
+  half-finished feature branch.
+  (An older note here claimed `omarchy plugin remove` deletes *through* the
+  symlink. It does not — read the script before repeating it.)
 - Commit subjects are lowercase-ish prose in the imperative describing the
   behaviour change, not the files ("Page results with h and l instead of
   scrolling"). Bodies explain *why*, and record runtime traps found along the way.
