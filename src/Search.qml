@@ -285,9 +285,10 @@ Item {
             onNewSessionRequested: root.newChat()
           }
 
-          // Each half of the panel gets the buttons it has actions for. They
-          // match the field's height so the row reads as one control, and
-          // they name their key, so the shortcut is learnt from the button.
+          // Each half of the panel gets the buttons it has actions for,
+          // matching the field's height so the row reads as one control.
+          // The keys are in the status strip and in settings; on the button
+          // they were noise beside a verb that already says what it does.
           Row {
             id: actions
 
@@ -298,7 +299,7 @@ Item {
             Button {
               visible: root.panelMode === "search"
               height: input.height
-              text: "search  " + Keybinds.chordText(root.searchChord)
+              text: "search"
               bordered: true
               foreground: root.foreground
               accent: root.accent
@@ -311,7 +312,7 @@ Item {
             Button {
               visible: root.panelMode === "ai"
               height: input.height
-              text: "chat  " + Keybinds.chordText(root.searchChord)
+              text: "chat"
               bordered: true
               foreground: root.foreground
               accent: root.accent
@@ -324,7 +325,7 @@ Item {
             Button {
               visible: root.panelMode === "ai"
               height: input.height
-              text: "new session  " + Keybinds.chordText(root.newSessionChord)
+              text: "new session"
               bordered: true
               foreground: root.foreground
               accent: root.accent
