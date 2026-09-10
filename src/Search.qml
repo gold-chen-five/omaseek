@@ -270,7 +270,7 @@ Item {
             foreground: root.foreground
             accent: root.accent
             font.family: root.fontFamily
-            font.pixelSize: Style.font.heading
+            font.pixelSize: Style.font.body    // the same size as the button beside it
             // Ui.TextField sizes itself from the font plus this padding. The
             // default fits a dialog form; a search bar wants to be a line, not
             // a box, so it takes the tighter spelling the kit documents for
