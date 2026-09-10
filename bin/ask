@@ -338,6 +338,14 @@ def run_chat(agent, prompt):
             emit({"ok": False, "error": "auth", "login": True, "fix": "login",
                   "message": f"{agent['name']} is signed out — opening its sign-in"})
             sys.exit(0)
+        # Nothing configured, said on the way out rather than on stdout —
+        # gemini refuses with its auth notice on stderr and a non-zero exit.
+        # It is the same fixable state as the exit-0 spelling below, and
+        # `said` has already been reduced to short, non-log lines.
+        if NOT_CONFIGURED.search(joined):
+            emit({"ok": False, "error": "config", "login": True, "fix": "setup",
+                  "message": f"{agent['name']}: {said[-1]}"})
+            sys.exit(0)
         if not text:
             fail("agent", f"{agent['name']}: {said[-1] if said else f'exit {done.returncode}'}")
     if not text:
