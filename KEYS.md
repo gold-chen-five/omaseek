@@ -36,7 +36,7 @@ Insert mode:
 | `ctrl+w` | delete the word before the cursor |
 | `ctrl+u` | delete to the start of the line |
 | `down` | step into the results or the transcript |
-| `enter` (the search key) | search, or ask, and stay in the field |
+| `enter` (the search key) | search, or ask; the field drops to normal, so `j` steps into what came back |
 
 Normal mode is vim, on one line: `h l w W b B e 0 ^ $`, `f F t T{char}`,
 `i a I A`, `x`, `d c y` with a motion or doubled (`dd cc yy`), `p P`, `v`,

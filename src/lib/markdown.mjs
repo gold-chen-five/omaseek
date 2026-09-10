@@ -19,7 +19,9 @@ export function escapeHtml (text) {
 }
 
 /** Inline marks: code, bold, italic, links. Code first, so its contents are left alone. */
-export function inline (text) {
+// `link` colours anchors: a TextEdit paints <a> in Qt's own link blue unless
+// the tag says otherwise, and no theme this panel sits in has that blue in it.
+export function inline (text, link = '') {
   const pieces = []
   const parts = escapeHtml(text).split('`')
   for (let i = 0; i < parts.length; i++) {
@@ -34,7 +36,7 @@ export function inline (text) {
         .replace(/__([^_]+)__/g, '<b>$1</b>')
         .replace(/(^|[^*\w])\*([^*\s][^*]*?)\*(?!\w)/g, '$1<i>$2</i>')
         .replace(/(^|[^_\w])_([^_\s][^_]*?)_(?!\w)/g, '$1<i>$2</i>')
-        .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2">$1</a>')
+        .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, link ? `<a href="$2" style="color:${link}">$1</a>` : '<a href="$2">$1</a>')
     )
   }
   return pieces.join('')
@@ -51,7 +53,7 @@ function block (tag, content, color) {
  * carries one colour; `lead` is HTML placed before the first block's text
  * (the ● a reply starts with).
  */
-export function toHtml (markdown, { color = '', lead = '' } = {}) {
+export function toHtml (markdown, { color = '', lead = '', link = '' } = {}) {
   const lines = String(markdown ?? '').replace(/\r\n?/g, '\n').split('\n')
   const out = []
   let paragraph = []
@@ -65,14 +67,14 @@ export function toHtml (markdown, { color = '', lead = '' } = {}) {
   }
   const flushParagraph = () => {
     if (paragraph.length === 0) return
-    out.push(block('p', withLead(inline(paragraph.join(' '))), color))
+    out.push(block('p', withLead(inline(paragraph.join(' '), link)), color))
     paragraph = []
   }
   const flushList = () => {
     if (!list) return
     let items = ''
     for (let i = 0; i < list.items.length; i++) {
-      items += block('li', (i === 0 ? withLead(inline(list.items[i])) : inline(list.items[i])), color)
+      items += block('li', (i === 0 ? withLead(inline(list.items[i], link)) : inline(list.items[i], link)), color)
     }
     out.push(`<${list.tag}>${items}</${list.tag}>`)
     list = null
@@ -94,7 +96,7 @@ export function toHtml (markdown, { color = '', lead = '' } = {}) {
     if (heading) {
       flushParagraph(); flushList()
       const level = Math.min(4, heading[1].length + 1)   // h1 in a chat is shouting
-      out.push(block('h' + level, withLead(inline(heading[2])), color))
+      out.push(block('h' + level, withLead(inline(heading[2], link)), color))
       continue
     }
 
@@ -110,7 +112,7 @@ export function toHtml (markdown, { color = '', lead = '' } = {}) {
     const quote = /^\s*>\s?(.*)$/.exec(line)
     if (quote) {
       flushParagraph(); flushList()
-      out.push(block('blockquote', withLead(inline(quote[1])), color))
+      out.push(block('blockquote', withLead(inline(quote[1], link)), color))
       continue
     }
 
@@ -136,7 +138,7 @@ export function toHtml (markdown, { color = '', lead = '' } = {}) {
  * layout, which is what people reading this already know.
  */
 export function renderTranscript (turns, {
-  question = '#ffffff', answer = '#cccccc', glyph = '#888888', error = '#e06c75', dotSize = 0
+  question = '#ffffff', answer = '#cccccc', glyph = '#888888', error = '#e06c75', link = '', dotSize = 0
 } = {}) {
   const dot = dotSize > 0 ? `font-size:${dotSize}px;` : ''
   const parts = []
@@ -150,6 +152,7 @@ export function renderTranscript (turns, {
     } else {
       parts.push(toHtml(turn.text, {
         color: answer,
+        link: link,
         lead: `<span style="color:${glyph};${dot}">● </span>`
       }))
     }

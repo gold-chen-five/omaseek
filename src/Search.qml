@@ -64,10 +64,10 @@ Item {
     opened = true
     view = "search"                            // never reopen into settings or setup
     if (ai.agents === null) ai.probeAgents()   // once: which agents this machine has
-    // Normal when there is still a query in the field to act on, insert when
-    // there is nothing to type over — which is the state AI mode leaves the
-    // field in, since asking moves the question into the transcript.
-    focusSearch(input.text.length === 0)
+    // Normal when there is something below the field to step into — results,
+    // or a conversation — so j goes there; insert only when there is nothing
+    // to navigate and typing is the only thing left to do.
+    focusSearch(!hasBody())
   }
 
   function close () {
@@ -149,6 +149,7 @@ Item {
     if (panelMode === "ai") {
       ai.ask(query)
       input.clear()                            // the question now lives in the transcript
+      focusSearch(false)                       // normal: j steps into the transcript, i asks more
       return
     }
     session.search(query)

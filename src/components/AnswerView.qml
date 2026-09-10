@@ -80,6 +80,7 @@ FocusScope {
       answer: answerColor,
       glyph: glyphColor,
       error: Color.urgent.toString(),
+      link: questionColor,                     // the bright foreground, underlined by Qt: a link, in the theme's own ink
       dotSize: Math.round(Style.font.body * 0.6)
     })
   }

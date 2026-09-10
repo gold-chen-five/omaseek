@@ -42,3 +42,10 @@ test('a failed turn is written where its answer would have been', () => {
   assert.match(html, /<p><span style="color:#f00">⚠ Codex: You hit &lt;a limit&gt;<\/span><\/p>$/)
 })
 
+
+test('a link takes the colour it is given, so a TextEdit does not paint it Qt blue', () => {
+  assert.equal(inline('see [docs](https://x.y)'), 'see <a href="https://x.y">docs</a>')
+  assert.equal(inline('see [docs](https://x.y)', '#abc'), 'see <a href="https://x.y" style="color:#abc">docs</a>')
+  const html = renderTranscript([{ role: 'assistant', text: 'read [this](https://x.y)' }], { link: '#abc' })
+  assert.ok(html.includes('<a href="https://x.y" style="color:#abc">this</a>'))
+})
