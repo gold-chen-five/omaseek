@@ -195,12 +195,19 @@ layer-shell and open/close/dismiss/toggle contract mirrors
   in a user-owned copy under that directory, and `omarchy-plugin-validate`
   skips `.git` precisely because installed plugins are git checkouts. Edits are
   therefore live; there is nothing to copy or link.
-  - The hazard that comes with it: `omarchy-plugin-remove` deletes a plugin
-    folder containing `.git` with `rm -rf "$target"`, confirmed only with "Its
-    git repo remains upstream" — no backup, unlike a plain folder. **Never
-    suggest `omarchy plugin remove` for this plugin**; anything uncommitted or
-    unpushed is gone. `omarchy-plugin-update` will likewise `git fetch` and
-    `merge --ff-only` this working tree.
+  - **The git directory lives outside the plugin folder**: `.git` here is a
+    one-line file pointing at `~/.local/share/omaseek.git`
+    (`git init --separate-git-dir`). Omarchy watches the plugins directory
+    with `inotifywait -r` and *nothing excluded*, so with `.git` inside, every
+    commit — and every `git status` an editor plugin runs — rewrote
+    `.git/index` and reloaded the plugin, wiping the panel mid-conversation.
+    That was the "k stops working after a while" bug. Editors and git are
+    unaffected; they follow the pointer. A fresh clone will have a real
+    `.git` directory: run the same `git init --separate-git-dir=…` once.
+  - A side effect worth having: with no `.git` *directory* present,
+    `omarchy-plugin-remove` takes its backed-up-folder branch instead of
+    `rm -rf`, and `omarchy-plugin-update` does not try to fast-forward the
+    working tree. Still, never suggest `omarchy plugin remove` here.
 - Commit subjects are lowercase-ish prose in the imperative describing the
   behaviour change, not the files ("Page results with h and l instead of
   scrolling"). Bodies explain *why*, and record runtime traps found along the way.
