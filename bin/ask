@@ -132,6 +132,19 @@ OUT_OF_QUOTA = re.compile(
     re.IGNORECASE,
 )
 
+# Installed, signed in, and still unable to answer: no provider chosen, no
+# model set, no auth method picked. The CLI prints its own setup instructions
+# and exits 0, so this is checked on the *successful* path — and only against
+# a short whole output, because a real answer about API keys would be longer
+# and matching inside one is the mistake that reported a signed-in Codex as
+# signed out.
+NOT_CONFIGURED = re.compile(
+    r"no (inference )?provider configured|no model (is )?(configured|selected)|"
+    r"please set an auth method|run '[a-z][\w-]* (model|config|configure)'",
+    re.IGNORECASE,
+)
+UNCONFIGURED_MAX = 400
+
 # A crate's structured log line: a timestamp, a level, a module path. These
 # carry whole HTTP bodies, and a model catalogue mentioning "sign in" would
 # otherwise read as a signed-out CLI.
@@ -328,6 +341,10 @@ def run_chat(agent, prompt):
             fail("agent", f"{agent['name']}: {said[-1] if said else f'exit {done.returncode}'}")
     if not text:
         fail("agent", f"{agent['name']} returned nothing")
+    # Setup instructions are not an answer. Shown as one they read as the
+    # agent replying, and the question looks answered when nothing was asked.
+    if len(text) <= UNCONFIGURED_MAX and NOT_CONFIGURED.search(text):
+        fail("config", f"{agent['name']}: {' '.join(text.split())}")
     return text
 
 

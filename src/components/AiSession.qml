@@ -93,7 +93,15 @@ Item {
     status = "idle"
     errorMessage = ""
     history = []
+    agent = ""
   }
+
+  // `agent` is who answered, and it outranks the setting when naming the
+  // agent on screen — an agent asked for by name should be reported by the
+  // name it answered under. It therefore belongs to one conversation and has
+  // to go when that conversation does, or the panel keeps offering to ask
+  // someone it is no longer going to ask.
+  onChatAgentChanged: agent = ""
 
   function run (process, command) {
     process.running = false
