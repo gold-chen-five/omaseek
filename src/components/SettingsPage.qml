@@ -141,7 +141,9 @@ FocusScope {
         readonly property bool isDropdown: isChoice && modelData.control === "dropdown"
 
         width: layout.width
-        height: isSection ? sectionLabel.implicitHeight + Style.spacing.lg + Style.spacing.md
+        // A heading row is the rule, a breath, then the label: enough air
+        // above and below the rule that it separates rather than underlines.
+        height: isSection ? sectionLabel.implicitHeight + Style.spacing.lg + Style.spacing.md * 2
                           : body.implicitHeight + Style.spacing.md * 2
         radius: Style.cornerRadius
         color: hasCursor ? page.selectedBackground : "transparent"
@@ -155,7 +157,7 @@ FocusScope {
           anchors.left: parent.left
           anchors.right: parent.right
           anchors.top: parent.top
-          anchors.topMargin: Style.spacing.sm
+          anchors.topMargin: Style.spacing.md
           height: Math.max(1, Style.normalBorderWidth)
           color: Util.alpha(page.foreground, 0.18)
         }
