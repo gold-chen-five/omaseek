@@ -14,7 +14,7 @@ A web search and AI panel for [Omarchy](https://omarchy.org) 4, driven with vim 
 | `h` `l` | previous and next page |
 | `v` `V` then `y` | select in an answer, and yank |
 | `enter` on a selection | hand it to the agent in a terminal |
-| `ctrl+c` | new chat |
+| `ctrl+c` | new session |
 | `ctrl+s` | settings |
 | `esc` | back, then out |
 
@@ -27,12 +27,27 @@ writes `~/.config/omaseek/config.json`.
 ## Install
 
 ```bash
+git clone git@github.com:gold-chen-five/omaseek.git
+cd omaseek && ./bin/install
+```
+
+Omarchy installs a plugin by copying files and recording its id — it never
+runs a script from a plugin and never edits your Hyprland or menu config, so
+the keybind cannot come with the download. `./bin/install` is the opt-in way
+to add it: it links and enables the plugin, binds `SUPER + D`, and adds a row
+to the Omarchy menu. It is safe to re-run, backs up what it touches, and
+leaves `SUPER + D` alone if you have already bound it to something else.
+`--no-bind` and `--no-menu` skip either half.
+
+By hand instead:
+
+```bash
 ln -s "$PWD" ~/.config/omarchy/plugins/omaseek
 omarchy-shell shell rescanPlugins
 omarchy plugin enable omaseek
 ```
 
-Bind it in `~/.config/hypr/bindings.lua`, then `hyprctl reload`:
+then in `~/.config/hypr/bindings.lua`, followed by `hyprctl reload`:
 
 ```lua
 o.bind("SUPER + D", "Search", "omarchy-shell shell toggle omaseek")

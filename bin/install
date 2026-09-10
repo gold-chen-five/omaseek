@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+# Install omaseek for the current user, and give it a way to be opened.
+#
+# Omarchy installs a plugin by copying files and recording its id — nothing
+# more. It never runs a script from a plugin and never edits your Hyprland or
+# menu config, which is the right boundary: a plugin that could rewrite your
+# dotfiles the moment you downloaded it would be a plugin that could do
+# anything. So the keybind and the menu entry live in *your* files, and this
+# script is the opt-in way to put them there: you run it, knowingly, and it
+# says exactly what it changed.
+#
+# Safe to re-run. It never overwrites a binding you already have.
+#
+#   ./bin/install              link, enable, bind SUPER + D, add a menu entry
+#   ./bin/install --no-bind    skip the keybind
+#   ./bin/install --no-menu    skip the menu entry
+
+set -euo pipefail
+
+REPO=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+PLUGIN_ID=omaseek
+PLUGINS_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins"
+BINDINGS="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/bindings.lua"
+MENU_EXT="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/extensions/omarchy-menu.jsonc"
+
+BIND_KEY="SUPER + D"
+BIND_LINE="o.bind(\"$BIND_KEY\", \"Search\", \"omarchy-shell shell toggle $PLUGIN_ID\")"
+MENU_LINE="  \"$PLUGIN_ID\": {\"icon\":\"\",\"label\":\"Search\",\"action\":\"omarchy-shell shell toggle $PLUGIN_ID\",\"description\":\"Web search and AI, with vim keys\"},"
+
+do_bind=1
+do_menu=1
+for arg in "$@"; do
+  case "$arg" in
+    --no-bind) do_bind=0 ;;
+    --no-menu) do_menu=0 ;;
+    -h|--help) awk 'NR > 1 { if ($0 !~ /^#/) exit; sub(/^# ?/, ""); print }' "$0"; exit 0 ;;
+    *) echo "unknown option: $arg" >&2; exit 1 ;;
+  esac
+done
+
+say () { printf '  %s\n' "$1"; }
+
+echo "omaseek"
+
+# ---- the plugin itself ------------------------------------------------------
+
+mkdir -p "$PLUGINS_DIR"
+link="$PLUGINS_DIR/$PLUGIN_ID"
+if [[ -L $link && $(readlink -f "$link") == "$REPO" ]]; then
+  say "already linked: $link"
+elif [[ -e $link ]]; then
+  echo "  $link already exists and is not this repo — remove it first:" >&2
+  echo "    rm $link" >&2
+  exit 1
+else
+  ln -s "$REPO" "$link"
+  say "linked $link -> $REPO"
+fi
+
+omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
+omarchy plugin enable "$PLUGIN_ID" >/dev/null 2>&1 || true
+say "enabled"
+
+# ---- the keybind ------------------------------------------------------------
+#
+# Refused rather than merged when SUPER + D is already spoken for: silently
+# taking a key someone else bound is how a plugin breaks a setup it was never
+# asked about.
+
+if (( do_bind )); then
+  if [[ ! -f $BINDINGS ]]; then
+    say "no $BINDINGS — add this yourself:"
+    say "    $BIND_LINE"
+  elif grep -qF "toggle $PLUGIN_ID" "$BINDINGS"; then
+    say "keybind already there"
+  elif grep -qE "^[^-]*o\.bind\(\"SUPER[[:space:]]*\+[[:space:]]*D\"" "$BINDINGS"; then
+    say "SUPER + D is already bound to something else — left alone. To use it:"
+    say "    $BIND_LINE"
+  else
+    cp "$BINDINGS" "$BINDINGS.omaseek-backup"
+    printf '\n-- omaseek\n%s\n' "$BIND_LINE" >>"$BINDINGS"
+    say "bound $BIND_KEY (backup: $BINDINGS.omaseek-backup)"
+    hyprctl reload >/dev/null 2>&1 && say "reloaded hyprland" || say "run: hyprctl reload"
+  fi
+fi
+
+# ---- the menu entry ---------------------------------------------------------
+#
+# So it is reachable without a keybind at all. The file is JSONC and the menu
+# strips trailing commas, so a new row goes in right after the opening brace.
+
+if (( do_menu )); then
+  mkdir -p "$(dirname "$MENU_EXT")"
+  [[ -f $MENU_EXT ]] || printf '{\n}\n' >"$MENU_EXT"
+  if grep -qF "\"$PLUGIN_ID\":" "$MENU_EXT"; then
+    say "menu entry already there"
+  else
+    cp "$MENU_EXT" "$MENU_EXT.omaseek-backup"
+    awk -v line="$MENU_LINE" '
+      !done && /^[[:space:]]*\{/ { print; print line; done = 1; next }
+      { print }
+    ' "$MENU_EXT.omaseek-backup" >"$MENU_EXT"
+    say "added to the Omarchy menu (backup: $MENU_EXT.omaseek-backup)"
+  fi
+fi
+
+echo
+say "open it with $BIND_KEY, or from the Omarchy menu"
+say "searching needs a SearXNG instance: ./bin/searxng-up"
