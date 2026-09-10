@@ -99,9 +99,14 @@ Item {
     configWriter.running = true
   }
 
+  function settingIsText (index) {
+    const row = settingsRows[index]
+    return !!row && row.type === "text"
+  }
+
   function cycleSetting (delta) {
     const row = settingsRows[settingsCursor]
-    if (row) changeSetting(row.key, SettingsLib.cycle(row, delta))
+    if (row && row.type === "choice") changeSetting(row.key, SettingsLib.cycle(row, delta))
   }
 
   function moveSettingsCursor (delta) {
@@ -412,17 +417,27 @@ Item {
           fontFamily: root.fontFamily
 
           onChanged: (key, value) => root.changeSetting(key, value)
+          onEditingFinished: Qt.callLater(() => settingsPage.forceActiveFocus())
 
           Keys.priority: Keys.BeforeItem
           Keys.onPressed: event => {
+            // While a row is being typed into, the field owns the keyboard.
+            // Its Enter reaches here too, and would reopen the editor the
+            // instant it closed.
+            if (settingsPage.editingIndex !== -1) return
+
             if (event.key === Qt.Key_Escape) {
               root.closeSettings()
             } else if (event.key === Qt.Key_Down || event.text === "j") {
               root.moveSettingsCursor(1)
             } else if (event.key === Qt.Key_Up || event.text === "k") {
               root.moveSettingsCursor(-1)
-            } else if (event.key === Qt.Key_Right || event.text === "l"
-                       || event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+            } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter
+                       || event.text === "i") {
+              // A typed row opens for editing; a choice row just steps along.
+              if (root.settingIsText(root.settingsCursor)) settingsPage.beginEdit(root.settingsCursor)
+              else root.cycleSetting(1)
+            } else if (event.key === Qt.Key_Right || event.text === "l") {
               root.cycleSetting(1)
             } else if (event.key === Qt.Key_Left || event.text === "h") {
               root.cycleSetting(-1)

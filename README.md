@@ -208,7 +208,7 @@ moment you make them — there is no save button to forget.
 | Setting | Choices | What it does |
 |---|---|---|
 | Search engine | `auto` · `duckduckgo` · `exa` | `auto` tries DuckDuckGo and falls through to Exa when it is blocked. Pinning an engine means a block is reported rather than silently substituted. |
-| Leave insert with | `jk` · `kj` · `jj` · `off` | The insert-mode escape sequence. |
+| Leave insert with | *typed* | The insert-mode escape sequence — any keys, not a fixed list. `Enter` opens the field, `Enter` again saves, `Esc` discards. Empty turns it off; a single character is refused, since binding one key would make that key untypable. |
 | Sequence window | 150–500 ms | How long the two keys may take. |
 | Results per page | 5 · 10 · 15 · 20 | Applies to both engines. |
 

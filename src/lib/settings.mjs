@@ -8,7 +8,6 @@
 import { readKeymap, DEFAULT_SEQUENCES, DEFAULT_TIMEOUT_MS } from './keymap.mjs'
 
 export const ENGINES = ['auto', 'duckduckgo', 'exa']
-export const SEQUENCE_CHOICES = ['jk', 'kj', 'jj', 'off']
 export const TIMEOUT_CHOICES = [150, 200, 300, 500]
 export const PAGE_SIZE_CHOICES = [5, 10, 15, 20]
 
@@ -45,9 +44,9 @@ export function readSettings (source) {
 
   return {
     engine: oneOf(config.engine, ENGINES, DEFAULTS.engine),
-    // The keymap reader already handles strings, lists and "off"; the page
-    // only offers single sequences, so show the first one it resolved.
-    escapeSequence: keymap.sequences.length > 0 ? keymap.sequences[0] : 'off',
+    // Empty means off. The keymap reader already handles strings, lists and
+    // "", so show the first sequence it resolved.
+    escapeSequence: keymap.sequences.length > 0 ? keymap.sequences[0] : '',
     escapeTimeoutMs: keymap.timeoutMs,
     resultsPerPage: oneOf(config.resultsPerPage ?? config.results_per_page, PAGE_SIZE_CHOICES, DEFAULTS.resultsPerPage),
     sequences: keymap.sequences
@@ -62,7 +61,7 @@ export function writeSettings (settings, source) {
   const config = parse(source)
 
   config.engine = oneOf(settings.engine, ENGINES, DEFAULTS.engine)
-  config.escape_sequence = settings.escapeSequence === 'off' ? '' : settings.escapeSequence
+  config.escape_sequence = normalizeSequence(settings.escapeSequence) ?? DEFAULTS.escapeSequence
   config.escape_timeout_ms = oneOf(settings.escapeTimeoutMs, TIMEOUT_CHOICES, DEFAULTS.escapeTimeoutMs)
   config.results_per_page = oneOf(settings.resultsPerPage, PAGE_SIZE_CHOICES, DEFAULTS.resultsPerPage)
 
@@ -74,6 +73,7 @@ export function settingsRows (settings) {
   return [
     {
       key: 'engine',
+      type: 'choice',
       label: 'Search engine',
       hint: 'auto tries DuckDuckGo, then Exa if it is blocked',
       options: ENGINES,
@@ -81,13 +81,15 @@ export function settingsRows (settings) {
     },
     {
       key: 'escapeSequence',
+      type: 'text',
       label: 'Leave insert with',
-      hint: 'typed quickly, like vim’s inoremap jk <Esc>',
-      options: SEQUENCE_CHOICES,
+      hint: 'any keys, typed quickly — like vim’s inoremap jk <Esc>. Empty turns it off',
+      placeholder: 'off',
       value: settings.escapeSequence
     },
     {
       key: 'escapeTimeoutMs',
+      type: 'choice',
       label: 'Sequence window',
       hint: 'how long the two keys may take, in milliseconds',
       options: TIMEOUT_CHOICES,
@@ -95,12 +97,26 @@ export function settingsRows (settings) {
     },
     {
       key: 'resultsPerPage',
+      type: 'choice',
       label: 'Results per page',
       hint: 'every page shows this many, whichever engine answers',
       options: PAGE_SIZE_CHOICES,
       value: settings.resultsPerPage
     }
   ]
+}
+
+/**
+ * A typed escape sequence -> what to store, or null when it cannot be used.
+ *
+ * Empty turns the sequence off. A single character is refused rather than
+ * accepted, because binding one key would make that key untypable — the
+ * keymap reader drops it anyway, so accepting it would silently mean "off".
+ */
+export function normalizeSequence (raw) {
+  const value = String(raw ?? '').trim()
+  if (value === '') return ''
+  return value.length >= 2 ? value : null
 }
 
 /** Move one row's value by `delta` positions, wrapping. */

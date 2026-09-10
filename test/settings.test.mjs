@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  readSettings, writeSettings, settingsRows, cycle,
+  readSettings, writeSettings, settingsRows, cycle, normalizeSequence,
   ENGINES, PAGE_SIZE_CHOICES, DEFAULTS
 } from '../src/lib/settings.mjs'
 
@@ -22,8 +22,20 @@ test('a known engine is honoured, an unknown one is not', () => {
   assert.equal(readSettings('{"engine":"altavista"}').engine, 'auto')
 })
 
-test('an off escape sequence reads back as off', () => {
-  assert.equal(readSettings('{"escape_sequence":""}').escapeSequence, 'off')
+test('an off escape sequence reads back as empty', () => {
+  assert.equal(readSettings('{"escape_sequence":""}').escapeSequence, '')
+})
+
+test('any sequence the user types is kept, not just a listed one', () => {
+  assert.equal(readSettings('{"escape_sequence":";;"}').escapeSequence, ';;')
+  assert.equal(readSettings('{"escape_sequence":"jjk"}').escapeSequence, 'jjk')
+})
+
+test('a single character is refused rather than silently meaning off', () => {
+  assert.equal(normalizeSequence('j'), null)
+  assert.equal(normalizeSequence(''), '', 'empty is a deliberate off')
+  assert.equal(normalizeSequence('  kj  '), 'kj', 'surrounding space is trimmed')
+  assert.equal(normalizeSequence(';;'), ';;')
 })
 
 test('results per page only accepts offered sizes', () => {
@@ -39,9 +51,9 @@ test('writing preserves unrelated keys already in the file', () => {
 })
 
 test('writing off stores an empty sequence, which reads back as off', () => {
-  const json = writeSettings({ ...DEFAULTS, escapeSequence: 'off' }, '')
+  const json = writeSettings({ ...DEFAULTS, escapeSequence: '' }, '')
   assert.equal(JSON.parse(json).escape_sequence, '')
-  assert.equal(readSettings(json).escapeSequence, 'off')
+  assert.equal(readSettings(json).escapeSequence, '')
 })
 
 test('a written config round-trips unchanged', () => {
@@ -53,10 +65,17 @@ test('a written config round-trips unchanged', () => {
   assert.equal(back.resultsPerPage, 20)
 })
 
-test('every row exposes its current value as one of its options', () => {
+test('every choice row exposes its current value as one of its options', () => {
   for (const row of settingsRows(readSettings(''))) {
+    if (row.type !== 'choice') continue
     assert.ok(row.options.indexOf(row.value) !== -1, `${row.key} value must be selectable`)
   }
+})
+
+test('the escape sequence is a typed field, not a fixed list', () => {
+  const row = settingsRows(readSettings('')).find(r => r.key === 'escapeSequence')
+  assert.equal(row.type, 'text')
+  assert.equal(row.options, undefined, 'no menu to be limited by')
 })
 
 test('cycling wraps in both directions', () => {
