@@ -1,6 +1,6 @@
 // vim text objects over one line: iw, aw, i", a( and the rest. Pure; under test.
 
-import { charClass, BLANK } from './motions.mjs'
+import { charClass, BLANK, lineBounds } from './motions.mjs'
 
 const PAIRS = {
   '(': ['(', ')'], ')': ['(', ')'], b: ['(', ')'],
@@ -124,4 +124,11 @@ export function resolve (text, pos, scope, object) {
   return scope === 'i'
     ? { start: found.open + 1, end: found.close }
     : { start: found.open, end: found.close + 1 }
+}
+
+/** resolve, confined to the line holding pos, in positions of the whole text. */
+export function resolveInLine (text, pos, scope, object) {
+  const { start, end } = lineBounds(text, pos)
+  const range = resolve(text.substring(start, end), pos - start, scope, object)
+  return range ? { start: range.start + start, end: range.end + start } : null
 }

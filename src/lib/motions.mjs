@@ -121,3 +121,31 @@ export function lineUp (text, pos) {
   const prevLength = (lineStart - 1) - prevStart
   return prevStart + Math.min(column, prevLength)
 }
+
+/** The line holding pos, in text of several: [start, end), its break left out. */
+export function lineBounds (text, pos) {
+  const start = pos <= 0 ? 0 : text.lastIndexOf('\n', pos - 1) + 1
+  const nl = text.indexOf('\n', pos)
+  return { start, end: nl === -1 ? text.length : nl }
+}
+
+/**
+ * `f` `F` `t` `T` within the line holding pos, `count` times; -1 when it runs
+ * out. Repeated (`again`, for ; and ,) a t or T already beside its character
+ * looks past it rather than standing still, as vim's does.
+ */
+export function findInLine (text, pos, command, target, count = 1, again = false) {
+  const { start, end } = lineBounds(text, pos)
+  const forward = command === 'f' || command === 't'
+  const step = forward ? 1 : -1
+  let hit = again && (command === 't' || command === 'T') ? pos + step : pos
+  for (let n = 0; n < count; n++) {
+    let i = hit + step
+    while (i >= start && i < end && text[i] !== target) i += step
+    if (i < start || i >= end) return -1
+    hit = i
+  }
+  if (command === 't') return hit - 1
+  if (command === 'T') return hit + 1
+  return hit
+}

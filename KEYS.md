@@ -40,9 +40,11 @@ Insert mode:
 | `enter` (the search key) | search, or ask; the field drops to normal, so `j` steps into what came back |
 
 Normal mode is vim, on one line: `h l w W b B e 0 ^ $`, `f F t T{char}`,
-`i a I A`, `x`, `d c y` with a motion or doubled (`dd cc yy`), `p P`, `v`,
-counts (`3w`, `2dw`), and text objects (`diw`, `ci"`, `da(`). `j` or `down`
-steps into what is below. Deliberately absent: `.` repeat, macros, marks,
+`i a I A`, `x`, `d c y` with a motion or doubled (`dd cc yy`), `v`,
+counts (`3w`, `2dw`), and text objects (`diw`, `ci"`, `da(`). `p` `P` put
+the system clipboard after or before the cursor — every yank in the panel,
+field or answer, lands there — and in visual mode replace the selection.
+`j` or `down` steps into what is below. Deliberately absent: `.` repeat, macros, marks,
 named registers, linewise visual — a single-line field gains little from
 them.
 
@@ -66,12 +68,19 @@ them.
 | `j` `k` `h` `l`, arrows | move the cursor by line and character |
 | `w` `W` `b` `B` `e` `E` | by word |
 | `0` `^` `home`, `$` `end` | line ends |
+| `f` `F` `t` `T` {char}, `;` `,` | find on the line, and repeat it |
 | `gg` `G` | transcript ends |
 | `ctrl+d` `ctrl+u` | half a screen |
+| a count | repeats a motion: `3w`, `2j`, `2fx` |
 | `v` | select by character |
 | `V` | select by line |
+| `iw` `aw` `i"` `a(` … in visual mode | select a text object on the line: `viw`, `vi"` |
 | `gv` | reselect what was last selected |
-| `y` | yank the selection — or, with nothing selected, the reply under the cursor as the agent wrote it (Markdown); on a question, its answer |
+| `y` {motion} | yank: `yw`, `ye`, `y$`, `yfx`, `2yw`; `yj` `ygg` take whole lines |
+| `yiw` `ya(` … | yank a text object |
+| `y` in visual mode | yank the selection |
+| `yy` | yank the reply under the cursor as the agent wrote it (Markdown); on a question, its answer |
+| `p` `P` | put into the ask bar and go there: the selection in visual mode, else the clipboard (so `yiw` then `p`) |
 | `gx` | open the link under the cursor — or, in visual mode, the selected URL — in the browser; http and https only, a bare domain gets `https://` |
 | `enter` | hand the selection to the agent in a terminal |
 | `ctrl+c` (the new-session key) | start a new conversation |

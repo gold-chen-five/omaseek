@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { lineDown, lineUp } from '../src/lib/motions.mjs'
+import { lineDown, lineUp, lineBounds, findInLine } from '../src/lib/motions.mjs'
 
 const text = 'first line\nab\nthird line'   // lines start at 0, 11, 14
 
@@ -28,4 +28,33 @@ test('empty lines, and a text that starts with one', () => {
   assert.equal(lineDown('a\n\nb', 2), 3)
   assert.equal(lineUp('\nb', 1), 0)
   assert.equal(lineDown('\nb', 0), 1)
+})
+
+test('lineBounds is the line holding the position, without its break', () => {
+  assert.deepEqual(lineBounds(text, 0), { start: 0, end: 10 })
+  assert.deepEqual(lineBounds(text, 10), { start: 0, end: 10 })   // on the break itself
+  assert.deepEqual(lineBounds(text, 12), { start: 11, end: 13 })
+  assert.deepEqual(lineBounds(text, 20), { start: 14, end: 24 })
+})
+
+test('findInLine stays on its line', () => {
+  assert.equal(findInLine(text, 0, 'f', 'a'), -1)              // the a on the next line is out of reach
+  assert.equal(findInLine(text, 0, 'f', 'i'), 1)
+  assert.equal(findInLine(text, 15, 'F', 'i'), -1)
+  assert.equal(findInLine(text, 20, 'F', 'i'), 16)
+})
+
+test('findInLine counts, and t lands beside', () => {
+  const line = 'a,b,c,d'
+  assert.equal(findInLine(line, 0, 'f', ',', 2), 3)
+  assert.equal(findInLine(line, 0, 't', ',', 3), 4)
+  assert.equal(findInLine(line, 6, 'T', ','), 6)
+  assert.equal(findInLine(line, 0, 'f', ',', 9), -1)
+})
+
+test('a repeated t looks past the character it is already beside', () => {
+  const line = 'a,b,c'
+  assert.equal(findInLine(line, 0, 't', ','), 0)
+  assert.equal(findInLine(line, 0, 't', ',', 1, true), 2)
+  assert.equal(findInLine(line, 4, 'T', ',', 1, true), 2)
 })

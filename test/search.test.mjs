@@ -124,5 +124,5 @@ test('on a link, the answer hint says gx and where it goes', () => {
   assert.match(statusText({ panelMode: PANEL.AI, status: 'ok', link: 'https://www.rust-lang.org/learn' }), /^gx opens rust-lang\.org · /)
   assert.match(statusText({ panelMode: PANEL.AI, status: 'ok', link: 'https://x.io', selecting: true }), /^gx opens x\.io · y yanks/)
   assert.match(statusText({ panelMode: PANEL.AI, status: 'ok', selecting: true }), /hands the selection/)
-  assert.match(statusText({ panelMode: PANEL.AI, status: 'ok' }), /^j\/k move/)
+  assert.match(statusText({ panelMode: PANEL.AI, status: 'ok' }), /^v select · yy yanks the reply · p pastes into the ask/)
 })

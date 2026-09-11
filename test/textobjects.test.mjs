@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { resolve, isTextObject } from '../src/lib/textobjects.mjs'
+import { resolve, resolveInLine, isTextObject } from '../src/lib/textobjects.mjs'
 
 // Reads a range back as text, so the assertions say what the user would see.
 const cut = (text, pos, scope, object) => {
@@ -95,4 +95,14 @@ test('the object keys are exactly the ones we handle', () => {
     assert.ok(isTextObject(key), `${key} should be an object`)
   }
   for (const key of ['z', 'd', '1', '']) assert.ok(!isTextObject(key))
+})
+
+test('resolveInLine keeps an object to its line, in whole-text positions', () => {
+  const text = 'say "one\n"two" ok'
+  const take = pos => { const r = resolveInLine(text, pos, 'i', '"'); return r && text.slice(r.start, r.end) }
+  assert.equal(take(11), 'two')
+  assert.equal(take(5), null)                   // its closing quote is on the next line
+  const word = resolveInLine('first\nsecond', 8, 'i', 'w')
+  assert.deepEqual(word, { start: 6, end: 12 })
+  assert.equal(resolveInLine('a\n\nb', 2, 'i', 'w'), null)   // an empty line
 })

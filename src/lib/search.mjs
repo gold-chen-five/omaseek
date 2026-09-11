@@ -94,10 +94,10 @@ function askStatusText ({ status, errorMessage, agent, selecting, link }) {
     case 'error':
       return errorMessage
     case 'ok':
-      if (selecting && link) return `gx opens ${hostOf(link)} · y yanks · enter hands it off · esc drops it`
-      if (selecting) return 'enter hands the selection to the agent · y yanks · esc drops it'
-      if (link) return `gx opens ${hostOf(link)} · j/k move · v select · enter hands off`
-      return 'j/k move · v select · y yanks the reply · enter hands off · i asks more · ctrl+c new session'
+      if (selecting && link) return `gx opens ${hostOf(link)} · y yanks · p puts it in the ask · esc drops it`
+      if (selecting) return 'enter hands the selection to the agent · y yanks · p puts it in the ask · esc drops it'
+      if (link) return `gx opens ${hostOf(link)} · v select · yy yanks the reply · enter hands off`
+      return 'v select · yy yanks the reply · p pastes into the ask · enter hands off · i asks more · ctrl+c new session'
     default:
       return 'enter asks · tab search · ctrl+s settings'
   }

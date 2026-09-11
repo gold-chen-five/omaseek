@@ -156,12 +156,29 @@ TextArea {
     applyOperator(operator, start, end)
   }
 
-  function paste (after) {
-    if (!register) return
-    const at = after ? Math.min(text.length, cursorPosition + 1) : cursorPosition
-    insert(at, register)
-    cursorPosition = at + register.length - 1
+  // p and P: the text given, else the system clipboard — where every yank in
+  // the panel lands, so a word yanked from the answer puts here — else the
+  // register, should the clipboard not be readable.
+  function put (after, value) {
+    const at = after && text.length > 0 ? Math.min(text.length, cursorPosition + 1) : cursorPosition
+    const before = length
+    cursorPosition = at
+    if (value) insert(at, value)
+    else if (canPaste) field.paste()
+    else if (register) insert(at, register)
+    if (length === before) return
+    if (!multiline) flatten(at, at + length - before)
+    cursorPosition = at + length - before - 1
     clampCursor()
+  }
+
+  // A search is one line: breaks in what was put become spaces.
+  function flatten (from, to) {
+    const chunk = getText(from, to)
+    const flat = chunk.replace(/[\r\n\u2028\u2029]+/g, " ")
+    if (flat === chunk) return
+    remove(from, to)
+    insert(from, flat)
   }
 
   // Insert mode only intercepts what vim itself would.
@@ -360,8 +377,18 @@ TextArea {
       clear()
       setMode("insert")
       return
-    case "p": paste(true); return
-    case "P": paste(false); return
+    case "p": case "P":
+      if (mode === "visual") {                // the selection is replaced
+        const start = Math.min(visualAnchor, pos)
+        const end = Math.min(text.length, Math.max(visualAnchor, pos) + 1)
+        setMode("normal")
+        remove(start, end)
+        cursorPosition = start
+        put(false, "")
+      } else {
+        put(key === "p", "")
+      }
+      return
     case "u": undo(); clampCursor(); return
     }
   }

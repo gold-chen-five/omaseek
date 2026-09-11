@@ -441,6 +441,10 @@ Item {
           onSettingsRequested: root.openSettings()
           onTabbed: root.toggleMode()
           onNewSessionRequested: root.newChat()
+          onPutRequested: (text, after) => {
+            root.focusSearch(false)
+            input.put(after, text)
+          }
           newSessionChord: root.newSessionChord
         }
 

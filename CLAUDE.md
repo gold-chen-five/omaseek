@@ -173,6 +173,16 @@ next door cannot, because node loads it too. `VimTextField` keeps its own
 dispatch: counts, operators and pending finds make it a different machine, and
 flattening it into a table would hide that rather than simplify it.
 
+The answer view needs that machine too (`3w`, `yiw`, `viw`, `fx`), so it runs
+its keys through `src/lib/grammar.mjs` first: counts, the `y` operator, the key
+after `f`/`t` and after `i`/`a`, then the table for everything else. Every
+motion there answers *where it lands* (`motionTarget`) rather than moving, so
+one target moves the cursor, stretches a selection, or bounds a yank. Finds and
+text objects are confined to the logical line (`findInLine`, `resolveInLine`),
+as vim's are; the transcript is one long text. `yy` is the reply as Markdown,
+not a display line, and `p` puts into the ask bar, which reads the clipboard
+through the TextArea's own `paste()` — no `wl-paste` round trip.
+
 Settings live in `~/.config/omaseek/config.json`, shared by the panel and
 `bin/search` — **the option lists are declared once in `src/lib/settings.mjs`**
 and mirrored in `bin/search` (`PAGE_SIZE_CHOICES`); change both. `searxng_url`

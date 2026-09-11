@@ -46,6 +46,7 @@ export const ANSWER_KEYS = merge(NAV, {
   'V': 'selectLines',
   'g v': 'reselect',
   'y': 'yank',
+  'p': 'put', 'P': 'putBefore',
   'g x': 'openLink'
 })
 

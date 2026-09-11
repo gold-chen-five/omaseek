@@ -7,6 +7,8 @@ import "../lib/markdown.mjs" as Markdown
 import "../lib/thinking.mjs" as Thinking
 import "../lib/urls.mjs" as Urls
 import "../lib/transcript.mjs" as Transcript
+import "../lib/textobjects.mjs" as TextObjects
+import "../lib/grammar.mjs" as Grammar
 import "chord.js" as Chord
 
 // The transcript, read with vim keys. One read-only rich-text TextEdit holds
@@ -59,7 +61,9 @@ FocusScope {
   property int anchor: -1                      // visual mode's other end, or -1
   property bool linewise: false                // V rather than v
   property var lastVisual: null                // for gv: { anchor, cursor, linewise }
-  property string pending: ""                  // an unfinished sequence: "g" after g
+  property var grammar: Grammar.IDLE           // a half-typed sequence: 3, y, yi, f, g
+  property var lastFind: null                  // { command, char }, for ; and ,
+  property bool flashing: false                // a yanked range is lit, not selected
   property string newSessionChord: "C-c"          // from settings, already parsed
   property string cursorLink: ""               // the openable link under the cursor, or ""
   property real preferredX: -1                 // the column j/k try to keep
@@ -93,9 +97,10 @@ FocusScope {
   signal settingsRequested()
   signal tabbed()
   signal newSessionRequested()                 // the new-session chord, or the button
+  signal putRequested(string text, bool after) // p and P: the selection, or "" for the clipboard
 
   onActiveFocusChanged: {
-    pending = ""
+    grammar = Grammar.IDLE
     if (activeFocus) cursorLink = linkUnder(cursor)   // the layout may not have existed when the answer landed
   }
   onTurnsChanged: Qt.callLater(refresh)
@@ -226,27 +231,77 @@ FocusScope {
   // the nearest line below it — from the first line of a block, one pixel up
   // is the line the cursor is already on. So keep stepping until the layout
   // returns a line that actually lies in the direction of travel.
-  function moveLine (delta) {
-    const rect = answer.positionToRectangle(cursor)
-    if (preferredX < 0) preferredX = rect.x
+  function lineFrom (pos, delta) {
+    const rect = answer.positionToRectangle(pos)
     const step = Math.max(2, Math.round(rect.height / 4))
     let y = delta > 0 ? rect.y + rect.height + 1 : rect.y - 1
     while (y >= 0 && y <= answer.contentHeight) {
-      const pos = answer.positionAt(preferredX, y)
-      const landed = answer.positionToRectangle(pos)
-      if (delta > 0 ? landed.y > rect.y : landed.y < rect.y) {
-        placeCursor(pos, true)
-        return
-      }
+      const next = answer.positionAt(preferredX, y)
+      const landed = answer.positionToRectangle(next)
+      if (delta > 0 ? landed.y > rect.y : landed.y < rect.y) return next
       y += delta > 0 ? step : -step
     }
+    return -1
   }
 
-  function halfPage (direction) {
+  // count lines down, or up when negative, aiming for the column j and k keep.
+  function lineTarget (count) {
+    if (preferredX < 0) preferredX = answer.positionToRectangle(cursor).x
+    let pos = cursor
+    for (let i = 0; i < Math.abs(count); i++) {
+      const next = lineFrom(pos, count)
+      if (next === -1) break
+      pos = next
+    }
+    return pos
+  }
+
+  function halfPageTarget (direction) {
     const rect = answer.positionToRectangle(cursor)
     if (preferredX < 0) preferredX = rect.x
     const y = Math.max(0, Math.min(answer.contentHeight - 1, rect.y + direction * flick.height / 2))
-    placeCursor(answer.positionAt(preferredX, y), true)
+    return answer.positionAt(preferredX, y)
+  }
+
+  // Where a motion lands, without going there: { pos, inclusive, linewise,
+  // column }, or null for a command that is not a motion. The one answer moves
+  // the cursor, stretches a selection, or bounds a yank.
+  function motionTarget (command, count) {
+    const text = plain()
+    const times = motion => Motions.repeat(motion, count, cursor)
+    switch (command) {
+    case "down":            return { pos: lineTarget(count), linewise: true, column: true }
+    case "up":              return { pos: lineTarget(-count), linewise: true, column: true }
+    case "halfPageDown":    return { pos: halfPageTarget(1), linewise: true, column: true }
+    case "halfPageUp":      return { pos: halfPageTarget(-1), linewise: true, column: true }
+    case "right":           return { pos: Math.min(answer.length, cursor + count) }
+    case "left":            return { pos: Math.max(0, cursor - count) }
+    case "top":             return { pos: 0, linewise: true }
+    case "bottom":          return { pos: answer.length, linewise: true }
+    case "wordForward":     return { pos: times(at => Motions.wordForward(text, at)) }
+    case "wordForwardBig":  return { pos: times(at => Motions.wordForward(text, at, true)) }
+    case "wordBackward":    return { pos: times(at => Motions.wordBackward(text, at)) }
+    case "wordBackwardBig": return { pos: times(at => Motions.wordBackward(text, at, true)) }
+    case "wordEnd":         return { pos: times(at => Motions.wordEnd(text, at)), inclusive: true }
+    case "wordEndBig":      return { pos: times(at => Motions.wordEnd(text, at, true)), inclusive: true }
+    case "lineStart":       return { pos: lineStartAt(cursor) }
+    case "lineEnd":         return { pos: Math.max(lineStartAt(cursor), lineEndAt(cursor) - 1), inclusive: true }  // on the last character, as vim puts it
+    }
+    return null
+  }
+
+  // f F t T look along the line under the cursor only, as vim's do.
+  function findTarget (command, char, count, again) {
+    return {
+      pos: Motions.findInLine(plain(), cursor, command, char, count, again),
+      inclusive: command === "f" || command === "t"
+    }
+  }
+
+  function go (target, operator) {
+    if (!target || target.pos < 0) return
+    if (operator === "y") yankMotion(target)
+    else placeCursor(target.pos, target.column === true)
   }
 
   // Once the transcript overflows, hold the cursor line centred so every j or k
@@ -264,6 +319,7 @@ FocusScope {
 
   function startSelecting (byLine) {
     yankFlash.stop()
+    endFlash()
     anchor = cursor
     linewise = byLine
     placeCursor(cursor, true)
@@ -292,7 +348,7 @@ FocusScope {
     if (!selecting) return ""
     const from = linewise ? lineStartAt(Math.min(anchor, cursor)) : Math.min(anchor, cursor)
     const to = linewise ? lineEndAt(Math.max(anchor, cursor)) : Math.min(answer.length, Math.max(anchor, cursor) + 1)
-    return Transcript.cut(answer.getText(from, to), from, leadRanges())
+    return Transcript.cut(plain().substring(from, to), from, leadRanges())
   }
 
   // The ● before each reply, and the waiting placeholder: present in the text
@@ -304,21 +360,24 @@ FocusScope {
     return ranges
   }
 
+  function copy (value) {
+    if (value) Quickshell.execDetached(["wl-copy", "--", value])
+  }
+
   function yank () {
-    if (selecting) {
-      const value = selection()
-      if (value) Quickshell.execDetached(["wl-copy", "--", value])
-      yankFlash.restart()                      // lit for a beat, as LazyVim does
-      return
-    }
-    // Nothing selected: the reply under the cursor, as the agent wrote it —
-    // Markdown, so a link or a code block survives the paste. On a question,
-    // the reply that answers it.
+    if (!selecting) return yankReply()
+    copy(selection())
+    yankFlash.restart()                        // lit for a beat, as LazyVim does
+  }
+
+  // yy: the reply under the cursor, as the agent wrote it — Markdown, so a
+  // link or a code block survives the paste. On a question, the reply that
+  // answers it.
+  function yankReply () {
     let r = Transcript.replyIndexAt(cursor, questionStarts, replyStarts)
     if (r === -1) r = replyStarts.length - 1
     if (r === -1) return
-    const text = String(turns[replyTurns[r]].text)
-    if (text) Quickshell.execDetached(["wl-copy", "--", text])
+    copy(String(turns[replyTurns[r]].text))
     // Lit by a band behind its lines, not by selecting it: a selection
     // appearing on the text is taken for a mouse drag and starts visual mode.
     const from = replyStarts[r] + 2
@@ -327,6 +386,67 @@ FocusScope {
     const bottom = answer.positionToRectangle(Math.max(from, to - 1))
     yankBand = { y: top.y, height: bottom.y + bottom.height - top.y }
     replyFlash.restart()
+  }
+
+  // y with a motion. Linewise motions take whole lines, as V does; an
+  // exclusive one stops short of the character it lands on.
+  function yankMotion (target) {
+    const low = Math.min(cursor, target.pos)
+    const high = Math.max(cursor, target.pos)
+    if (target.linewise) yankRange(lineStartAt(low), lineEndAt(high))
+    else if (target.inclusive) yankRange(low, Math.min(answer.length, high + 1))
+    else yankRange(low, Grammar.trimExclusive(plain(), low, high))
+  }
+
+  // [from, to) to the clipboard, lit for a beat; the cursor goes to its start,
+  // as vim's does.
+  function yankRange (from, to) {
+    if (to <= from) return
+    copy(Transcript.cut(plain().substring(from, to), from, leadRanges()))
+    placeCursor(from)
+    flash(from, to)
+  }
+
+  // Lit by selecting it, flagged: a selection appearing on the text is
+  // otherwise taken for a mouse drag and starts visual mode.
+  function flash (from, to) {
+    flashing = true
+    answer.select(from, to)
+    rangeFlash.restart()
+  }
+
+  function endFlash () {
+    rangeFlash.stop()
+    if (!flashing) return
+    flashing = false
+    if (!selecting) {
+      answer.deselect()
+      answer.cursorPosition = cursor
+    }
+  }
+
+  // iw, a", i( … on the line under the cursor: yanked after y, selected in
+  // visual mode.
+  function takeObject (scope, object, operator) {
+    const range = TextObjects.isTextObject(object) ? TextObjects.resolveInLine(plain(), cursor, scope, object) : null
+    if (!range) return
+    if (operator === "y") {
+      yankRange(range.start, range.end)
+      return
+    }
+    if (!selecting) return
+    linewise = false
+    anchor = range.start
+    placeCursor(Math.max(range.start, range.end - 1), true)
+  }
+
+  // p and P hand text to the ask bar, where it can be edited: the selection
+  // in visual mode, else "" and the field reads the clipboard, where every
+  // yank here lands.
+  function put (after) {
+    const value = selection()
+    if (selecting) stopSelecting()
+    putRequested(value, after)
   }
 
   // gx: the link under the cursor, whether the agent wrote it as Markdown (a
@@ -365,6 +485,13 @@ FocusScope {
   }
 
   Timer {
+    id: rangeFlash
+
+    interval: 250
+    onTriggered: view.endFlash()
+  }
+
+  Timer {
     id: yankFlash
 
     interval: 250
@@ -375,15 +502,38 @@ FocusScope {
   Keys.onPressed: event => {
     const chord = Chord.of(event)
     if (chord !== "" && chord === view.newSessionChord) {
-      pending = ""
+      grammar = Grammar.IDLE
       newSessionRequested()
       event.accepted = true
       return
     }
-    const step = KeysLib.resolve(KeysLib.ANSWER_KEYS, pending, chord)
-    pending = step.pending
-    run(step.command)
+    const step = Grammar.feed(grammar, chord, KeysLib.ANSWER_KEYS, selecting)
+    grammar = step.state
+    perform(step.action)
     event.accepted = true
+  }
+
+  function perform (action) {
+    if (!action) return
+    switch (action.type) {
+    case "command": {
+      const target = motionTarget(action.command, action.count)
+      if (target) go(target, action.operator)
+      else if (!action.operator) run(action.command)   // y then a non-motion: dropped, as vim does
+      break
+    }
+    case "find":
+      lastFind = { command: action.command, char: action.char }
+      go(findTarget(action.command, action.char, action.count, false), action.operator)
+      break
+    case "repeatFind":
+      if (!lastFind) break
+      go(findTarget(action.reverse ? Motions.flipFind(lastFind.command) : lastFind.command,
+                    lastFind.char, action.count, true), action.operator)
+      break
+    case "object": takeObject(action.scope, action.object, action.operator); break
+    case "line":   yankReply(); break
+    }
   }
 
   function run (command) {
@@ -393,29 +543,13 @@ FocusScope {
     case "accept":       handOff(); break
     case "cancel":       if (selecting) stopSelecting(); else escaped(); break
     case "insert":       insertRequested(); break
-    case "halfPageDown": halfPage(1); break
-    case "halfPageUp":   halfPage(-1); break
-    case "down":         moveLine(1); break
-    case "up":           moveLine(-1); break
-    case "right":        placeCursor(cursor + 1); break
-    case "left":         placeCursor(cursor - 1); break
-    case "top":          placeCursor(0); break
-    case "bottom":       placeCursor(answer.length); break
-
-    case "wordForward":     placeCursor(Motions.wordForward(plain(), cursor)); break
-    case "wordForwardBig":  placeCursor(Motions.wordForward(plain(), cursor, true)); break
-    case "wordBackward":    placeCursor(Motions.wordBackward(plain(), cursor)); break
-    case "wordBackwardBig": placeCursor(Motions.wordBackward(plain(), cursor, true)); break
-    case "wordEnd":         placeCursor(Motions.wordEnd(plain(), cursor)); break
-    case "wordEndBig":      placeCursor(Motions.wordEnd(plain(), cursor, true)); break
-    case "lineStart":       placeCursor(lineStartAt(cursor)); break
-    case "lineEnd":         placeCursor(Math.max(lineStartAt(cursor), lineEndAt(cursor) - 1)); break  // on the last character, as vim puts it
-
     case "selectChars": if (selecting && !linewise) stopSelecting(); else startSelecting(false); break
     case "selectLines": if (selecting && linewise) stopSelecting(); else startSelecting(true); break
     case "reselect":    reselect(); break
     case "yank":        yank(); break
     case "openLink":    openLink(); break
+    case "put":         put(true); break
+    case "putBefore":   put(false); break
     }
   }
 
@@ -548,7 +682,7 @@ FocusScope {
       }
 
       // The mouse selects too; a drag becomes the same selection v makes.
-      onSelectedTextChanged: if (selectedText !== "" && !view.selecting) {
+      onSelectedTextChanged: if (selectedText !== "" && !view.selecting && !view.flashing) {
         view.anchor = selectionStart
         view.cursor = selectionEnd
       }
