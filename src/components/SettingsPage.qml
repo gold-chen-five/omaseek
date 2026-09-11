@@ -12,6 +12,15 @@ FocusScope {
   property int cursor: 0
   property int editingIndex: -1              // which text row is being typed into
   property int dropdownIndex: -1             // which choice row has its list open
+
+  // The widest row of chips on the page, measured as laid out. A dropdown takes
+  // this width, so it lines up with the chips under it edge for edge.
+  property var chipWidths: ({})
+  readonly property real chipColumn: {
+    let widest = 0
+    for (const key in chipWidths) widest = Math.max(widest, chipWidths[key])
+    return widest
+  }
   property color foreground: Color.menu.text
   property color accent: Color.menu.selectedText
   property color selectedBackground: Color.menu.selectedBackground
@@ -37,6 +46,13 @@ FocusScope {
     if (editingIndex === -1) return          // idempotent: nothing to hand back
     editingIndex = -1
     editingFinished()
+  }
+
+  function noteChips (index, width) {
+    const next = {}
+    for (const key in chipWidths) next[key] = chipWidths[key]
+    next[index] = width
+    chipWidths = next
   }
 
   function moveCursor (delta) {
@@ -204,7 +220,7 @@ FocusScope {
 
               anchors.left: parent.left
               anchors.verticalCenter: parent.verticalCenter
-              width: parent.width - Style.space(200)
+              width: parent.width - (settingRow.isDropdown ? picker.width + Style.spacing.md : Style.space(200))
               spacing: Style.spacing.xxs
 
               Text {
@@ -257,6 +273,8 @@ FocusScope {
               anchors.verticalCenter: parent.verticalCenter
               spacing: Style.spacing.sm
 
+              onWidthChanged: if (width > 0) settingRow.owner.noteChips(settingRow.index, width)   // hidden, it measures 0
+
               Repeater {
                 model: inlineChips.visible ? settingRow.modelData.options : []
                 delegate: chip
@@ -272,7 +290,7 @@ FocusScope {
               visible: settingRow.isDropdown
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
-              width: Style.space(200)
+              width: page.chipColumn > 0 ? page.chipColumn : Style.space(200)
               showLabel: false
               options: picker.visible ? settingRow.modelData.options.map(String) : []
               value: String(settingRow.modelData.value)
