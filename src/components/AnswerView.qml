@@ -142,12 +142,24 @@ FocusScope {
     ensureVisible()
   }
 
+  // Blocks are separated by margins, and positionAt in a margin answers with
+  // the nearest line below it — from the first line of a block, one pixel up
+  // is the line the cursor is already on. So keep stepping until the layout
+  // returns a line that actually lies in the direction of travel.
   function moveLine (delta) {
     const rect = answer.positionToRectangle(cursor)
     if (preferredX < 0) preferredX = rect.x
-    const y = delta > 0 ? rect.y + rect.height + 1 : rect.y - 1
-    if (y < 0 || y > answer.contentHeight) return
-    placeCursor(answer.positionAt(preferredX, y), true)
+    const step = Math.max(2, Math.round(rect.height / 4))
+    let y = delta > 0 ? rect.y + rect.height + 1 : rect.y - 1
+    while (y >= 0 && y <= answer.contentHeight) {
+      const pos = answer.positionAt(preferredX, y)
+      const landed = answer.positionToRectangle(pos)
+      if (delta > 0 ? landed.y > rect.y : landed.y < rect.y) {
+        placeCursor(pos, true)
+        return
+      }
+      y += delta > 0 ? step : -step
+    }
   }
 
   function halfPage (direction) {
