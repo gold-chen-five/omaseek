@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Unit tests for src/lib/*.mjs: plain ES modules, run by node.
+# Unit tests for the draft launcher and src/lib/*.mjs.
 
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
+python3 test/agent-draft.test.py
 exec node --test test/*.test.mjs

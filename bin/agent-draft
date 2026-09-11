@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+"""Open an interactive agent and bracket-paste a draft, without sending Enter."""
+import errno
+import fcntl
+import os
+import pty
+import select
+import signal
+import sys
+import termios
+import time
+import tty
+
+
+def paste_bytes(text):
+    # Keep newlines inside the paste, but strip terminal controls so supplied
+    # text cannot terminate bracketed paste or inject a submit key sequence.
+    clean = ''.join(c for c in text.replace('\r\n', '\n').replace('\r', '\n')
+                    if c in '\n\t' or (ord(c) >= 32 and not 127 <= ord(c) <= 159))
+    return b'\x1b[200~' + clean.encode('utf-8') + b'\x1b[201~'
+
+
+def write_all(fd, data):
+    while data:
+        written = os.write(fd, data)
+        data = data[written:]
+
+
+def run(command, text):
+    saved = termios.tcgetattr(0) if os.isatty(0) else None
+    pid, master = pty.fork()
+    if pid == 0:
+        os.execvp(command[0], command)
+
+    def resize(*_):
+        if saved is not None:
+            size = fcntl.ioctl(0, termios.TIOCGWINSZ, b'\0' * 8)
+            fcntl.ioctl(master, termios.TIOCSWINSZ, size)
+
+    resize()
+    previous = signal.signal(signal.SIGWINCH, resize)
+    pending = paste_bytes(text)
+    bracketed = False
+    tail = b''
+    paste_ready_at = None
+    stdin_open = True
+    try:
+        if saved is not None:
+            tty.setraw(0)
+        while True:
+            readers = [master] + ([0] if stdin_open else [])
+            ready, _, _ = select.select(readers, [], [], 0.1)
+            if master in ready:
+                try:
+                    output = os.read(master, 65536)
+                except OSError as error:
+                    if error.errno == errno.EIO:
+                        break
+                    raise
+                if not output:
+                    break
+                write_all(1, output)
+                # The child must explicitly enable paste handling. Never send
+                # a multiline draft to an unprepared terminal or shell.
+                stream = tail + output
+                enabled = stream.rfind(b'\x1b[?2004h')
+                disabled = stream.rfind(b'\x1b[?2004l')
+                if max(enabled, disabled) >= 0:
+                    was_bracketed = bracketed
+                    bracketed = enabled > disabled
+                    if bracketed and not was_bracketed:
+                        paste_ready_at = time.monotonic() + 1.0
+                    elif not bracketed:
+                        paste_ready_at = None
+                tail = stream[-7:]
+            if 0 in ready:
+                data = os.read(0, 65536)
+                if not data:
+                    stdin_open = False
+                else:
+                    write_all(master, data)
+            if pending and bracketed and paste_ready_at is not None and time.monotonic() >= paste_ready_at:
+                write_all(master, pending)
+                pending = b''
+    finally:
+        signal.signal(signal.SIGWINCH, previous)
+        if saved is not None:
+            termios.tcsetattr(0, termios.TCSADRAIN, saved)
+        os.close(master)
+    _, status = os.waitpid(pid, 0)
+    return os.waitstatus_to_exitcode(status)
+
+
+def main():
+    path, separator, *command = sys.argv[1:]
+    if separator != '--' or not command:
+        raise SystemExit('usage: agent-draft PROMPT_FILE -- COMMAND [ARGS...]')
+    try:
+        with open(path, encoding='utf-8') as source:
+            prompt = source.read()
+    finally:
+        os.unlink(path)
+    raise SystemExit(run(command, prompt))
+
+
+if __name__ == '__main__':
+    main()

@@ -3,7 +3,7 @@
 
     ./bin/ask --agents                              installed agents, and the default
     ./bin/ask --json '{"question": "…"}'            one answer
-    ./bin/ask --launch --json '{"prompt": "…"}'     open the agent on that prompt
+    ./bin/ask --launch --json '{"prompt": "…"}'     open an editable draft in the agent
     ./bin/ask --login --json '{"agent": "…"}'       hand its sign-in or setup to a terminal
 
 The payload can also come on stdin. Each turn runs the agent CLI's print mode
@@ -26,6 +26,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 
 CONFIG_PATH = os.path.join(
     os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.environ["HOME"], ".config"),
@@ -317,9 +318,16 @@ def run_chat(agent, prompt):
 
 
 def interactive_command(agent, prompt):
-    if agent.get("launch_joined_value"):
-        return agent["launch"][:-1] + [agent["launch"][-1] + "=" + prompt]
-    return agent["launch"] + [prompt]
+    # Startup prompt flags submit immediately. Start with an empty editor,
+    # then let the PTY helper deliver a bracketed paste without Enter.
+    command = list(agent["launch"])
+    if command[-1] in ("--", "--prompt", "--prompt-interactive", "--query", "--interactive"):
+        command.pop()
+    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8",
+                                     prefix="omaseek-draft-", delete=False) as draft:
+        draft.write(prompt)
+    helper = os.path.join(os.path.dirname(os.path.realpath(__file__)), "agent-draft")
+    return [helper, draft.name, "--"] + command
 
 
 def env_prefix(agent):
@@ -341,7 +349,7 @@ def fix_command(agent, fix):
 
 
 def login_line(agent, prompt, fix="login"):
-    """Fix the agent, then exec into it with the question. `;` not `&&`, so a
+    """Fix the agent, then exec into it with an editable draft. `;` not `&&`, so a
     failed sign-in still leaves the agent on screen saying why."""
     line = shlex.join(env_prefix(agent) + fix_command(agent, fix))
     if prompt:
