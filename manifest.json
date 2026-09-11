@@ -3,7 +3,7 @@
   "id": "omaseek",
   "name": "Omaseek",
   "version": "1.0.0",
-  "author": "jonas",
+  "author": "gold_chen_five",
   "description": "Web search and AI, with vim keybindings, through your own SearXNG",
   "kinds": [
     "overlay"
