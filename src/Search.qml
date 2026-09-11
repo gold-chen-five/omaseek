@@ -29,6 +29,8 @@ Item {
 
   readonly property string searchChord: Keybinds.parseChord(config.settings.searchKey) || "Return"
   readonly property string newSessionChord: Keybinds.parseChord(config.settings.newSessionKey) || "C-c"
+  readonly property string settingsChord: Keybinds.parseChord(config.settings.settingsKey) || "C-s"
+  readonly property string switchChord: Keybinds.parseChord(config.settings.switchModeKey) || "Tab"
 
   // [menu] tokens, as the first-party overlays use: a theme switch repaints this.
   readonly property color background: Color.menu.background
@@ -283,6 +285,8 @@ Item {
                 escapeTimeout: config.keymap.timeoutMs
                 searchChord: root.searchChord
                 newSessionChord: root.newSessionChord
+                settingsChord: root.settingsChord
+                switchChord: root.switchChord
 
                 onSubmitted: root.runSearch()
                 onCancelled: root.dismiss()
@@ -410,7 +414,9 @@ Item {
 
           visible: root.view === States.VIEW.SETTINGS
           width: parent.width
+          height: Math.max(0, parent.height - fieldRow.height - statusLine.height - Style.spacing.md * 2)
           rows: root.settingsRows
+          settingsChord: root.settingsChord
           foreground: root.foreground
           accent: root.accent
           fontFamily: root.fontFamily
@@ -423,6 +429,8 @@ Item {
 
         AnswerView {
           id: answerView
+          binds: config.settings
+          lineNumbers: config.settings.lineNumbers
 
           visible: root.view === States.VIEW.SEARCH && root.panelMode === States.PANEL.AI
           width: parent.width
@@ -450,6 +458,8 @@ Item {
 
         ResultList {
           id: resultsList
+          binds: config.settings
+          lineNumbers: config.settings.lineNumbers
 
           visible: root.view === States.VIEW.SEARCH && root.panelMode === States.PANEL.SEARCH
           width: parent.width
@@ -459,6 +469,8 @@ Item {
           accent: root.accent
           fontFamily: root.fontFamily
 
+          onHandedOff: index => ai.launch(session.handoffText(index))
+          onPageHandedOff: ai.launch(session.handoffText(-1))
           onActivated: index => root.openResult(index)
           onEscaped: root.focusSearch(false)
           onInsertRequested: root.focusSearch(true)

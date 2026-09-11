@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { lineDown, lineUp, lineBounds, findInLine } from '../src/lib/motions.mjs'
+import { lineDown, lineUp, lineBounds, lineRange, findInLine } from '../src/lib/motions.mjs'
 
 const text = 'first line\nab\nthird line'   // lines start at 0, 11, 14
 
@@ -57,4 +57,14 @@ test('a repeated t looks past the character it is already beside', () => {
   assert.equal(findInLine(line, 0, 't', ','), 0)
   assert.equal(findInLine(line, 0, 't', ',', 1, true), 2)
   assert.equal(findInLine(line, 4, 'T', ',', 1, true), 2)
+})
+
+
+test('line operators stop at line boundaries, including empty and final lines', () => {
+  assert.deepEqual(lineRange('one\ntwo\nthree', 5), { start: 4, end: 8 })
+  assert.deepEqual(lineRange('one\ntwo\nthree', 5, 2), { start: 4, end: 13 })
+  assert.deepEqual(lineRange('one\n\nthree', 4), { start: 4, end: 5 })
+  assert.deepEqual(lineRange('one\ntwo', 5), { start: 4, end: 7 })
+  assert.deepEqual(lineRange('one\n', 4), { start: 4, end: 4 })
+  assert.deepEqual(lineRange('', 0), { start: 0, end: 0 })
 })

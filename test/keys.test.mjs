@@ -1,6 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { LIST_KEYS, ANSWER_KEYS, resolve } from '../src/lib/keys.mjs'
+import { LIST_KEYS, ANSWER_KEYS, resolve, resolveCounted, readerKeys, bindingProblem } from '../src/lib/keys.mjs'
+import { ACTIONS, settingKey } from '../src/lib/keybinds.mjs'
+import { DEFAULTS } from '../src/lib/settings.mjs'
 
 test('a bound chord is its command', () => {
   assert.deepEqual(resolve(LIST_KEYS, '', 'j'), { command: 'down', pending: '' })
@@ -15,14 +17,14 @@ test('g waits for the second half, and gg is the top', () => {
 })
 
 test('a sequence that goes nowhere is dropped, not left pending', () => {
-  assert.deepEqual(resolve(LIST_KEYS, 'g', 'x'), { command: '', pending: '' })
+  assert.deepEqual(resolve(LIST_KEYS, 'g', 'q'), { command: '', pending: '' })
   // gv reselects in the answer view; the list has no selection to restore.
   assert.deepEqual(resolve(LIST_KEYS, 'g', 'v'), { command: '', pending: '' })
   assert.deepEqual(resolve(ANSWER_KEYS, 'g', 'v'), { command: 'reselect', pending: '' })
 })
 
 test('a modifier on its own leaves the pending sequence alone', () => {
-  // Reaching for shift halfway through a sequence must not cancel it.
+  // Reaching for shift halfway through a sequence must not cancel it: gA.
   assert.deepEqual(resolve(ANSWER_KEYS, 'g', ''), { command: '', pending: 'g' })
   assert.deepEqual(resolve(ANSWER_KEYS, '', ''), { command: '', pending: '' })
 })
@@ -31,9 +33,22 @@ test('an unbound key clears whatever was pending', () => {
   assert.deepEqual(resolve(ANSWER_KEYS, '', 'q'), { command: '', pending: '' })
 })
 
-test('both panes agree on the keys they share', () => {
+test('both panes agree on the keys they share; only paging is the list’s own', () => {
   for (const chord of Object.keys(LIST_KEYS)) {
-    assert.equal(ANSWER_KEYS[chord], LIST_KEYS[chord], `${chord} means two things`)
+    const command = LIST_KEYS[chord]
+    if (command === 'nextPage' || command === 'previousPage') {
+      assert.notEqual(ANSWER_KEYS[chord], command, `${chord} pages the answer`)
+      continue
+    }
+    assert.equal(ANSWER_KEYS[chord], command, `${chord} means two things`)
+  }
+})
+
+test('hand-off is ga and everything is gA, the same in both panes', () => {
+  for (const keys of [LIST_KEYS, ANSWER_KEYS]) {
+    assert.equal(resolve(keys, 'g', 'a').command, 'handOff')
+    assert.equal(resolve(keys, 'g', 'A').command, 'handOffPage')
+    assert.equal(resolve(keys, '', 'C-Return').command, '', 'no second, different spelling')
   }
 })
 
@@ -43,8 +58,11 @@ test('the answer view adds motions and a selection', () => {
   assert.equal(resolve(ANSWER_KEYS, '', '$').command, 'lineEnd')
   assert.equal(resolve(ANSWER_KEYS, '', 'V').command, 'selectLines')
   assert.equal(resolve(ANSWER_KEYS, '', 'y').command, 'yank')
+  assert.equal(resolve(ANSWER_KEYS, '', 'l').command, 'right')
   // The list has none of them, so its keys stay free for later.
   assert.equal(resolve(LIST_KEYS, '', 'w').command, '')
+  assert.equal(resolve(LIST_KEYS, '', 'l').command, 'nextPage')
+  assert.equal(resolve(LIST_KEYS, '', 'Right').command, 'nextPage')
 })
 
 test('escape and enter are named keys, not their control characters', () => {
@@ -52,7 +70,6 @@ test('escape and enter are named keys, not their control characters', () => {
   assert.equal(resolve(LIST_KEYS, '', 'Return').command, 'accept')
   assert.equal(resolve(LIST_KEYS, '', '\r').command, '')
 })
-
 
 test('gx opens a link in the answer; the list has no links to open', () => {
   assert.deepEqual(resolve(ANSWER_KEYS, '', 'g'), { command: '', pending: 'g' })
@@ -62,4 +79,93 @@ test('gx opens a link in the answer; the list has no links to open', () => {
 
 test('E reaches the end of a WORD in the answer, so vE selects a whole URL', () => {
   assert.equal(resolve(ANSWER_KEYS, '', 'E').command, 'wordEndBig')
+})
+
+function counted (chords) {
+  let state = { pending: '', count: 0 }
+  let step
+  for (const chord of chords) {
+    step = resolveCounted(LIST_KEYS, state, chord)
+    state = step.state
+  }
+  return step
+}
+
+test('result navigation accepts multi-digit counts and resets after movement', () => {
+  assert.equal(counted(['2', 'j']).command, 'down')
+  assert.equal(counted(['2', 'j']).count, 2)
+  assert.equal(counted(['1', '0', 'Up']).count, 10)
+  assert.equal(counted(['2', 'C-d']).count, 2)
+  assert.equal(counted(['2', 'j', 'k']).count, 1)
+  assert.equal(counted(['2', '', 'j']).count, 2)
+})
+
+test('result counts cancel on escape and unknown keys without leaking into the next move', () => {
+  assert.equal(counted(['2', 'Escape']).command, '')
+  assert.equal(counted(['2', 'Escape', 'j']).count, 1)
+  assert.equal(counted(['2', 'q', 'j']).count, 1)
+  assert.equal(counted(['Escape']).command, 'cancel')
+  assert.equal(counted(['g', 'Escape']).command, '')
+  assert.equal(counted(['g', 'g']).command, 'top')
+  assert.equal(counted(['G']).command, 'bottom')
+})
+
+test('a rebound key moves its command in both panes and frees the old key', () => {
+  const binds = { ...DEFAULTS, handoffKey: 'ctrl+h', handoffAllKey: 'gt', openLinkKey: 'ctrl+o', nextPageKey: 'n' }
+  for (const pane of ['results', 'answer']) {
+    const keys = readerKeys(pane, binds)
+    assert.equal(resolve(keys, '', 'C-h').command, 'handOff')
+    assert.equal(resolve(keys, 'g', 't').command, 'handOffPage')
+    assert.equal(resolve(keys, 'g', 'a').command, '')
+    assert.equal(resolve(keys, 'g', 'A').command, '')
+  }
+  assert.equal(resolve(readerKeys('answer', binds), '', 'C-o').command, 'openLink')
+  assert.equal(resolve(readerKeys('answer', binds), 'g', 'x').command, '')
+  assert.equal(resolve(readerKeys('results', binds), '', 'n').command, 'nextPage')
+  assert.equal(resolve(readerKeys('results', binds), '', 'l').command, '', 'l is free once paging moves')
+  assert.equal(resolve(readerKeys('results', binds), '', 'Right').command, 'nextPage', 'the arrow stays')
+})
+
+test('an unreadable binding falls back to the default rather than vanishing', () => {
+  const keys = readerKeys('results', { ...DEFAULTS, handoffKey: 'nonsense' })
+  assert.equal(resolve(keys, 'g', 'a').command, 'handOff')
+})
+
+test('no two default keys collide', () => {
+  for (const action of ACTIONS) {
+    assert.equal(bindingProblem(action.id, action.default, DEFAULTS), '', action.id)
+  }
+})
+
+test('a key already taken is refused with what takes it', () => {
+  assert.match(bindingProblem('handoff', 'gx', DEFAULTS), /Open link/)
+  assert.match(bindingProblem('handoff', 'gg', DEFAULTS), /the top/)
+  assert.match(bindingProblem('handoff', 'g', DEFAULTS), /the top/, 'g alone would swallow gg')
+  assert.match(bindingProblem('handoff', 'f', DEFAULTS), /vim uses f/)
+  assert.match(bindingProblem('handoff', '3', DEFAULTS), /count/)
+  assert.match(bindingProblem('nextPage', 'j', DEFAULTS), /move down/)
+  assert.match(bindingProblem('openLink', 'l', DEFAULTS), /move right/)
+  assert.match(bindingProblem('settings', 'ctrl+w', DEFAULTS), /delete a word/)
+  assert.match(bindingProblem('settings', 'ctrl+d', DEFAULTS), /half a screen/)
+  assert.match(bindingProblem('newSession', 'ctrl+s', DEFAULTS), /Settings/)
+})
+
+test('keys in panes that never meet may share a key', () => {
+  // Enter searches from the field and opens from the lists; paging is only
+  // the list's, so the answer's l does not stand in its way.
+  assert.equal(bindingProblem('search', 'enter', DEFAULTS), '')
+  assert.equal(bindingProblem('open', 'enter', DEFAULTS), '')
+  assert.equal(bindingProblem('nextPage', 'l', DEFAULTS), '')
+  assert.equal(bindingProblem('handoff', 'ctrl+h', DEFAULTS), '')
+})
+
+test('keys the field would type are refused for the keys it catches', () => {
+  assert.match(bindingProblem('settings', 's', DEFAULTS), /could never be typed/)
+  assert.match(bindingProblem('handoff', 'xyz', DEFAULTS), /not a key/)
+})
+
+test('a binding is checked against the others as they are now, not the defaults', () => {
+  const binds = { ...DEFAULTS, [settingKey(ACTIONS.find(a => a.id === 'openLink'))]: 'go' }
+  assert.equal(bindingProblem('handoff', 'gx', binds), '', 'gx was freed')
+  assert.match(bindingProblem('handoff', 'go', binds), /Open link/)
 })

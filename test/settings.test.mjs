@@ -3,8 +3,9 @@ import assert from 'node:assert/strict'
 import {
   readSettings, writeSettings, settingsRows, cycle, normalizeSequence, ENGINE_STATES,
   LAUNCHER_CHOICES, DEFAULT_AGENT,
-  PAGE_SIZE_CHOICES, DEFAULTS
+  PAGE_SIZE_CHOICES, DEFAULTS, checkRow, FIXED_KEYS
 } from '../src/lib/settings.mjs'
+import { ACTIONS, settingKey } from '../src/lib/keybinds.mjs'
 import { DEFAULT_TIMEOUT_MS } from '../src/lib/keymap.mjs'
 
 test('an absent config yields the defaults', () => {
@@ -171,4 +172,82 @@ test('the agent row is a dropdown; the short choices stay chips', () => {
   assert.equal(control('chatAgent'), 'dropdown')
   assert.equal(control('resultsPerPage'), undefined)
   assert.equal(control('launcher'), undefined)
+})
+
+
+test('line numbers default to relative and all display choices survive saving', () => {
+  assert.equal(readSettings('').lineNumbers, 'relative')
+  assert.equal(readSettings('{"line_numbers":"invalid"}').lineNumbers, 'relative')
+  for (const mode of ['relative', 'absolute', 'hide']) {
+    const source = JSON.stringify({ line_numbers: mode, searxng_url: 'http://box:8888' })
+    const settings = readSettings(source)
+    const saved = writeSettings({ ...settings, resultsPerPage: 5 }, source)
+    assert.equal(readSettings(saved).lineNumbers, mode)
+    assert.equal(JSON.parse(saved).searxng_url, 'http://box:8888')
+    const row = settingsRows(settings).find(row => row.key === 'lineNumbers')
+    assert.equal(row.value, mode)
+    assert.deepEqual(row.options, ['relative', 'absolute', 'hide'])
+  }
+})
+
+
+test('hand-off defaults to ga, everything to gA, and gx still opens a link', () => {
+  const initial = readSettings('')
+  assert.equal(initial.handoffKey, 'ga')
+  assert.equal(initial.handoffAllKey, 'gA')
+  assert.equal(initial.openLinkKey, 'gx')
+})
+
+test('every rebindable key has an editable row, and each round-trips through the file', () => {
+  const rows = settingsRows(readSettings(''))
+  for (const action of ACTIONS) {
+    const row = rows.find(row => row.key === settingKey(action))
+    assert.ok(row, `${action.id} has no row`)
+    assert.equal(row.type, 'text')
+    assert.equal(row.normalize, 'bind')
+    assert.equal(row.value, action.default)
+    assert.ok(row.hint)
+  }
+  const changed = { ...readSettings(''), handoffKey: 'ctrl+h', handoffAllKey: 'gt', openLinkKey: 'ctrl+o', settingsKey: 'ctrl+o' }
+  const written = writeSettings(changed, '{"searxng_url":"http://box:8888"}')
+  const restored = readSettings(written)
+  for (const key of ['handoffKey', 'handoffAllKey', 'openLinkKey', 'settingsKey']) assert.equal(restored[key], changed[key])
+  assert.equal(JSON.parse(written).handoff_all_key, 'gt')
+  assert.equal(JSON.parse(written).searxng_url, 'http://box:8888')
+})
+
+test('a key keeps its case through the file', () => {
+  assert.equal(readSettings('{"handoff_all_key":"gA"}').handoffAllKey, 'gA')
+  assert.equal(readSettings('{"handoff_all_key":"G A"}').handoffAllKey, 'GA')
+})
+
+test('keys from a config written before they were rebindable still read', () => {
+  const settings = readSettings('{"search_key":"ctrl+enter","new_session_key":"ctrl+n"}')
+  assert.equal(settings.searchKey, 'ctrl+enter')
+  assert.equal(settings.newSessionKey, 'ctrl+n')
+  assert.equal(readSettings('{"search_key":"q"}').searchKey, 'enter', 'a letter the field would type falls back')
+})
+
+test('the page refuses a key another action has, and says which', () => {
+  const rows = settingsRows(readSettings(''))
+  const row = rows.find(row => row.key === 'handoffKey')
+  assert.match(checkRow(row, 'gx', rows).error, /Open link/)
+  assert.equal(checkRow(row, 'gx', rows).value, null)
+  assert.deepEqual(checkRow(row, 'ctrl+h', rows), { value: 'ctrl+h', error: '' })
+  assert.deepEqual(checkRow(row, 'g a', rows), { value: 'ga', error: '' }, 'its own key is not a clash')
+  assert.deepEqual(checkRow(row, '', rows), { value: 'ga', error: '' }, 'empty restores the default')
+  const escape = rows.find(row => row.key === 'escapeSequence')
+  assert.ok(checkRow(escape, 'j', rows).error)
+  assert.deepEqual(checkRow(escape, '', rows), { value: '', error: '' })
+})
+
+test('the fixed keys close the page as read-only rows, so it lists everything pressable', () => {
+  const rows = settingsRows(readSettings(''))
+  const fixed = rows.slice(rows.findIndex(row => row.type === 'section' && row.label === 'Fixed keys') + 1)
+  assert.deepEqual(fixed.map(row => row.label), FIXED_KEYS.map(entry => entry.label))
+  for (const row of fixed) {
+    assert.equal(row.type, 'info')
+    assert.equal(row.key, undefined, 'nothing to write')
+    assert.ok(row.hint)
+  }
 })

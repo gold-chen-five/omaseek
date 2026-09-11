@@ -31,8 +31,9 @@ test('y waits for its motion, and counts on both sides multiply', () => {
   assert.equal(type(['y', '$']).action.command, 'lineEnd')
 })
 
-test('yy is the whole line, which the view takes to be the reply', () => {
-  assert.deepEqual(type(['y', 'y']).action, { type: 'line', operator: 'y' })
+test('yy carries a line count to the view', () => {
+  assert.deepEqual(type(['y', 'y']).action, { type: 'line', operator: 'y', count: 1 })
+  assert.deepEqual(type(['2', 'y', '3', 'y']).action, { type: 'line', operator: 'y', count: 6 })
 })
 
 test('yiw and ya( name a text object', () => {

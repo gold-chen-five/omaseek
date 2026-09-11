@@ -1,6 +1,30 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { replyIndexAt, replyEnd, cut } from '../src/lib/transcript.mjs'
+import { replyIndexAt, replyEnd, cut, exchangeText, conversationText } from '../src/lib/transcript.mjs'
+
+const TURNS = [
+  { role: 'user', text: 'rust site?' },
+  { role: 'assistant', text: '- Official website: [rust-lang.org](https://www.rust-lang.org/)' },
+  { role: 'user', text: 'and a book?' },
+  { role: 'error', text: 'Codex: rate limit' },
+  { role: 'user', text: 'a book, again' },
+  { role: 'assistant', text: 'The Rust Programming Language.' }
+]
+
+test('a hand-off of one reply brings its question, as the agent wrote both', () => {
+  assert.equal(exchangeText(TURNS, 1),
+    'User: rust site?\n\nAssistant: - Official website: [rust-lang.org](https://www.rust-lang.org/)')
+  assert.equal(exchangeText(TURNS, 5), 'User: a book, again\n\nAssistant: The Rust Programming Language.')
+  assert.equal(exchangeText(TURNS, 9), '')
+})
+
+test('a hand-off of everything leaves failures and placeholder dots out', () => {
+  const all = conversationText(TURNS)
+  assert.ok(all.startsWith('User: rust site?\n\nAssistant: - Official'))
+  assert.ok(!all.includes('rate limit'))
+  assert.ok(!all.includes('●'))
+  assert.equal(conversationText([]), '')
+})
 
 // "> q1\n● a1\n> q2\n● a2" — questions at 0 and 10, replies at 5 and 15.
 const Q = [0, 10]

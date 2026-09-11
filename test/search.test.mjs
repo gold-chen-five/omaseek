@@ -126,3 +126,13 @@ test('on a link, the answer hint says gx and where it goes', () => {
   assert.match(statusText({ panelMode: PANEL.AI, status: 'ok', selecting: true }), /hands the selection/)
   assert.match(statusText({ panelMode: PANEL.AI, status: 'ok' }), /^v select · yy yanks the reply · p pastes into the ask/)
 })
+
+
+test('agent context carries selected URLs or all current-page results', async () => {
+  const { handoffText } = await import('../src/lib/search.mjs')
+  const rows = [{ title: 'One', url: 'https://one.test', snippet: 'first' },
+                { title: 'Two', url: 'https://two.test', snippet: 'second' }]
+  assert.equal(handoffText('query', rows, 1), 'Search: query\n\nTwo\nhttps://two.test\nsecond')
+  assert.match(handoffText('query', rows), /one.test[\s\S]*two.test/)
+  assert.equal(handoffText('query', []), '')
+})

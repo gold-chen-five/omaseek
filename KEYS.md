@@ -4,26 +4,45 @@ Every binding in the panel, by the view that owns it. Written flat and
 greppable because it is read as often by an agent as by a person — if you
 change a key, change it here in the same commit.
 
-Two of these are rebindable in settings and stored in
-`~/.config/omaseek/config.json`; everything else is fixed in the source.
+Settings → Keys rebinds every key below that has a name in the first column,
+and Settings → Fixed keys lists the rest, so the page doubles as the answer
+to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 
 | setting | config key | default | what it does |
 |---|---|---|---|
 | Leave insert with | `escape_sequence` | `jk` | typed within vim's timeoutlen, leaves insert |
-| Search | `search_key` | `enter` | runs the query — the button beside the field |
-| New session | `new_session_key` | `ctrl+c` | forgets the conversation and starts one |
+| Search / ask | `search_key` | `enter` | field: runs the query or asks the question |
+| New session | `new_session_key` | `ctrl+c` | field and answer: forget the conversation and start one |
+| Settings | `settings_key` | `ctrl+s` | anywhere: open or close settings (`ctrl+,` always works too) |
+| Switch search / ask | `switch_mode_key` | `tab` | anywhere (`shift+tab` always works too) |
+| Open | `open_key` | `enter` | results: open the result and dismiss · answer: the link under the cursor or in the selection |
+| Hand off to agent | `handoff_key` | `ga` | results: the selected result · answer: the selection, else the reply under the cursor with its question |
+| Hand off everything | `handoff_all_key` | `gA` | results: every result on the page · answer: the whole conversation |
+| Open link | `open_link_key` | `gx` | answer: the URL under the cursor or in the selection |
+| Next page | `next_page_key` | `l` | results (`right` always works too) |
+| Previous page | `previous_page_key` | `h` | results (`left` always works too) |
+| Back to the field | `insert_key` | `i` | results and answer: the field, typing (`/` always works too) |
+
+A hand-off opens the agent (Settings → Ask → Hand off to) with the text
+pasted into its input and not sent: edit it, then submit it yourself.
 
 A binding is written the way a person says it: a named key (`enter`, `esc`,
-`tab`, `space`, an arrow, `home`, `end`), a single character, or `ctrl+`
-either of those. Anything else is refused and the previous value stands.
+`tab`, `space`, an arrow, `home`, `end`), one character — case matters, `G`
+is not `g` — or `ctrl+` a key. Keys for the results and the answer may also
+be two keys in turn: `gx`, `gA`, or `g x`. Search, new session, settings and
+switch are caught before the field types anything, so they must be a named
+key or a ctrl chord. The page refuses a key that is none of these, or that
+another action or a fixed key already uses — `gg`, or `g` alone, which would
+swallow it — and says which under the label; the previous value stands. An
+empty value restores the default.
 
 ## Anywhere in the panel
 
 | key | does |
 |---|---|
 | `super+d` | summon or dismiss (Hyprland, not the panel — `omarchy-shell shell toggle omaseek`) |
-| `ctrl+s`, `ctrl+,` | open or close settings |
-| `tab` | switch between searching and asking |
+| `ctrl+s` (Settings), `ctrl+,` | open or close settings |
+| `tab` (Switch search / ask), `shift+tab` | switch between searching and asking |
 | `esc` | leave: normal mode from insert, the field from a list, the panel from the field |
 
 ## The field
@@ -37,31 +56,47 @@ Insert mode:
 | `ctrl+u` | delete to the start of the line |
 | `ctrl+j` | a line break in a question — AI mode; the bar grows a row, up to six |
 | `down` `up` | a line down or up within a question of several lines; down from the last, into the results or the transcript |
-| `enter` (the search key) | search, or ask; the field drops to normal, so `j` steps into what came back |
+| `enter` (Search / ask) | search, or ask; the field drops to normal, so `j` steps into what came back |
 
-Normal mode is vim, on one line: `h l w W b B e 0 ^ $`, `f F t T{char}`,
+Normal mode uses vim editing: `h l w W b B e 0 ^ $`, `f F t T{char}`,
 `i a I A`, `x`, `d c y` with a motion or doubled (`dd cc yy`), `v`,
 counts (`3w`, `2dw`), and text objects (`diw`, `ci"`, `da(`). `p` `P` put
 the system clipboard after or before the cursor — every yank in the panel,
 field or answer, lands there — and in visual mode replace the selection.
-`j` or `down` steps into what is below. Deliberately absent: `.` repeat, macros, marks,
-named registers, linewise visual — a single-line field gains little from
-them.
+`Shift+V` (`V`) selects whole lines in normal mode. `j`/`k` and up/down
+extend the selection; counts work (`2j`). `y` copies, `d` deletes, and `c`
+changes the selected lines. `Esc` or `V` leaves line selection.
+
+`yy` copies the current line, `dd` deletes it, and `cc` changes it; counts
+operate on consecutive lines (`2yy`, `2dd`). In multiline questions, other
+text motions retain their existing behavior. `j` or `down` steps into what is below. Deliberately absent: `.` repeat, macros, marks,
+named registers.
 
 ## The results
 
+Settings → Display → Line numbers selects `relative` (default), `absolute`, or
+`hide` for both panes. Relative numbers show distance from the cursor (0 on the
+current row); absolute result numbers start at 1 on each page. Counts move
+relative to the current row: `2j` moves down two results, `2k` moves up two.
+
 | key | does |
 |---|---|
-| `j` `k`, `down` `up` | move the cursor |
+| `j` `k`, `down` `up` | move the cursor; a count repeats the move (`2j`, `10k`) |
 | `ctrl+d` `ctrl+u` | half a screen |
 | `gg` `G` | first, last |
-| `l` `right` | next page |
-| `h` `left` | previous page |
-| `enter` | open in the browser and dismiss |
-| `i`, `/` | back to the field, typing |
+| `l` (Next page), `right` | next page |
+| `h` (Previous page), `left` | previous page |
+| `enter` (Open) | open in the browser and dismiss |
+| `ga` (Hand off to agent) | the selected result, as an editable draft in the agent |
+| `gA` (Hand off everything) | every result on the current page, as an editable draft |
+| `i` (Back to the field), `/` | back to the field, typing |
 | `esc` | back to the field, normal mode |
 
 ## The answer
+
+The gutter follows the Line numbers setting, counting displayed lines including
+wrapped lines. Absolute numbers start at 1 across the transcript. `2j` moves down two displayed lines; `2k` moves up two. Numbers
+follow the layout when the panel width changes and are excluded from copied text.
 
 | key | does |
 |---|---|
@@ -73,34 +108,37 @@ them.
 | `ctrl+d` `ctrl+u` | half a screen |
 | a count | repeats a motion: `3w`, `2j`, `2fx` |
 | `v` | select by character |
-| `V` | select by line |
+| `Shift+V` (`V`) | select by displayed line; `j`/`k` extend and `y` copies (response stays read-only) |
 | `iw` `aw` `i"` `a(` … in visual mode | select a text object on the line: `viw`, `vi"` |
 | `gv` | reselect what was last selected |
 | `y` {motion} | yank: `yw`, `ye`, `y$`, `yfx`, `2yw`; `yj` `ygg` take whole lines |
 | `yiw` `ya(` … | yank a text object |
 | `y` in visual mode | yank the selection |
-| `yy` | yank the reply under the cursor as the agent wrote it (Markdown); on a question, its answer |
+| `yy` | yank the current displayed line; `2yy` yanks two displayed lines |
 | `p` `P` | put into the ask bar and go there: the selection in visual mode, else the clipboard (so `yiw` then `p`) |
-| `gx` | open the link under the cursor — or, in visual mode, the selected URL — in the browser; http and https only, a bare domain gets `https://` |
-| `enter` | hand the selection to the agent in a terminal |
-| `ctrl+c` (the new-session key) | start a new conversation |
-| `i`, `/` | back to the field, typing |
+| `gx` (Open link) | open the link under the cursor — a Markdown link, a bare URL, or a bare domain such as `rust-lang.org` — or, in visual mode, the selected URL; http and https only, a bare domain gets `https://` |
+| `enter` (Open) | open the link under the cursor or in the selection |
+| `ga` (Hand off to agent) | the selection; else the reply under the cursor and the question it answers, as the agent wrote them — an editable draft |
+| `gA` (Hand off everything) | the whole conversation, failures left out, as an editable draft |
+| `ctrl+c` (New session) | start a new conversation |
+| `i` (Back to the field), `/` | back to the field, typing |
 | `esc` | drop the selection, else back to the field |
 
 ## Settings
 
 | key | does |
 |---|---|
-| `j` `k` | move between rows, stepping over section headings |
+| `j` `k` | move between rows, stepping over section headings and the fixed-key list |
 | `h` `l` | change the value under the cursor; on the SearXNG switch, off and on |
 | `enter`, `i` | open a typed row for editing, flip the SearXNG switch, or open a dropdown |
 | `gg` `G` | first, last row |
-| `enter` while editing | commit |
+| `enter` while editing | commit — a refused key says why under its label until the cursor moves |
 | `esc` while editing | cancel |
 | `j` `k`, `enter`, `esc` in an open dropdown | walk it, pick, close |
-| `esc`, `ctrl+s` | back to the panel |
+| `esc`, `ctrl+s` (Settings), `ctrl+,` | back to the panel |
 
-Values are written as they change; there is no save.
+The settings page scrolls within the panel; keyboard navigation keeps the
+selected row visible. Values are written as they change; there is no save.
 
 ## The setup prompt
 
@@ -112,8 +150,9 @@ Values are written as they change; there is no save.
 
 ## Where they live in the source
 
-- `src/lib/keys.mjs` — the tables for the two panes that are *read* (results, answer), chord → command name
-- `src/lib/keybinds.mjs` — the rebindable chords: `"ctrl+c"` ↔ `"C-c"`
+- `src/lib/keybinds.mjs` — `ACTIONS`, every rebindable key with its default, scope and label; binding text ↔ chord strings (`"ctrl+c"` ↔ `"C-c"`, `"gx"` ↔ `"g x"`)
+- `src/lib/keys.mjs` — the fixed keys of the two panes that are *read* (results, answer); `readerKeys` merges in the rebound ones, chord → command name; `bindingProblem` is the clash check the settings page runs
+- `src/lib/settings.mjs` — the Keys rows (one per action) and the Fixed keys rows (`FIXED_KEYS`)
 - `src/components/chord.js` — Qt key events → chord strings
 - `src/components/VimTextField.qml` — the field's mode machine and everything vim
 - `src/components/ResultList.qml`, `AnswerView.qml`, `SettingsPage.qml`, `SetupPrompt.qml` — each view's own dispatch

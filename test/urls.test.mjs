@@ -53,3 +53,19 @@ test('a selection that is not a web URL opens nothing', () => {
     assert.equal(urlFromSelection(s), '', s)
   }
 })
+
+
+test('gx finds bare domains beside paragraph separators and skips surrounding prose', () => {
+  const text = 'Official website: rust-lang.org\u2029Free beginner book: The Rust Programming Language.'
+  assert.equal(urlAt(text, text.indexOf('rust-lang.org') + 3), 'https://rust-lang.org')
+  assert.equal(urlAt(text, text.indexOf('website')), '')
+  assert.equal(urlAt('(rust-lang.org).', 4), 'https://rust-lang.org')
+  assert.equal(urlAt('javascript:rust-lang.org', 15), '')
+})
+
+test('cursor link metadata preserves the actual target and query parameters', async () => {
+  const { hrefFromHtml } = await import('../src/lib/urls.mjs')
+  assert.equal(hrefFromHtml('<p><a href="https://doc.rust-lang.org/book/?x=1&amp;y=2">R</a></p>'),
+    'https://doc.rust-lang.org/book/?x=1&y=2')
+  assert.equal(hrefFromHtml('<p>R</p>'), '')
+})

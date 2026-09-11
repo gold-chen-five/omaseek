@@ -2,6 +2,7 @@ import QtQuick
 import qs.Commons
 import qs.Ui
 import "../lib/settings.mjs" as SettingsLib
+import "chord.js" as Chord
 
 // One row per setting; the rows come from lib/settings.mjs. A FocusScope because
 // a typed row lends the keyboard to a text field and has to take it back.
@@ -12,6 +13,9 @@ FocusScope {
   property int cursor: 0
   property int editingIndex: -1              // which text row is being typed into
   property int dropdownIndex: -1             // which choice row has its list open
+  property int refusedIndex: -1              // a key just refused, and why, until the cursor moves
+  property string refusal: ""
+  property string settingsChord: "C-s"       // the key that opened the page closes it
 
   // The widest row of chips on the page, measured as laid out. A dropdown takes
   // this width, so it lines up with the chips under it edge for edge.
@@ -33,19 +37,45 @@ FocusScope {
 
   implicitHeight: layout.implicitHeight
 
+  onCursorChanged: {
+    refusedIndex = -1
+    Qt.callLater(ensureCursorVisible)
+  }
+  onRowsChanged: Qt.callLater(ensureCursorVisible)
+
+  function ensureCursorVisible () {
+    const row = rowRepeater.itemAt(cursor)
+    if (!row) return
+    const top = row.y
+    const bottom = top + row.height
+    if (top < scroll.contentY) scroll.contentY = top
+    else if (bottom > scroll.contentY + scroll.height) scroll.contentY = bottom - scroll.height
+    scroll.contentY = Math.max(0, Math.min(scroll.contentY, Math.max(0, scroll.contentHeight - scroll.height)))
+  }
+
   function open () {
     cursor = firstSetting()
+    refusedIndex = -1
+    scroll.contentY = 0
     Qt.callLater(() => page.forceActiveFocus())
   }
 
   function beginEdit (index) {
-    if (rows[index] && rows[index].type === "text") editingIndex = index
+    if (rows[index] && rows[index].type === "text") {
+      refusedIndex = -1
+      editingIndex = index
+    }
   }
 
   function endEdit () {
     if (editingIndex === -1) return          // idempotent: nothing to hand back
     editingIndex = -1
     editingFinished()
+  }
+
+  function refuse (index, reason) {
+    refusal = reason
+    refusedIndex = index
   }
 
   function noteChips (index, width) {
@@ -55,18 +85,28 @@ FocusScope {
     chipWidths = next
   }
 
+  // Section headings and the fixed-key reference are read, not changed.
+  function selectable (row) {
+    return !!row && row.type !== "section" && row.type !== "info"
+  }
+
   function moveCursor (delta) {
     const step = delta < 0 ? -1 : 1
     let next = cursor
     for (let i = 0; i < rows.length; i++) {
       next += step
       if (next < 0 || next >= rows.length) return
-      if (rows[next].type !== "section") { cursor = next; return }
+      if (selectable(rows[next])) { cursor = next; return }
     }
   }
 
   function firstSetting () {
-    for (let i = 0; i < rows.length; i++) if (rows[i].type !== "section") return i
+    for (let i = 0; i < rows.length; i++) if (selectable(rows[i])) return i
+    return 0
+  }
+
+  function lastSetting () {
+    for (let i = rows.length - 1; i >= 0; i--) if (selectable(rows[i])) return i
     return 0
   }
 
@@ -93,9 +133,8 @@ FocusScope {
     // reopen the editor.
     if (editingIndex !== -1 || dropdownIndex !== -1) return
 
-    const ctrl = (event.modifiers & Qt.ControlModifier) !== 0
-    if (event.key === Qt.Key_Escape
-        || (ctrl && (event.key === Qt.Key_S || event.key === Qt.Key_Comma))) {
+    const chord = Chord.of(event)
+    if (event.key === Qt.Key_Escape || (chord !== "" && (chord === page.settingsChord || chord === "C-,"))) {
       closed()                               // the same chord that opened it, so it toggles
     } else if (event.key === Qt.Key_Down || event.text === "j") {
       moveCursor(1)
@@ -110,11 +149,19 @@ FocusScope {
     } else if (event.text === "g") {
       cursor = firstSetting()
     } else if (event.text === "G") {
-      cursor = rows.length - 1
-      if (rows[cursor] && rows[cursor].type === "section") moveCursor(-1)
+      cursor = lastSetting()
     }
     event.accepted = true
   }
+
+  Flickable {
+    id: scroll
+    anchors.fill: parent
+    clip: true
+    contentWidth: width
+    contentHeight: layout.implicitHeight
+    boundsBehavior: Flickable.StopAtBounds
+    onHeightChanged: Qt.callLater(page.ensureCursorVisible)
 
   Column {
     id: layout
@@ -124,6 +171,7 @@ FocusScope {
     spacing: Style.spacing.xs
 
     Repeater {
+      id: rowRepeater
       model: page.rows
 
       delegate: Rectangle {
@@ -136,13 +184,15 @@ FocusScope {
         // is held in a property.
         readonly property var owner: page
         readonly property bool isSection: modelData.type === "section"
-        readonly property bool hasCursor: index === page.cursor && !isSection
+        readonly property bool isInfo: modelData.type === "info"
+        readonly property bool hasCursor: index === page.cursor && !isSection && !isInfo
         readonly property bool isChoice: modelData.type === "choice"
         readonly property bool isDropdown: isChoice && modelData.control === "dropdown"
+        readonly property bool refused: index === page.refusedIndex
 
         width: layout.width
         height: isSection ? sectionLabel.implicitHeight + Style.spacing.lg + Style.spacing.md * 2
-                          : body.implicitHeight + Style.spacing.md * 2
+                          : body.implicitHeight + (isInfo ? Style.spacing.xs * 2 : Style.spacing.md * 2)
         radius: Style.cornerRadius
         color: hasCursor ? page.selectedBackground : "transparent"
 
@@ -220,7 +270,9 @@ FocusScope {
 
               anchors.left: parent.left
               anchors.verticalCenter: parent.verticalCenter
-              width: parent.width - (settingRow.isDropdown ? picker.width + Style.spacing.md : Style.space(200))
+              width: parent.width - (settingRow.isInfo ? 0
+                                     : settingRow.isDropdown ? picker.width + Style.spacing.md
+                                     : Style.space(200))
               spacing: Style.spacing.xxs
 
               Text {
@@ -228,22 +280,24 @@ FocusScope {
                 textFormat: Text.PlainText
                 text: settingRow.modelData.label
                 color: page.foreground
+                opacity: settingRow.isInfo ? 0.8 : 1
                 font.family: page.fontFamily
-                font.pixelSize: Style.font.subtitle
+                font.pixelSize: settingRow.isInfo ? Style.font.body : Style.font.subtitle
                 elide: Text.ElideRight
               }
 
+              // The hint, or why the key just typed was refused.
               Text {
                 width: parent.width
                 textFormat: Text.PlainText
                 // Section rows have no hint; an undefined binding warns on every repaint.
-                text: settingRow.modelData.hint || ""
-                color: page.foreground
-                opacity: 0.55
+                text: settingRow.refused ? page.refusal : (settingRow.modelData.hint || "")
+                color: settingRow.refused ? Color.urgent : page.foreground
+                opacity: settingRow.refused ? 1 : 0.55
                 font.family: page.fontFamily
                 font.pixelSize: Style.font.caption
-                wrapMode: settingRow.isDropdown ? Text.WordWrap : Text.NoWrap
-                elide: settingRow.isDropdown ? Text.ElideNone : Text.ElideRight
+                wrapMode: settingRow.isDropdown || settingRow.isInfo || settingRow.refused ? Text.WordWrap : Text.NoWrap
+                elide: settingRow.isDropdown || settingRow.isInfo || settingRow.refused ? Text.ElideNone : Text.ElideRight
               }
             }
 
@@ -346,9 +400,11 @@ FocusScope {
               font.family: page.fontFamily
               horizontalAlignment: TextInput.AlignHCenter
 
+              // A refused key keeps the old one and says why under the label.
               function commit () {
-                const cleaned = SettingsLib.normalizeRow(settingRow.modelData, sequenceField.text)
-                if (cleaned !== null) settingRow.owner.changed(settingRow.modelData.key, cleaned)
+                const checked = SettingsLib.checkRow(settingRow.modelData, sequenceField.text, settingRow.owner.rows)
+                if (checked.error) settingRow.owner.refuse(settingRow.index, checked.error)
+                else if (checked.value !== null) settingRow.owner.changed(settingRow.modelData.key, checked.value)
                 // Back to a binding, on the new value or the old one if refused.
                 sequenceField.text = Qt.binding(function () { return String(settingRow.modelData.value) })
                 settingRow.owner.endEdit()
@@ -380,5 +436,6 @@ FocusScope {
         }
       }
     }
+  }
   }
 }

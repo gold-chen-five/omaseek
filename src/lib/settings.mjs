@@ -1,8 +1,12 @@
 // Config text <-> settings, and the settings page rows. Option lists are declared
-// once here so the page and bin/search agree.
+// once here so the page and bin/search agree; the keys come from ACTIONS in
+// keybinds.mjs, so a new binding is one entry there.
 
 import { readKeymap, DEFAULT_SEQUENCES, DEFAULT_TIMEOUT_MS } from './keymap.mjs'
-import { DEFAULT_BINDS, normalizeBind } from './keybinds.mjs'
+import { ACTIONS, settingKey, normalizeBinding, actionById } from './keybinds.mjs'
+import { bindingProblem } from './keys.mjs'
+
+export const LINE_NUMBER_CHOICES = ['relative', 'absolute', 'hide']
 
 export const PAGE_SIZE_CHOICES = [5, 10, 15, 20]
 
@@ -15,11 +19,21 @@ export const DEFAULTS = {
   escapeSequence: DEFAULT_SEQUENCES[0],
   escapeTimeoutMs: DEFAULT_TIMEOUT_MS,
   resultsPerPage: 10,
+  lineNumbers: LINE_NUMBER_CHOICES[0],
   chatAgent: DEFAULT_AGENT,
-  launcher: LAUNCHER_CHOICES[0],
-  searchKey: DEFAULT_BINDS.search,
-  newSessionKey: DEFAULT_BINDS.newSession
+  launcher: LAUNCHER_CHOICES[0]
 }
+for (let i = 0; i < ACTIONS.length; i++) DEFAULTS[settingKey(ACTIONS[i])] = ACTIONS[i].default
+
+// The keys settings cannot move, listed so the page is also the answer to
+// "what can I press". KEYS.md has the long form.
+export const FIXED_KEYS = [
+  { label: 'Anywhere', keys: 'esc steps back: insert → normal → the field → closed · ctrl+, settings · shift+tab switches' },
+  { label: 'Field', keys: 'insert: ctrl+w ctrl+u delete back · ctrl+j new line (ask) · ↑ ↓ lines · normal: vim motions, d c y, text objects, v V, p P, u ctrl+r, counts' },
+  { label: 'Results', keys: 'j k ↓ ↑ move · ctrl+d ctrl+u half a screen · gg G first, last · → ← page · counts (3j) · / the field' },
+  { label: 'Answer', keys: 'h j k l w b e 0 ^ $ move · f t ; , find · v V select · gv reselect · y{motion} yy yank · p P put in the ask bar · counts' },
+  { label: 'Settings', keys: 'j k move · h l change · enter edit · esc back' }
+]
 
 function parse (source) {
   if (typeof source !== 'string' || source.trim() === '') return {}
@@ -40,22 +54,22 @@ export function readSettings (source) {
   const config = parse(source)
   const keymap = readKeymap(source)
 
-  return {
+  const settings = {
     // Empty means off.
     escapeSequence: keymap.sequences.length > 0 ? keymap.sequences[0] : '',
     escapeTimeoutMs: keymap.timeoutMs,
     resultsPerPage: oneOf(config.resultsPerPage ?? config.results_per_page, PAGE_SIZE_CHOICES, DEFAULTS.resultsPerPage),
+    lineNumbers: oneOf(config.line_numbers, LINE_NUMBER_CHOICES, DEFAULTS.lineNumbers),
     chatAgent: agentId(config.chat_agent),
     launcher: oneOf(config.launcher, LAUNCHER_CHOICES, DEFAULTS.launcher),
-    searchKey: bind(config.search_key, DEFAULTS.searchKey),
-    newSessionKey: bind(config.new_session_key, DEFAULTS.newSessionKey),
     sequences: keymap.sequences
   }
-}
-
-// An unparseable chord falls back to the default.
-function bind (value, fallback) {
-  return normalizeBind(value) || fallback
+  // An unparseable key falls back to its default.
+  for (let i = 0; i < ACTIONS.length; i++) {
+    const action = ACTIONS[i]
+    settings[settingKey(action)] = normalizeBinding(action, config[action.config]) || action.default
+  }
+  return settings
 }
 
 // Any non-empty id is kept; bin/ask falls back when it isn't installed.
@@ -70,10 +84,13 @@ export function writeSettings (settings, source) {
 
   config.escape_sequence = normalizeSequence(settings.escapeSequence) ?? DEFAULTS.escapeSequence
   config.results_per_page = oneOf(settings.resultsPerPage, PAGE_SIZE_CHOICES, DEFAULTS.resultsPerPage)
+  config.line_numbers = oneOf(settings.lineNumbers, LINE_NUMBER_CHOICES, DEFAULTS.lineNumbers)
   config.chat_agent = agentId(settings.chatAgent)
   config.launcher = oneOf(settings.launcher, LAUNCHER_CHOICES, DEFAULTS.launcher)
-  config.search_key = bind(settings.searchKey, DEFAULTS.searchKey)
-  config.new_session_key = bind(settings.newSessionKey, DEFAULTS.newSessionKey)
+  for (let i = 0; i < ACTIONS.length; i++) {
+    const action = ACTIONS[i]
+    config[action.config] = normalizeBinding(action, settings[settingKey(action)]) || action.default
+  }
 
   return JSON.stringify(config, null, 2) + '\n'
 }
@@ -94,7 +111,7 @@ export function settingsRows (settings, engine = 'unknown', agents = null) {
   const chatAgent = settings.chatAgent === DEFAULT_AGENT || agentIds.indexOf(settings.chatAgent) !== -1
     ? settings.chatAgent
     : DEFAULT_AGENT
-  return [
+  const rows = [
     { type: 'section', label: 'Search' },
     {
       key: 'engine',
@@ -132,9 +149,18 @@ export function settingsRows (settings, engine = 'unknown', agents = null) {
       key: 'launcher',
       type: 'choice',
       label: 'Hand off to',
-      hint: 'where enter on an answer opens the agent with it',
+      hint: 'where a hand-off opens the agent, with the text waiting unsent in its input',
       options: LAUNCHER_CHOICES,
       value: settings.launcher
+    },
+    { type: 'section', label: 'Display' },
+    {
+      key: 'lineNumbers',
+      type: 'choice',
+      label: 'Line numbers',
+      hint: 'numbering in search results and AI responses',
+      options: LINE_NUMBER_CHOICES,
+      value: settings.lineNumbers
     },
     { type: 'section', label: 'Keys' },
     {
@@ -145,32 +171,52 @@ export function settingsRows (settings, engine = 'unknown', agents = null) {
       hint: 'any keys, typed within vim’s timeoutlen. Empty turns it off',
       placeholder: 'off',
       value: settings.escapeSequence
-    },
-    {
-      key: 'searchKey',
-      type: 'text',
-      normalize: 'bind',
-      label: 'Search',
-      hint: 'runs the query, the same as the button beside the field',
-      placeholder: DEFAULTS.searchKey,
-      value: settings.searchKey
-    },
-    {
-      key: 'newSessionKey',
-      type: 'text',
-      normalize: 'bind',
-      label: 'New session',
-      hint: 'forgets the conversation and starts one, from the field or the transcript',
-      placeholder: DEFAULTS.newSessionKey,
-      value: settings.newSessionKey
     }
   ]
+  for (let i = 0; i < ACTIONS.length; i++) {
+    const action = ACTIONS[i]
+    rows.push({
+      key: settingKey(action),
+      type: 'text',
+      normalize: 'bind',
+      action: action.id,
+      label: action.label,
+      hint: action.hint,
+      placeholder: action.default,
+      value: settings[settingKey(action)] || action.default
+    })
+  }
+  rows.push({ type: 'section', label: 'Fixed keys' })
+  for (let i = 0; i < FIXED_KEYS.length; i++) {
+    rows.push({ type: 'info', label: FIXED_KEYS[i].label, hint: FIXED_KEYS[i].keys })
+  }
+  return rows
+}
+
+/**
+ * A typed row's text -> { value } to store, or { error } saying why it was
+ * refused. A key is checked against every other key on the page, so two
+ * actions can never share one.
+ */
+export function checkRow (row, raw, rows) {
+  if (row && row.normalize === 'bind') {
+    const action = actionById(row.action)
+    const text = String(raw ?? '').trim() || action.default   // empty restores the default
+    const binds = {}
+    for (let i = 0; i < (rows || []).length; i++) if (rows[i].action) binds[rows[i].key] = rows[i].value
+    const problem = bindingProblem(row.action, text, binds)
+    if (problem) return { value: null, error: problem }
+    return { value: normalizeBinding(action, text), error: '' }
+  }
+  const value = normalizeSequence(raw)
+  return value === null
+    ? { value: null, error: 'two keys or more: one alone could never be typed. Empty turns it off' }
+    : { value: value, error: '' }
 }
 
 /** A typed row's text -> the value to store, or null when the row's rule refuses it. */
-export function normalizeRow (row, raw) {
-  if (row && row.normalize === 'bind') return normalizeBind(raw) || null
-  return normalizeSequence(raw)
+export function normalizeRow (row, raw, rows) {
+  return checkRow(row, raw, rows).value
 }
 
 /**

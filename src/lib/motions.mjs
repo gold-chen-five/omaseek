@@ -149,3 +149,15 @@ export function findInLine (text, pos, command, target, count = 1, again = false
   if (command === 'T') return hit + 1
   return hit
 }
+
+/** Whole logical lines starting at the cursor, including their following break. */
+export function lineRange (text, pos, count = 1) {
+  const start = lineBounds(text, pos).start
+  let end = start
+  for (let i = 0; i < Math.max(1, count); i++) {
+    const nl = text.indexOf('\n', end)
+    end = nl === -1 ? text.length : nl + 1
+    if (end >= text.length) break
+  }
+  return { start, end }
+}

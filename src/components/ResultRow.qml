@@ -12,6 +12,9 @@ Rectangle {
   required property string display_url
   required property string icon
 
+  property string lineNumbers: "relative"
+  property int cursorIndex: 0
+  property int numberDigits: 1
   property bool hasCursor: false
   property color foreground: Color.menu.text
   property color accent: Color.menu.selectedText
@@ -27,13 +30,33 @@ Rectangle {
   radius: Style.cornerRadius
   color: hasCursor ? selectedBackground : "transparent"
 
+  Text {
+    id: rowNumber
+    anchors.left: parent.left
+    anchors.leftMargin: Style.spacing.controlPaddingX
+    anchors.top: content.top
+    visible: row.lineNumbers !== "hide"
+    width: visible ? numberMetrics.advanceWidth : 0
+    text: row.lineNumbers === "relative" ? Math.abs(row.index - row.cursorIndex) : row.index + 1
+    horizontalAlignment: Text.AlignRight
+    color: row.hasCursor ? row.accent : Util.alpha(row.foreground, 0.45)
+    font.family: row.fontFamily
+    font.pixelSize: Style.font.caption
+  }
+
+  TextMetrics {
+    id: numberMetrics
+    font: rowNumber.font
+    text: "8".repeat(row.numberDigits)
+  }
+
   Item {
     id: favicon
 
     width: row.iconSize
     height: row.iconSize
-    anchors.left: parent.left
-    anchors.leftMargin: Style.spacing.controlPaddingX
+    anchors.left: rowNumber.right
+    anchors.leftMargin: rowNumber.visible ? Style.spacing.md : 0
     anchors.top: content.top
     anchors.topMargin: Math.max(0, (titleText.height - row.iconSize) / 2)
 

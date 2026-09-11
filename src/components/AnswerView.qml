@@ -67,6 +67,18 @@ FocusScope {
   property string newSessionChord: "C-c"          // from settings, already parsed
   property string cursorLink: ""               // the openable link under the cursor, or ""
   property real preferredX: -1                 // the column j/k try to keep
+  property var binds: null                     // the settings: where the rebindable commands sit
+  readonly property var readerKeys: KeysLib.readerKeys("answer", binds)
+  property string lineNumbers: "relative"
+  readonly property int cursorLine: {
+    let nearest = 0
+    for (let i = 0; i < numberedLines.length; i++) {
+      if (numberedLines[i].y <= cursorRect.y + 1) nearest = i
+      else break
+    }
+    return nearest
+  }
+  property var numberedLines: []               // rendered lines, matching j/k
   property var marks: []                       // [{ y, height }] — where the questions are
   property var dots: []                        // [{ x, y }] — where each reply's dot goes
   property var replyStarts: []                 // plain-text index of each reply's ●
@@ -183,6 +195,7 @@ FocusScope {
     replyTurns = owners
     questionStarts = questions
     pendingAt = waiting
+    findNumberedLines()
   }
 
   // Where a reply's text begins, and its baseline.
@@ -192,14 +205,14 @@ FocusScope {
   }
 
   // A reply's dot: its right edge where the question's > ends, so the gap to
-  // the text is the arrow's, and centred on the x-height of the text it leads.
+  // the text is the arrow's, and centred on the rendered line, including headings.
   // One rule for finished and waiting replies alike.
   function dotAt (lead) {
-    const text = textAt(lead + 2)
+    const line = answer.positionToRectangle(Math.min(answer.length, lead + 2))
     const ink = arrowMetrics.tightBoundingRect
     return {
       x: Math.round(answer.positionToRectangle(lead).x + ink.x + ink.width - dotDiameter),
-      y: Math.round(text.baseline - labelMetrics.xHeight / 2 - dotDiameter / 2)
+      y: Math.round(line.y + (line.height - dotDiameter) / 2)
     }
   }
 
@@ -231,12 +244,27 @@ FocusScope {
   // the nearest line below it — from the first line of a block, one pixel up
   // is the line the cursor is already on. So keep stepping until the layout
   // returns a line that actually lies in the direction of travel.
-  function lineFrom (pos, delta) {
+  function findNumberedLines () {
+    const lines = []
+    if (answer.length > 0) {
+      let pos = 0
+      while (pos >= 0) {
+        const rect = answer.positionToRectangle(pos)
+        lines.push({ y: rect.y, height: rect.height })
+        const next = lineFrom(pos, 1, 0)
+        if (next <= pos) break
+        pos = next
+      }
+    }
+    numberedLines = lines
+  }
+
+  function lineFrom (pos, delta, column) {
     const rect = answer.positionToRectangle(pos)
     const step = Math.max(2, Math.round(rect.height / 4))
     let y = delta > 0 ? rect.y + rect.height + 1 : rect.y - 1
     while (y >= 0 && y <= answer.contentHeight) {
-      const next = answer.positionAt(preferredX, y)
+      const next = answer.positionAt(column === undefined ? preferredX : column, y)
       const landed = answer.positionToRectangle(next)
       if (delta > 0 ? landed.y > rect.y : landed.y < rect.y) return next
       y += delta > 0 ? step : -step
@@ -370,7 +398,21 @@ FocusScope {
     yankFlash.restart()                        // lit for a beat, as LazyVim does
   }
 
-  // yy: the reply under the cursor, as the agent wrote it — Markdown, so a
+  // yy follows the displayed lines used by j/k and the number gutter.
+  function yankLines (count) {
+    const from = lineStartAt(cursor)
+    let last = cursor
+    for (let i = 1; i < count; i++) {
+      const next = lineFrom(last, 1, 0)
+      if (next < 0) break
+      last = next
+    }
+    const next = lineFrom(last, 1, 0)
+    const to = next < 0 ? answer.length : lineStartAt(next)
+    yankRange(from, to)
+  }
+
+  // The reply under the cursor, as the agent wrote it — Markdown, so a
   // link or a code block survives the paste. On a question, the reply that
   // answers it.
   function yankReply () {
@@ -452,13 +494,9 @@ FocusScope {
   // gx: the link under the cursor, whether the agent wrote it as Markdown (a
   // real anchor) or bare in the text.
   function linkUnder (pos) {
-    const here = answer.positionToRectangle(pos)
-    const next = answer.positionToRectangle(Math.min(answer.length, pos + 1))
-    const x = next.y === here.y && next.x > here.x ? (here.x + next.x) / 2 : here.x + 1
-    const y = here.y + here.height / 2
-    // linkAt wants content coordinates, inside the padding, unlike the
-    // rectangles positionToRectangle returns.
-    const href = answer.linkAt(x - answer.leftPadding, y - answer.topPadding)
+    // Read the character's anchor metadata directly: layout hit-testing can
+    // resolve a neighboring paragraph after rich-text margins and wrapping.
+    const href = Urls.hrefFromHtml(answer.getFormattedText(pos, Math.min(answer.length, pos + 1)))
     const url = href || Urls.urlAt(plain(), pos)
     return Urls.isOpenable(url) ? url : ""
   }
@@ -470,10 +508,22 @@ FocusScope {
     linkOpened(url)
   }
 
+  // The selection; else the reply under the cursor and the question it
+  // answers, as the agent wrote it, so its Markdown links survive the draft.
   function handOff () {
-    const context = selection() || plain()
+    if (selecting) {
+      const context = selection()
+      stopSelecting()
+      handedOff(context)
+      return
+    }
+    const r = Transcript.replyIndexAt(cursor, questionStarts, replyStarts)
+    handedOff(r === -1 ? Transcript.conversationText(turns) : Transcript.exchangeText(turns, replyTurns[r]))
+  }
+
+  function handOffAll () {
     if (selecting) stopSelecting()
-    handedOff(context)
+    handedOff(Transcript.conversationText(turns))
   }
 
   // A reply yanked whole is lit for a beat.
@@ -507,7 +557,7 @@ FocusScope {
       event.accepted = true
       return
     }
-    const step = Grammar.feed(grammar, chord, KeysLib.ANSWER_KEYS, selecting)
+    const step = Grammar.feed(grammar, chord, readerKeys, selecting)
     grammar = step.state
     perform(step.action)
     event.accepted = true
@@ -532,7 +582,7 @@ FocusScope {
                     lastFind.char, action.count, true), action.operator)
       break
     case "object": takeObject(action.scope, action.object, action.operator); break
-    case "line":   yankReply(); break
+    case "line":   yankLines(action.count); break
     }
   }
 
@@ -540,7 +590,9 @@ FocusScope {
     switch (command) {
     case "settings":     settingsRequested(); break
     case "toggleMode":   tabbed(); break
-    case "accept":       handOff(); break
+    case "handOff":      handOff(); break
+    case "handOffPage":  handOffAll(); break
+    case "accept":       openLink(); break
     case "cancel":       if (selecting) stopSelecting(); else escaped(); break
     case "insert":       insertRequested(); break
     case "selectChars": if (selecting && !linewise) stopSelecting(); else startSelecting(false); break
@@ -561,6 +613,36 @@ FocusScope {
     contentWidth: width
     contentHeight: answer.contentHeight + answer.topPadding + answer.bottomPadding
     boundsBehavior: Flickable.StopAtBounds
+
+    // The gutter is outside the TextEdit text, so yanks never include numbers.
+    Repeater {
+      model: view.lineNumbers === "hide" ? [] : view.numberedLines
+
+      Text {
+        required property int index
+        required property var modelData
+        z: 2
+        x: Style.spacing.xs
+        y: modelData.y
+        width: gutterMetrics.advanceWidth
+        height: modelData.height
+        verticalAlignment: Text.AlignVCenter
+        horizontalAlignment: Text.AlignRight
+        text: view.lineNumbers === "relative" ? Math.abs(index - view.cursorLine) : index + 1
+        color: view.activeFocus && Math.abs(view.cursorRect.y - modelData.y) < 1
+          ? view.accent : Util.alpha(view.foreground, 0.45)
+        font.family: view.fontFamily
+        font.pixelSize: Style.font.caption
+      }
+    }
+
+    TextMetrics {
+      id: gutterMetrics
+      font.family: view.fontFamily
+      font.pixelSize: Style.font.caption
+      // Character count bounds line count without a width/line-count feedback loop.
+      text: "8".repeat(Math.max(2, String(answer.length).length))
+    }
 
     // A quiet bar behind each question, as Claude Code draws a prompt.
     Repeater {
@@ -656,7 +738,8 @@ FocusScope {
       id: answer
 
       width: flick.width
-      leftPadding: Style.spacing.md
+      leftPadding: view.lineNumbers === "hide" ? Style.spacing.md
+        : gutterMetrics.advanceWidth + Style.spacing.xs + Style.spacing.md
       rightPadding: Style.spacing.md
       topPadding: Style.spacing.xs
       bottomPadding: Style.spacing.xs
@@ -686,6 +769,8 @@ FocusScope {
         view.anchor = selectionStart
         view.cursor = selectionEnd
       }
+      onWidthChanged: Qt.callLater(view.findMarks)
+      onFontChanged: Qt.callLater(view.findMarks)
       onContentHeightChanged: Qt.callLater(view.findMarks)
     }
   }

@@ -52,6 +52,10 @@ Item {
     if (hasPrevious) showPage(pageIndex - 1)
   }
 
+  function handoffText (index) {
+    return SearchLib.handoffText(lastQuery, currentPage ? currentPage.rows : [], index)
+  }
+
   function reset () {
     cancel()
     status = "idle"

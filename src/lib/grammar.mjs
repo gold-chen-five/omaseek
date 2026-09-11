@@ -66,7 +66,7 @@ export function feed (state, chord, keymap, visual) {
       return { state: amend(state, { scope: chord }), action: null }
     }
     if (chord === 'y' && !visual) {
-      if (state.operator === 'y') return done({ type: 'line', operator: 'y' })
+      if (state.operator === 'y') return done({ type: 'line', operator: 'y', count: total(state) })
       return { state: amend(state, { operator: 'y', before: state.count, count: 0 }), action: null }
     }
   }

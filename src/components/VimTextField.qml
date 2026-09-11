@@ -38,12 +38,15 @@ TextArea {
   property string register: ""              // vim's unnamed register
 
   // Pending state for multi-key sequences: 2dw, d3w, f{char}, ...
+  property int operatorCount: 1
   property string pendingOperator: ""
   property string pendingFind: ""           // f/F/t/T awaiting its target
   property string pendingTextObject: ""     // i/a awaiting its object, as in diw
   property int pendingCount: 0
   property string lastFindCommand: ""       // for ; and ,
   property string lastFindChar: ""
+  property bool visualLinewise: false
+  property int visualCursor: 0
   property int visualAnchor: -1
 
   // Insert-mode escape sequence (vim's `inoremap jk <Esc>`); empty turns it off.
@@ -55,6 +58,8 @@ TextArea {
   // Parsed chords, checked first so rebinding search moves it off Enter.
   property string searchChord: "Return"
   property string newSessionChord: "C-c"
+  property string settingsChord: "C-s"
+  property string switchChord: "Tab"
 
   signal submitted()
   signal cancelled()                        // Esc from normal mode
@@ -70,6 +75,8 @@ TextArea {
       cursorPosition = Math.max(0, cursorPosition - 1)   // vim steps left on Esc
     }
     if (next !== "visual") {
+      if (mode === "visual" && visualLinewise) cursorPosition = visualCursor
+      visualLinewise = false
       visualAnchor = -1
       deselect()
     }
@@ -80,6 +87,7 @@ TextArea {
 
   function clearPending () {
     pendingOperator = ""
+    operatorCount = 1
     pendingFind = ""
     pendingTextObject = ""
     pendingCount = 0
@@ -94,9 +102,10 @@ TextArea {
   // A line down or up within the text; down from its last line leaves the
   // field for what is below it, as it always has.
   function moveLine (down) {
-    const next = down ? Motions.lineDown(text, cursorPosition) : Motions.lineUp(text, cursorPosition)
-    if (next !== -1) cursorPosition = next
-    else if (down) field.steppedDown()
+    const pos = mode === "visual" && visualLinewise ? visualCursor : cursorPosition
+    const next = down ? Motions.lineDown(text, pos) : Motions.lineUp(text, pos)
+    if (next !== -1) applyMotion(next, false)
+    else if (down && mode !== "visual") field.steppedDown()
   }
 
   function clampCursor () {
@@ -129,6 +138,24 @@ TextArea {
     else clampCursor()
   }
 
+  function operateLines (operator, count) {
+    const range = Motions.lineRange(text, cursorPosition, count)
+    let from = range.start
+    let to = range.end
+    // cc keeps the final separator so the replacement stays on its own line.
+    if (operator === "c" && to > from && text[to - 1] === "\n") to--
+    register = text.substring(from, to)
+    copyToClipboard(register)
+    if (operator !== "y") {
+      // Deleting the final line also removes the separator before it.
+      if (operator === "d" && to === text.length && from > 0 && (to === from || text[to - 1] !== "\n")) from--
+      remove(from, to)
+    }
+    cursorPosition = Math.min(range.start, text.length)
+    if (operator === "c") setMode("insert")
+    else clampCursor()
+  }
+
   // A resolved motion target either moves the cursor, extends the visual
   // selection, or feeds the operator waiting on it.
   function applyMotion (target, inclusive) {
@@ -143,11 +170,33 @@ TextArea {
       return
     }
     cursorPosition = Math.max(0, Math.min(text.length, target))
-    if (mode === "visual") select(visualAnchor, cursorPosition)
+    if (mode === "visual" && visualLinewise) {
+      visualCursor = cursorPosition
+      const range = visualRange()
+      select(range.start, range.end)
+    } else if (mode === "visual") select(visualAnchor, cursorPosition)
     else clampCursor()
   }
 
+  function visualRange () {
+    const pos = visualLinewise ? visualCursor : cursorPosition
+    const start = Math.min(visualAnchor, pos)
+    const end = Math.max(visualAnchor, pos)
+    return visualLinewise
+      ? { start: Motions.lineBounds(text, start).start, end: Motions.lineRange(text, end).end }
+      : { start, end: Math.min(text.length, end + 1) }
+  }
+
   function operateOnVisual (operator) {
+    if (visualLinewise) {
+      const range = visualRange()
+      const count = text.substring(range.start, range.end).split("\n").length
+        - (range.end > range.start && text[range.end - 1] === "\n" ? 1 : 0)
+      setMode("normal")
+      cursorPosition = range.start
+      operateLines(operator, count)
+      return
+    }
     const start = Math.min(visualAnchor, cursorPosition)
     const end = Math.max(visualAnchor, cursorPosition) + 1
     visualAnchor = -1
@@ -290,18 +339,18 @@ TextArea {
 
   function handleNormalKey (key) {
     const count = takeCount(1)
-    const pos = cursorPosition
+    const pos = mode === "visual" && visualLinewise ? visualCursor : cursorPosition
     const step = (motion, big) => Motions.repeat(at => motion(text, at, big), count, pos)
 
     switch (key) {
     // leaving the field — the result list is the next line down
     case "j":
     case "k":
-      if (mode === "visual" || pendingOperator !== "") {
+      if ((mode === "visual" && !visualLinewise) || pendingOperator !== "") {
         clearPending()                      // dj and friends mean nothing here
         return
       }
-      moveLine(key === "j")
+      for (let i = 0; i < count; i++) moveLine(key === "j")
       return
 
     // modes
@@ -316,8 +365,22 @@ TextArea {
       return
     case "I": cursorPosition = Motions.firstNonBlank(text); setMode("insert"); return
     case "A": cursorPosition = text.length; setMode("insert"); return
+    case "V":
+      if (mode === "visual" && visualLinewise) {
+        setMode("normal")
+      } else {
+        if (mode !== "visual") visualAnchor = pos
+        visualLinewise = true
+        mode = "visual"
+        applyMotion(pos, false)
+      }
+      return
     case "v":
-      if (mode === "visual") {
+      if (mode === "visual" && visualLinewise) {
+        visualLinewise = false
+        cursorPosition = pos
+        select(visualAnchor, pos + 1)
+      } else if (mode === "visual") {
         setMode("normal")
       } else {
         visualAnchor = pos
@@ -355,14 +418,16 @@ TextArea {
         operateOnVisual(key)
       } else if (pendingOperator === key) {   // dd / cc / yy act on the line
         pendingOperator = ""
-        applyOperator(key, 0, text.length)
+        operateLines(key, count * operatorCount)
+        operatorCount = 1
       } else {
         pendingOperator = key
+        operatorCount = count
       }
       return
     case "D": applyOperator("d", pos, text.length); return
     case "C": applyOperator("c", pos, text.length); return
-    case "Y": applyOperator("y", 0, text.length); return
+    case "Y": operateLines("y", count); return
 
     // single-key edits
     case "x":
@@ -379,8 +444,9 @@ TextArea {
       return
     case "p": case "P":
       if (mode === "visual") {                // the selection is replaced
-        const start = Math.min(visualAnchor, pos)
-        const end = Math.min(text.length, Math.max(visualAnchor, pos) + 1)
+        const range = visualRange()
+        const start = range.start
+        const end = range.end
         setMode("normal")
         remove(start, end)
         cursorPosition = start
@@ -419,15 +485,14 @@ TextArea {
   Keys.priority: Keys.BeforeItem
   Keys.onPressed: event => {
     const ctrl = (event.modifiers & Qt.ControlModifier) !== 0
+    const chord = Chord.of(event)
 
     // Any mode. Ctrl+, was the original binding and still works.
-    if (ctrl && (event.key === Qt.Key_S || event.key === Qt.Key_Comma)) {
+    if (chord !== "" && (chord === field.settingsChord || chord === "C-,")) {
       field.requestedSettings()
       event.accepted = true
       return
     }
-
-    const chord = Chord.of(event)
 
     if (chord !== "" && chord === field.newSessionChord) {
       field.newSessionRequested()
@@ -442,8 +507,9 @@ TextArea {
       return
     }
 
-    // Tab switches search/ask from any mode, so it is taken before mode dispatch.
-    if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
+    // The switch key (Tab) works from any mode, so it is taken before mode
+    // dispatch. Shift+Tab always switches: left alone it would move focus.
+    if (chord !== "" && (chord === field.switchChord || chord === "Backtab")) {
       clearEscapePending()
       field.tabbed()
       event.accepted = true

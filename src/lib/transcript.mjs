@@ -23,6 +23,34 @@ export function replyEnd (i, questionStarts, replyStarts, pendingAt, length) {
   return end
 }
 
+// A hand-off carries turns as the agent wrote them, spelled as bin/ask's
+// build_prompt spells a conversation — not the rendered text, whose reply
+// dots are placeholder characters.
+function spoken (turn) {
+  return (turn.role === 'user' ? 'User: ' : 'Assistant: ') + String(turn.text)
+}
+
+/** The reply at turn `index` and the question it answers, for a hand-off. */
+export function exchangeText (turns, index) {
+  const list = turns || []
+  const reply = list[index]
+  if (!reply) return ''
+  for (let i = index - 1; i >= 0; i--) {
+    if (list[i].role === 'user') return spoken(list[i]) + '\n\n' + spoken(reply)
+  }
+  return spoken(reply)
+}
+
+/** Every question and answer, failures left out, for handing off the whole conversation. */
+export function conversationText (turns) {
+  const parts = []
+  for (let i = 0; i < (turns || []).length; i++) {
+    const turn = turns[i]
+    if (turn.role === 'user' || turn.role === 'assistant') parts.push(spoken(turn))
+  }
+  return parts.join('\n\n')
+}
+
 /** `text`, which began at position `base`, with the [start, end) ranges taken out. */
 export function cut (text, base, ranges) {
   let out = ''

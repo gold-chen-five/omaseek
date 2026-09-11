@@ -16,7 +16,7 @@ function count (s, ch) {
 // the URL only when the URL opened one, as in Rust_(programming_language).
 function trim (url) {
   let end = url.length
-  for (;;) {
+  while (end > 0) {
     const body = url.slice(0, end)
     const c = body.charAt(end - 1)
     if ('.,;:!?'.indexOf(c) !== -1) { end--; continue }
@@ -24,16 +24,20 @@ function trim (url) {
     if (c === ']' && count(body, '[') < count(body, ']')) { end--; continue }
     return body
   }
+  return ''
 }
 
 /** The bare URL the cursor sits on, or ''. */
 export function urlAt (text, pos) {
   const source = String(text == null ? '' : text)
-  const re = /https?:\/\/[^\s<>"'`]+/g
+  const re = /[^\s<>"'`]+/g
   let m
   while ((m = re.exec(source)) !== null) {
-    const url = trim(m[0])
-    if (pos >= m.index && pos < m.index + url.length) return url
+    const leading = /^[(\[]*/.exec(m[0])[0].length
+    const token = trim(m[0].slice(leading))
+    const url = urlFromSelection(token)
+    const start = m.index + leading
+    if (url && pos >= start && pos < start + token.length) return url
   }
   return ''
 }
@@ -54,4 +58,13 @@ export function urlFromSelection (text) {
   const host = url.split(/[/?#]/)[0]
   if (/^[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}(:\d+)?$/i.test(host)) return 'https://' + url
   return ''
+}
+
+
+/** Link metadata from TextEdit.getFormattedText for the cursor's character. */
+export function hrefFromHtml (html) {
+  const match = /<a\b[^>]*\bhref=["']([^"']*)["']/i.exec(String(html || ''))
+  if (!match) return ''
+  return match[1].replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
 }

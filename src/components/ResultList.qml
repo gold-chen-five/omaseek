@@ -13,8 +13,13 @@ ListView {
   property color accent: Color.menu.selectedText
   property color selectedBackground: Color.menu.selectedBackground
   property string fontFamily: Style.font.menuFamily
-  property string pending: ""                  // an unfinished sequence: "g" after g
+  property var binds: null               // the settings: where the rebindable commands sit
+  readonly property var readerKeys: KeysLib.readerKeys("results", binds)
+  property string lineNumbers: "relative"
+  property var navigation: ({ pending: "", count: 0 })
 
+  signal handedOff(int index)
+  signal pageHandedOff()
   signal activated(int index)
   signal escaped()                       // esc: back to the field, normal mode
   signal insertRequested()               // i or /: back to the field, typing
@@ -38,7 +43,8 @@ ListView {
     referenceItem: list
   }
 
-  onActiveFocusChanged: pending = ""
+  onActiveFocusChanged: navigation = { pending: "", count: 0 }
+  onModelChanged: navigation = { pending: "", count: 0 }
 
   function moveCursor (delta) {
     moveCursorTo(currentIndex + delta)
@@ -53,13 +59,13 @@ ListView {
 
   Keys.priority: Keys.BeforeItem
   Keys.onPressed: event => {
-    const step = KeysLib.resolve(KeysLib.LIST_KEYS, pending, Chord.of(event))
-    pending = step.pending
-    run(step.command)
+    const step = KeysLib.resolveCounted(readerKeys, navigation, Chord.of(event))
+    navigation = step.state
+    run(step.command, step.count)
     event.accepted = true
   }
 
-  function run (command) {
+  function run (command, times) {
     const rowHeight = Math.max(1, contentHeight / Math.max(1, count))
     const pageStep = Math.max(1, Math.floor(height / rowHeight / 2))
 
@@ -67,14 +73,16 @@ ListView {
     case "settings":     settingsRequested(); break
     case "toggleMode":   tabbed(); break
     case "accept":       activated(currentIndex); break
+    case "handOff":      if (count > 0) handedOff(currentIndex); break
+    case "handOffPage":  if (count > 0) pageHandedOff(); break
     case "cancel":       escaped(); break
     case "insert":       insertRequested(); break
-    case "halfPageDown": moveCursor(pageStep); break
-    case "halfPageUp":   moveCursor(-pageStep); break
-    case "down":         moveCursor(1); break
-    case "up":           moveCursor(-1); break
-    case "right":        nextPageRequested(); break
-    case "left":         previousPageRequested(); break
+    case "halfPageDown": moveCursor(pageStep * times); break
+    case "halfPageUp":   moveCursor(-pageStep * times); break
+    case "down":         moveCursor(times); break
+    case "up":           moveCursor(-times); break
+    case "nextPage":     nextPageRequested(); break
+    case "previousPage": previousPageRequested(); break
     case "top":          moveCursorTo(0); break
     case "bottom":       moveCursorTo(count - 1); break
     }
@@ -87,6 +95,9 @@ ListView {
     id: rowItem
 
     width: list.width
+    lineNumbers: list.lineNumbers
+    cursorIndex: list.currentIndex
+    numberDigits: String(Math.max(1, list.count)).length
     hasCursor: rowItem.index === list.currentIndex
     foreground: list.foreground
     accent: list.accent

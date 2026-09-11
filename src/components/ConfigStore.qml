@@ -22,15 +22,9 @@ Item {
 
   // A change is written straight through — there is no save button to forget.
   function change (key, value) {
-    const next = {
-      escapeSequence: settings.escapeSequence,
-      escapeTimeoutMs: settings.escapeTimeoutMs,
-      resultsPerPage: settings.resultsPerPage,
-      chatAgent: settings.chatAgent,
-      launcher: settings.launcher,
-      searchKey: settings.searchKey,
-      newSessionKey: settings.newSessionKey
-    }
+    // Every setting, so a key added to the settings lib needs nothing here.
+    const next = {}
+    for (const name in settings) next[name] = settings[name]
     next[key] = value
 
     const text = SettingsLib.writeSettings(next, source)
