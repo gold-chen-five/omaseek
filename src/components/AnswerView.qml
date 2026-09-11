@@ -30,6 +30,13 @@ FocusScope {
     Qt.callLater(refresh)
   }
 
+  // The question's arrow, measured, so a reply's dot can end where it does.
+  TextMetrics {
+    id: arrowMetrics
+    font: answer.font
+    text: ">"
+  }
+
   FontMetrics {
     id: labelMetrics
     font.family: view.fontFamily
@@ -118,7 +125,6 @@ FocusScope {
       glyph: glyphColor,
       error: Color.urgent.toString(),
       link: questionColor,  // theme ink, not Qt's link blue
-      dotSize: Math.round(Style.font.body * 0.75),   // the lead's width: the dot and the gap after it
       pending: thinking
     })
   }
@@ -163,12 +169,14 @@ FocusScope {
     return { x: r.x, baseline: r.y + r.height - labelMetrics.descent }
   }
 
-  // A reply's dot: at the start of its lead, centred on the x-height of the
-  // text it leads. One rule for finished and waiting replies alike.
+  // A reply's dot: its right edge where the question's > ends, so the gap to
+  // the text is the arrow's, and centred on the x-height of the text it leads.
+  // One rule for finished and waiting replies alike.
   function dotAt (lead) {
     const text = textAt(lead + 2)
+    const ink = arrowMetrics.tightBoundingRect
     return {
-      x: answer.positionToRectangle(lead).x,
+      x: Math.round(answer.positionToRectangle(lead).x + ink.x + ink.width - dotDiameter),
       y: Math.round(text.baseline - labelMetrics.xHeight / 2 - dotDiameter / 2)
     }
   }
