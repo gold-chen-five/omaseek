@@ -125,10 +125,12 @@ export function toHtml (markdown, { color = '', lead = '', link = '' } = {}) {
 
 /** The conversation as one rich-text document, laid out as Claude Code's is. */
 export function renderTranscript (turns, {
-  question = '#ffffff', answer = '#cccccc', glyph = '#888888', error = '#e06c75', link = '', dotSize = 0
+  question = '#ffffff', answer = '#cccccc', glyph = '#888888', error = '#e06c75', link = '', dotSize = 0,
+  pending = false
 } = {}) {
-  // Set smaller than the text, so centre it on the line.
-  const dot = dotSize > 0 ? `font-size:${dotSize}px;vertical-align:middle;` : ''
+  // The ● only holds the dot's place: the view draws the dot over it, so a
+  // finished reply's dot and the one breathing while it waits are one thing.
+  const lead = `<span style="color:transparent;${dotSize > 0 ? `font-size:${dotSize}px;` : ''}">● </span>`
   const parts = []
   for (let i = 0; i < (turns || []).length; i++) {
     const turn = turns[i]
@@ -142,9 +144,12 @@ export function renderTranscript (turns, {
       parts.push(toHtml(turn.text, {
         color: answer,
         link: link,
-        lead: `<span style="color:${glyph};${dot}">● </span>`
+        lead: lead
       }))
     }
   }
+  // The reply being waited for: an empty paragraph built exactly as a reply's
+  // first one is, so the waiting dot and label sit where the answer will.
+  if (pending) parts.push(toHtml('\u200b', { color: answer, lead: lead }))
   return parts.join('')
 }

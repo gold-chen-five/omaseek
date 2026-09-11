@@ -33,7 +33,7 @@ test('the transcript colours questions and answers apart', () => {
     { question: '#fff', answer: '#ccc', glyph: '#888', dotSize: 9 }
   )
   assert.match(html, /<span style="color:#888">&gt; <\/span><b><span style="color:#fff">why &lt;this&gt;\?<\/span><\/b>/)
-  assert.match(html, /<p><span style="color:#ccc"><span style="color:#888;font-size:9px;vertical-align:middle;">● <\/span>because <b>so<\/b><\/span><\/p>/)
+  assert.match(html, /<p><span style="color:#ccc"><span style="color:transparent;font-size:9px;">● <\/span>because <b>so<\/b><\/span><\/p>/)
   assert.equal(renderTranscript([]), '')
 })
 
@@ -55,7 +55,16 @@ test('a question typed on two lines is shown on two lines', () => {
   assert.ok(html.includes('first<br>second'))
 })
 
-test('the answer dot is centred on its line, not sat on the baseline', () => {
+test("a reply's ● holds the dot's place without drawing it", () => {
   const html = renderTranscript([{ role: 'assistant', text: 'hi' }], { dotSize: 8 })
-  assert.ok(html.includes('font-size:8px;vertical-align:middle'))
+  assert.ok(html.includes('<span style="color:transparent;font-size:8px;">● </span>hi'))
+})
+
+test('while waiting, a placeholder reply is built exactly as a reply is', () => {
+  const turns = [{ role: 'user', text: 'q' }]
+  const waiting = renderTranscript(turns, { answer: '#ccc', dotSize: 8, pending: true })
+  const answered = renderTranscript([...turns, { role: 'assistant', text: 'x' }], { answer: '#ccc', dotSize: 8 })
+  const placeholder = waiting.slice(renderTranscript(turns, { answer: '#ccc', dotSize: 8 }).length)
+  assert.equal(placeholder, '<p><span style="color:#ccc"><span style="color:transparent;font-size:8px;">● </span>\u200b</span></p>')
+  assert.equal(placeholder.replace('\u200b', 'x'), answered.slice(answered.indexOf('<p><span style="color:#ccc">')))
 })

@@ -26,8 +26,8 @@ FocusScope {
     if (thinking) {
       startedAt = Date.now()
       tick = 0
-      Qt.callLater(() => { flick.contentY = Math.max(0, flick.contentHeight - flick.height) })
     }
+    Qt.callLater(refresh)
   }
 
   FontMetrics {
@@ -56,6 +56,11 @@ FocusScope {
   property string cursorLink: ""               // the openable link under the cursor, or ""
   property real preferredX: -1                 // the column j/k try to keep
   property var marks: []                       // [{ y, height }] — where the questions are
+  property var dots: []                        // [{ x, y }] — where each reply's dot goes
+  property var replyStarts: []                 // plain-text index of each reply's ●
+  property var pendingDot: null                // while thinking: the placeholder reply's dot
+  property var pendingText: null               // and where its text would begin
+  readonly property int dotDiameter: Math.round(Style.font.body * 0.55)
 
   readonly property bool selecting: anchor !== -1
   readonly property string prompt: "> "        // Claude Code's prompt glyph; the plain text starts with it
@@ -81,21 +86,28 @@ FocusScope {
     pending = ""
     if (activeFocus) cursorLink = linkUnder(cursor)   // the layout may not have existed when the answer landed
   }
-  onTurnsChanged: {
+  onTurnsChanged: Qt.callLater(refresh)
+
+  // An answer lands as two changes in one handler — the history, then the
+  // status — and callLater folds them into one render.
+  function refresh () {
     anchor = -1
     preferredX = -1
     answer.text = render()
-    // Once the layout settles, land at the start of the newest reply so j reads
-    // down through it.
-    Qt.callLater(() => { placeCursor(startOfNewest()); findMarks() })
+    Qt.callLater(settle)                       // the layout settles after the text lands
+  }
+
+  // Find the bars and dots, then land at the start of the newest reply so j
+  // reads down through it (or at the end, under the question, while waiting).
+  function settle () {
+    findMarks()
+    placeCursor(startOfNewest())
   }
 
   function startOfNewest () {
     const last = turns.length > 0 ? turns[turns.length - 1] : null
-    if (!last || last.role !== "assistant") return answer.length
-    const source = plain()
-    const at = source.lastIndexOf("●")
-    return at === -1 ? answer.length : Math.min(answer.length, at + 2)
+    if (!last || last.role !== "assistant" || replyStarts.length === 0) return answer.length
+    return Math.min(answer.length, replyStarts[replyStarts.length - 1] + 2)
   }
   onWidthChanged: Qt.callLater(findMarks)
 
@@ -106,7 +118,8 @@ FocusScope {
       glyph: glyphColor,
       error: Color.urgent.toString(),
       link: questionColor,  // theme ink, not Qt's link blue
-      dotSize: Math.round(Style.font.body * 0.6)
+      dotSize: Math.round(Style.font.body * 0.75),   // the lead's width: the dot and the gap after it
+      pending: thinking
     })
   }
 
@@ -114,19 +127,50 @@ FocusScope {
 
   function findMarks () {
     const source = plain()
-    const found = []
+    const bars = []
+    const leads = []
+    const starts = []
     let from = 0
     for (let i = 0; i < turns.length; i++) {
-      if (turns[i].role !== "user") continue
-      const line = prompt + String(turns[i].text)
-      const at = source.indexOf(line, from)
-      if (at === -1) continue
-      const first = answer.positionToRectangle(at)
-      const last = answer.positionToRectangle(Math.max(at, at + line.length - 1))
-      found.push({ y: first.y, height: last.y + last.height - first.y })
-      from = at + line.length
+      const turn = turns[i]
+      if (turn.role === "user") {
+        const line = prompt + String(turn.text)
+        const at = source.indexOf(line, from)
+        if (at === -1) continue
+        const first = answer.positionToRectangle(at)
+        const last = answer.positionToRectangle(Math.max(at, at + line.length - 1))
+        bars.push({ y: first.y, height: last.y + last.height - first.y })
+        from = at + line.length
+      } else if (turn.role === "assistant") {
+        const at = source.indexOf("●", from)
+        if (at === -1) continue
+        starts.push(at)
+        leads.push(dotAt(at))
+        from = at + 1
+      }
     }
-    marks = found
+    const waiting = thinking ? source.indexOf("●", from) : -1
+    pendingDot = waiting === -1 ? null : dotAt(waiting)
+    pendingText = waiting === -1 ? null : textAt(waiting + 2)
+    marks = bars
+    dots = leads
+    replyStarts = starts
+  }
+
+  // Where a reply's text begins, and its baseline.
+  function textAt (pos) {
+    const r = answer.positionToRectangle(Math.min(answer.length, pos))
+    return { x: r.x, baseline: r.y + r.height - labelMetrics.descent }
+  }
+
+  // A reply's dot: at the start of its lead, centred on the x-height of the
+  // text it leads. One rule for finished and waiting replies alike.
+  function dotAt (lead) {
+    const text = textAt(lead + 2)
+    return {
+      x: answer.positionToRectangle(lead).x,
+      y: Math.round(text.baseline - labelMetrics.xHeight / 2 - dotDiameter / 2)
+    }
   }
 
   function lineStartAt (pos) {
@@ -323,7 +367,6 @@ FocusScope {
     clip: true
     contentWidth: width
     contentHeight: answer.contentHeight + answer.topPadding + answer.bottomPadding
-                   + (spinner.visible ? spinner.height + Style.spacing.xs : 0)
     boundsBehavior: Flickable.StopAtBounds
 
     // A quiet bar behind each question, as Claude Code draws a prompt.
@@ -352,42 +395,58 @@ FocusScope {
       color: Util.alpha(view.foreground, 0.06)
     }
 
-    // Where the reply's dot will be, so the answer replaces it in place.
-    Row {
-      id: spinner
+    // Every reply's dot, drawn over the transparent ● that holds its place in
+    // the text, so it matches the breathing one below in size, colour and
+    // position.
+    Repeater {
+      model: view.dots
 
-      visible: view.thinking
-      x: answer.leftPadding
-      y: answer.contentHeight + answer.topPadding + answer.bottomPadding
-      spacing: Style.spacing.xs
-
-      // One dot, breathing slowly, in the colour of the text beside it. Drawn
-      // rather than typed: a small glyph sits on its own baseline, low against
-      // the label, so this is centred on the label's x-height instead.
       Rectangle {
-        width: Math.round(Style.font.body * 0.55)
+        required property var modelData
+
+        z: 1
+        x: modelData.x
+        y: modelData.y
+        width: view.dotDiameter
         height: width
         radius: width / 2
         color: view.answerColor
-        y: Math.round(waitLabel.y + waitLabel.baselineOffset - labelMetrics.xHeight / 2 - height / 2)
-
-        SequentialAnimation on opacity {
-          running: view.thinking && view.visible
-          loops: Animation.Infinite
-          NumberAnimation { to: 0.2; duration: Thinking.PULSE_MS / 2; easing.type: Easing.InOutSine }
-          NumberAnimation { to: 1; duration: Thinking.PULSE_MS / 2; easing.type: Easing.InOutSine }
-        }
       }
-      Text {
-        id: waitLabel
+    }
 
-        textFormat: Text.PlainText
-        // tick is read so the clock re-evaluates every frame.
-        text: view.tick >= 0 ? Thinking.thinkingLabel(view.agentName, Date.now() - view.startedAt) : ""
-        color: view.answerColor
-        font.family: view.fontFamily
-        font.pixelSize: Style.font.body
+    // The reply being waited for. Its placeholder paragraph is laid out like any
+    // reply, so this dot and the label sit exactly where the answer will land.
+    Rectangle {
+      z: 1
+      visible: view.thinking && view.pendingDot !== null
+      x: view.pendingDot ? view.pendingDot.x : 0
+      y: view.pendingDot ? view.pendingDot.y : 0
+      width: view.dotDiameter
+      height: width
+      radius: width / 2
+      color: view.answerColor
+
+      SequentialAnimation on opacity {
+        running: view.thinking && view.visible
+        loops: Animation.Infinite
+        NumberAnimation { to: 0.2; duration: Thinking.PULSE_MS / 2; easing.type: Easing.InOutSine }
+        NumberAnimation { to: 1; duration: Thinking.PULSE_MS / 2; easing.type: Easing.InOutSine }
       }
+    }
+
+    Text {
+      id: waitLabel
+
+      z: 1
+      visible: view.thinking && view.pendingText !== null
+      x: view.pendingText ? view.pendingText.x : 0
+      y: view.pendingText ? Math.round(view.pendingText.baseline - baselineOffset) : 0
+      textFormat: Text.PlainText
+      // tick is read so the clock re-evaluates every frame.
+      text: view.tick >= 0 ? Thinking.thinkingLabel(view.agentName, Date.now() - view.startedAt) : ""
+      color: view.answerColor
+      font.family: view.fontFamily
+      font.pixelSize: Style.font.body
     }
 
     TextEdit {
