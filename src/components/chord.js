@@ -1,13 +1,6 @@
-// A Qt key event as the chord string lib/keys.mjs matches on.
-//
-// This is the one place Qt's key enums are named, and it is a .js rather
-// than part of lib/keys.mjs because that module also has to load in node,
-// under test, where Qt does not exist. Nothing here decides anything: it
-// spells the keypress, the table says what it means.
-//
-// A modifier held on its own is the empty string, which leaves a pending
-// sequence untouched — reaching for shift in the middle of one should not
-// cancel it.
+// Qt key event -> chord string for lib/keys.mjs. A .js file so it can see Qt;
+// keys.mjs also runs under node. A bare modifier is "", which keeps a pending
+// sequence.
 
 var named = null
 

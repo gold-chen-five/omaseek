@@ -1,25 +1,13 @@
-// The insert-mode escape sequence — vim's `inoremap jk <Esc>` — and the user
-// config that decides which sequence is live.
-//
-// Pure: keys and config text in, a decision out, with no QML or Qt dependency,
-// so the matching rules run under node. See test/keymap.test.mjs.
+// The insert-mode escape sequence (vim's `inoremap jk <Esc>`) and its config.
 
 export const DEFAULT_SEQUENCES = ['jk']
-// vim's own `timeoutlen`, which is what decides whether two keys count as one
-// mapping. Matching it means a sequence that works in vim works here.
+// vim's `timeoutlen`: keys typed within it count as one mapping.
 export const DEFAULT_TIMEOUT_MS = 1000
 
 const MIN_TIMEOUT_MS = 20
 const MAX_TIMEOUT_MS = 5000
 
-/**
- * `~/.config/omaseek/config.json` -> the escape sequences and the window
- * they must be typed within.
- *
- * Anything unreadable — no file, malformed JSON, a key of the wrong type —
- * falls back to the defaults rather than failing: a typo in the config should
- * cost the setting, not the search bar.
- */
+/** config.json -> the escape sequences and their timeout; unreadable config means defaults. */
 export function readKeymap (source) {
   const config = parseConfig(source)
   return {
@@ -62,12 +50,8 @@ export function isTypedKey (key) {
 }
 
 /**
- * One insert-mode keystroke against the keys pending so far.
- *
- * Returns the buffer to carry forward, whether a sequence just completed, and
- * how many characters the caller must take back out of the field: the closing
- * key is swallowed before it types, but the ones before it are already on
- * screen — vim shows that leading `j` too, then removes it.
+ * One insert-mode keystroke against the pending keys. Returns the buffer to carry
+ * forward, whether a sequence completed, and how many typed characters to take back.
  */
 export function advance (pending, key, sequences) {
   const idle = { pending: '', escaped: false, strip: 0 }

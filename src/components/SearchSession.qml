@@ -2,13 +2,8 @@ import QtQuick
 import Quickshell.Io
 import "../lib/search.mjs" as SearchLib
 
-// One query and its pages.
-//
-// Results are paged, not scrolled. `pages` caches every page fetched for the
-// current query as { rows, next }, where `next` is the payload bin/search
-// wants echoed back for the page after — so `l` fetches at most once per page
-// and `h` never fetches at all. The ListModel the list paints is sliced from
-// that cache, one page at a time.
+// One query and its pages. `pages` caches each fetched page as { rows, next },
+// so l fetches at most once per page and h never fetches.
 Item {
   id: session
 
@@ -100,7 +95,6 @@ Item {
     if (!payload.ok) {
       const message = SearchLib.describeError(payload)
       if (payload.setup === true) {
-        // Whether this was a fresh search or a page turn: ask, do not report.
         status = "idle"
         engineDown(message)
         return

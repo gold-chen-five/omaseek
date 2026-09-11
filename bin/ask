@@ -1,43 +1,22 @@
 #!/usr/bin/env python3
 """Ask an AI coding agent from the panel, or hand it the conversation.
 
-    ./bin/ask --agents                                   which agents are here, and the default
-    echo '{"question": "…", "history": []}' | ./bin/ask  one answer, as JSON
-    echo '{"prompt": "…"}' | ./bin/ask --launch          open the agent on that prompt
-    ./bin/ask --json '{"question": "…"}'                 the same, payload as an argument
+    ./bin/ask --agents                              installed agents, and the default
+    ./bin/ask --json '{"question": "…"}'            one answer
+    ./bin/ask --launch --json '{"prompt": "…"}'     open the agent on that prompt
+    ./bin/ask --login --json '{"agent": "…"}'       hand its sign-in or setup to a terminal
 
-Every agent CLI Omarchy knows has a print mode — `claude -p`, `codex exec`,
-`hermes chat -q` and so on — and that is all "chat" is here: the panel keeps
-the conversation, and each turn runs one process with the conversation in
-the prompt. No API keys, no SDK: whatever the user already signed the CLI
-into is what answers. Stdlib only, like bin/search.
-
-The interactive spellings — which flag means "don't stop to ask", where the
-prompt goes — are copied from omarchy-agent so a hand-off from the panel
-starts the agent the way the Super+A keybinding would. The window is a plain
-terminal rather than omarchy-agent's org.omarchy.agent app-id, because the
-user's terminal rules (opacity, blur, size) are keyed on the terminal's own
-class, and a hand-off should look like the terminal next to it.
-
-Which agents exist is decided the way omarchy-default-agent decides it — a
-user install in ~/.local/bin, else a mise install, else the Hermes
-installer's own --check — not by what is on PATH: Omarchy puts a mise shim
-on PATH for every agent it knows, installed or not, and running one would
-start an install instead of a chat.
+The payload can also come on stdin. Each turn runs the agent CLI's print mode
+with the conversation in the prompt: no API keys, no SDK. Installed agents are
+found the way Omarchy finds them (~/.local/bin, mise, the installer's --check),
+not by PATH: Omarchy leaves a mise shim there for every agent, installed or not.
 
 Output is always one JSON object:
     {"ok": true, "agents": [...], "default": "claude"}
     {"ok": true, "text": "…", "agent": "claude"}
     {"ok": true, "launched": "claude", "launcher": "terminal"}
-    {"ok": false, "error": "usage"|"agent"|"launcher", "message": "…"}
-    {"ok": false, "error": "auth", "login": true, "message": "…"}   the CLI is signed out
-
-`--login` hands the sign-in to the CLI, in whichever launcher the user has
-chosen, with the pending question chained after it. The panel runs it the
-moment a turn comes back with error "auth": signing in belongs to the agent
-— it opens a browser and writes its own credentials — so being signed out
-costs a window that ends in the agent, question already put, rather than a
-search for the right command and a retype.
+    {"ok": false, "error": "usage"|"agent"|"launcher"|"quota", "message": "…"}
+    {"ok": false, "error": "auth"|"config", "login": true, "fix": "login"|"setup", "message": "…"}
 """
 
 import json
@@ -124,21 +103,16 @@ SIGNED_OUT = re.compile(
     re.IGNORECASE,
 )
 
-# Signed in, but out of allowance. Not a sign-in problem — logging in again
-# fixes nothing — so it is reported as it is, with whatever the CLI said
-# about when the window resets.
+# Signed in but out of allowance: logging in again fixes nothing.
 OUT_OF_QUOTA = re.compile(
     r"usage limit|rate limit|quota|out of credit|insufficient (credit|balance|funds)|"
     r"upgrade to (plus|pro)|\b429\b",
     re.IGNORECASE,
 )
 
-# Installed, signed in, and still unable to answer: no provider chosen, no
-# model set, no auth method picked. The CLI prints its own setup instructions
-# and exits 0, so this is checked on the *successful* path — and only against
-# a short whole output, because a real answer about API keys would be longer
-# and matching inside one is the mistake that reported a signed-in Codex as
-# signed out.
+# Installed and signed in, but unconfigured (no provider, model or auth method).
+# Matched only against a short whole output, so an answer that merely mentions
+# API keys is still an answer.
 NOT_CONFIGURED = re.compile(
     r"no (inference )?provider configured|no model (is )?(configured|selected)|"
     r"please set an auth method|run '[a-z][\w-]* (model|config|configure)'",
@@ -146,9 +120,7 @@ NOT_CONFIGURED = re.compile(
 )
 UNCONFIGURED_MAX = 400
 
-# A crate's structured log line: a timestamp, a level, a module path. These
-# carry whole HTTP bodies, and a model catalogue mentioning "sign in" would
-# otherwise read as a signed-out CLI.
+# A structured log line. These carry whole HTTP bodies; never diagnose from them.
 LOG_LINE = re.compile(r"^\d{4}-\d\d-\d\dT[\d:.]+Z?\s+(TRACE|DEBUG|INFO|WARN|ERROR)\b")
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -194,10 +166,7 @@ def read_config():
 
 
 def read_payload(argv):
-    """The JSON payload: --json '<object>' from the panel, or stdin by hand.
-
-    An argument rather than a pipe, because Quickshell's Process is built
-    around reading, and the history is capped anyway (see build_prompt)."""
+    """The JSON payload: --json '<object>', or stdin."""
     if "--json" in argv:
         at = argv.index("--json")
         if at + 1 >= len(argv):
@@ -264,9 +233,7 @@ def resolve_agent(requested, available):
         for agent in available:
             if agent["id"] == default_id:
                 return agent, True
-        # Omarchy leaves the default unset until the user picks one. The panel
-        # is more useful answering than lecturing, so the first installed
-        # agent stands in — the settings row says which.
+        # Omarchy ships with no default agent; the first installed one stands in.
         if available:
             return available[0], False
         fail("agent", "no supported AI agent is installed — see `omarchy default agent`")
@@ -309,9 +276,7 @@ def run_chat(agent, prompt):
     try:
         done = subprocess.run(
             command, cwd=WORK_DIR, env=env,
-            # Closed stdin, not the panel's: an agent CLI that finds an open
-            # stdin waits on it and answers nothing — codex exec does exactly
-            # that, so a question through the panel simply hung.
+            # Closed stdin: given the panel's, `codex exec` waits on it and never answers.
             stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=TIMEOUT,
         )
     except FileNotFoundError:
@@ -328,20 +293,13 @@ def run_chat(agent, prompt):
     if done.returncode != 0:
         said = diagnosis(done.stdout, done.stderr)
         joined = "\n".join(said)
-        # Out of allowance is not a sign-in problem: say so and stop, rather
-        # than opening a login that fixes nothing.
         if OUT_OF_QUOTA.search(joined):
             fail("quota", f"{agent['name']}: {said[-1]}")
-        # A failed run that talks about logging in is the signed-out case,
-        # which the panel can fix by opening the sign-in.
         if SIGNED_OUT.search(joined):
             emit({"ok": False, "error": "auth", "login": True, "fix": "login",
                   "message": f"{agent['name']} is signed out — opening its sign-in"})
             sys.exit(0)
-        # Nothing configured, said on the way out rather than on stdout —
-        # gemini refuses with its auth notice on stderr and a non-zero exit.
-        # It is the same fixable state as the exit-0 spelling below, and
-        # `said` has already been reduced to short, non-log lines.
+        # gemini reports missing auth on stderr, with a non-zero exit.
         if NOT_CONFIGURED.search(joined):
             emit({"ok": False, "error": "config", "login": True, "fix": "setup",
                   "message": f"{agent['name']}: {said[-1]}"})
@@ -350,11 +308,8 @@ def run_chat(agent, prompt):
             fail("agent", f"{agent['name']}: {said[-1] if said else f'exit {done.returncode}'}")
     if not text:
         fail("agent", f"{agent['name']} returned nothing")
-    # Setup instructions are not an answer. Shown as one they read as the
-    # agent replying, and the question looks answered when nothing was asked.
+    # Setup instructions on stdout are not an answer.
     if len(text) <= UNCONFIGURED_MAX and NOT_CONFIGURED.search(text):
-        # Fixable in the same one place a sign-in is: a terminal running the
-        # agent's own setup, with the question waiting behind it.
         emit({"ok": False, "error": "config", "login": True, "fix": "setup",
               "message": f"{agent['name']}: {' '.join(text.split())}"})
         sys.exit(0)
@@ -379,28 +334,15 @@ def shell_line(agent, prompt):
 
 
 def fix_command(agent, fix):
-    """What to run to make this agent able to answer.
-
-    Two ways to be unable: signed out, which the sign-in fixes, and signed in
-    with nothing configured, which it does not — `hermes login` will never ask
-    which provider to use. An agent that tells them apart names both; the rest
-    only have a sign-in.
-    """
+    """Signed out -> its sign-in; unconfigured -> its setup, where it has one."""
     if fix == "setup" and agent.get("setup"):
         return agent["setup"]
     return agent["login"]
 
 
 def login_line(agent, prompt, fix="login"):
-    """Fix the agent, then land in it with the question already asked.
-
-    The CLI owns this: it opens a browser, waits for the callback, writes its
-    own credentials, asks which model to use. So the panel hands the whole
-    thing over rather than trying to drive it, and the user finishes in the
-    terminal. Chained with `;` and not `&&`: a sign-in that fails should still
-    leave the agent on screen saying so, not a window that closes on the
-    message.
-    """
+    """Fix the agent, then exec into it with the question. `;` not `&&`, so a
+    failed sign-in still leaves the agent on screen saying why."""
     line = shlex.join(env_prefix(agent) + fix_command(agent, fix))
     if prompt:
         line += "; exec " + shell_line(agent, prompt)
@@ -462,9 +404,7 @@ def hand_off(launcher, agent, line):
     elif launcher == "herdr":
         launch_herdr(agent, line)
     else:
-        # `-l` so the shell reads the user's profile: the panel inherits
-        # whatever PATH the compositor was started with, which need not have
-        # mise's shims on it.
+        # -l: the compositor's PATH may lack mise's shims.
         open_terminal(["bash", "-lc", line])
 
 
@@ -510,8 +450,6 @@ def main():
             fail("usage", "--launch needs a prompt")
         launcher = chosen_launcher(payload, config)
         if launcher == "terminal":
-            # Straight argv, not a shell line: this is the path the hand-off
-            # actually runs on, and it is spelled the way it was verified.
             launch_terminal(agent, prompt)
         else:
             hand_off(launcher, agent, shell_line(agent, prompt))

@@ -1,14 +1,5 @@
-// The keys behind the panel's two buttons, as a person writes them.
-//
-// Settings holds them as text — "ctrl+c", "enter" — because that is what a
-// keybind looks like everywhere else a person edits one. The panel matches
-// against the chord strings components/chord.js produces, so this is the
-// translation between the two, and the only place either spelling is known.
-//
-// The vocabulary is deliberately small: a named key, a single character, or
-// ctrl and one of those. Anything else parses to null and the setting keeps
-// the value it had, the way a one-character escape sequence is refused
-// rather than silently accepted.
+// The rebindable keys: settings text ("ctrl+c") <-> chord strings ("C-c"). A
+// named key, one character, or ctrl+ either; anything else parses to null.
 
 const NAMED = {
   enter: 'Return', return: 'Return',

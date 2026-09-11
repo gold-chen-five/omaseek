@@ -19,8 +19,7 @@ test('malformed config falls back rather than throwing', () => {
 })
 
 test('an engine key left over from an older config is carried, not honoured', () => {
-  // There is one backend now, so `engine` means nothing — but writeSettings
-  // must not quietly drop a key it does not own.
+  // writeSettings must not drop a key it does not own.
   assert.equal(readSettings('{"engine":"exa"}').engine, undefined)
   assert.match(writeSettings(readSettings('{"engine":"exa"}'), '{"engine":"exa"}'), /"engine": "exa"/)
 })

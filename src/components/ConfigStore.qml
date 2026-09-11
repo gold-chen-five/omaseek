@@ -4,12 +4,8 @@ import Quickshell.Io
 import "../lib/settings.mjs" as SettingsLib
 import "../lib/keymap.mjs" as KeymapLib
 
-// ~/.config/omaseek/config.json, read and written.
-//
-// The file is shared with bin/search and stays hand-editable: this store
-// writes only the keys the settings page owns and carries everything else
-// through untouched (`searxng_url`, `searxng_engines`). Every reader treats
-// an unreadable file as defaults, so a typo costs one setting, not the panel.
+// ~/.config/omaseek/config.json. Writes only the keys the settings page owns;
+// everything else (searxng_url, searxng_engines) passes through untouched.
 Item {
   id: store
 

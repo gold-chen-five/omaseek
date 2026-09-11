@@ -3,13 +3,8 @@ import qs.Commons
 import qs.Ui
 import "../lib/settings.mjs" as SettingsLib
 
-// The settings page. One row per setting: what it is, what it does, and the
-// choices laid out so the current one is visible without opening anything.
-//
-// Rows come from lib/settings.mjs so the page and the backend cannot disagree
-// about which options exist. A FocusScope rather than a plain Column: the
-// typed row hands the keyboard to a real text field and has to be able to take
-// it back, which an Item that does not own focus cannot arrange.
+// One row per setting; the rows come from lib/settings.mjs. A FocusScope because
+// a typed row lends the keyboard to a text field and has to take it back.
 FocusScope {
   id: page
 
@@ -30,7 +25,7 @@ FocusScope {
   implicitHeight: layout.implicitHeight
 
   function open () {
-    cursor = firstSetting()                  // never a heading, which has nothing to do
+    cursor = firstSetting()
     Qt.callLater(() => page.forceActiveFocus())
   }
 
@@ -44,8 +39,6 @@ FocusScope {
     editingFinished()
   }
 
-  // A section header is a label, not a setting, so the cursor steps over it
-  // rather than landing on a row with nothing to do.
   function moveCursor (delta) {
     const step = delta < 0 ? -1 : 1
     let next = cursor
@@ -61,9 +54,7 @@ FocusScope {
     return 0
   }
 
-  // h/l on a choice row steps it; on a toggle row l is on and h is off, and
-  // only a flip that changes something fires — starting a running instance
-  // would open a terminal for nothing.
+  // On a toggle, l is on and h is off; only a flip that changes the state fires.
   function cycle (delta) {
     const row = rows[cursor]
     if (!row) return
@@ -71,11 +62,7 @@ FocusScope {
     else if (row.type === "toggle" && !row.busy && (delta > 0) !== (row.value === true)) activated(row.key, row.action)
   }
 
-  // Enter opens what can be opened: a typed row for editing, an action row
-  // fires. A choice row has nothing to open — h and l step through its
-  // options and each step is written straight through — so Enter used to
-  // step it along too, which meant pressing Enter to settle on a value
-  // changed it to the next one instead. It does nothing there now.
+  // A choice row has nothing to open: h and l change it.
   function press () {
     const row = rows[cursor]
     if (!row) return
@@ -86,8 +73,8 @@ FocusScope {
 
   Keys.priority: Keys.BeforeItem
   Keys.onPressed: event => {
-    // While a row is being typed into, the field owns the keyboard. Its Enter
-    // reaches here too, and would reopen the editor the instant it closed.
+    // A row being edited owns the keyboard; its Enter reaches here too and would
+    // reopen the editor.
     if (editingIndex !== -1 || dropdownIndex !== -1) return
 
     const ctrl = (event.modifiers & Qt.ControlModifier) !== 0
@@ -129,29 +116,20 @@ FocusScope {
         required property int index
         required property var modelData
 
-        // Bindings inside a Repeater delegate resolve the outer id, but
-        // imperative code in the same delegate cannot — so the page is held in
-        // a property and called through that.
+        // Imperative code in a Repeater delegate can't resolve outer ids, so the page
+        // is held in a property.
         readonly property var owner: page
         readonly property bool isSection: modelData.type === "section"
         readonly property bool hasCursor: index === page.cursor && !isSection
         readonly property bool isChoice: modelData.type === "choice"
-        // A handful of options are chips beside the label. More than that is
-        // a list behind a dropdown, so the row stays one line tall.
         readonly property bool isDropdown: isChoice && modelData.control === "dropdown"
 
         width: layout.width
-        // A heading row is the rule, a breath, then the label: enough air
-        // above and below the rule that it separates rather than underlines.
         height: isSection ? sectionLabel.implicitHeight + Style.spacing.lg + Style.spacing.md * 2
                           : body.implicitHeight + Style.spacing.md * 2
         radius: Style.cornerRadius
         color: hasCursor ? page.selectedBackground : "transparent"
 
-        // A heading, not a setting: it names what the rows under it are for
-        // and the cursor walks past it. The rule is what actually separates
-        // the groups — the label alone left the page reading as one list with
-        // a stray word in it.
         Rectangle {
           visible: settingRow.isSection && settingRow.index > 0
           anchors.left: parent.left
@@ -167,7 +145,7 @@ FocusScope {
 
           visible: settingRow.isSection
           anchors.left: parent.left
-          anchors.bottom: parent.bottom               // flush with the search field above
+          anchors.bottom: parent.bottom
           anchors.bottomMargin: Style.spacing.xs
           textFormat: Text.PlainText
           text: settingRow.isSection ? String(settingRow.modelData.label).toUpperCase() : ""
@@ -178,9 +156,8 @@ FocusScope {
           font.letterSpacing: 1.5
         }
 
-        // One chip, for the short choices. The raw
-        // option goes back, not its string: the page sizes are numbers, and a
-        // string would fail the write-side check and fall back to the default.
+        // Emits the raw option, not its string: page sizes are numbers, and a string
+        // fails the write-side check.
         Component {
           id: chip
 
@@ -234,7 +211,7 @@ FocusScope {
                 width: parent.width
                 textFormat: Text.PlainText
                 text: settingRow.modelData.label
-                color: page.foreground     // the row's background says where the cursor is
+                color: page.foreground
                 font.family: page.fontFamily
                 font.pixelSize: Style.font.subtitle
                 elide: Text.ElideRight
@@ -243,23 +220,17 @@ FocusScope {
               Text {
                 width: parent.width
                 textFormat: Text.PlainText
-                // A section row carries no hint, and an undefined binding is
-                // a warning on every repaint even while the body is hidden.
+                // Section rows have no hint; an undefined binding warns on every repaint.
                 text: settingRow.modelData.hint || ""
                 color: page.foreground
                 opacity: 0.55
                 font.family: page.fontFamily
                 font.pixelSize: Style.font.caption
-                // A dropdown row's hint has the most to say and the least
-                // room, so it wraps; the others stay one line.
                 wrapMode: settingRow.isDropdown ? Text.WordWrap : Text.NoWrap
                 elide: settingRow.isDropdown ? Text.ElideNone : Text.ElideRight
               }
             }
 
-            // A toggle row: the switch shows the state, flipping it acts. It
-            // lights up with the row cursor so Enter visibly lands on it, and
-            // goes busy while the probe is still out so a flip cannot race it.
             ToggleSwitch {
               id: engineSwitch
 
@@ -292,10 +263,7 @@ FocusScope {
               }
             }
 
-            // The list behind a long choice. While it is open its own ListView
-            // has the keys — the page steps aside the way it does for a text
-            // row being typed into — and when it closes the page takes them
-            // back, whichever way it was opened.
+            // While open, the list has the keys; closing it hands them back to the page.
             Dropdown {
               id: picker
 
@@ -325,13 +293,9 @@ FocusScope {
                 }
               }
 
-              // The raw option goes back, not its string — see the chip.
-              //
-              // Writing a setting recomputes the rows, and the Repeater rebuilds
-              // every delegate — this one included, popup and all, while the
-              // Dropdown is still inside its own select. So the page's state is
-              // released first, so the rebuilt row does not reopen, and the
-              // write itself waits a tick for the Dropdown to finish closing.
+              // Raw option, as the chip sends. The write rebuilds every delegate, this one
+              // included, mid-select: release the page's state first and write a tick later,
+              // or the rebuilt row reopens.
               onChanged: function (chosen) {
                 const options = settingRow.modelData.options
                 let raw = chosen
@@ -344,9 +308,6 @@ FocusScope {
               }
             }
 
-            // A typed setting: any sequence, not a menu of them. The field takes
-            // the keyboard only while this row is being edited, so j/k keep
-            // walking the page the rest of the time.
             TextField {
               id: sequenceField
 
@@ -359,9 +320,8 @@ FocusScope {
               text: String(settingRow.modelData.value)
               placeholderText: settingRow.modelData.placeholder || ""
               readOnly: !editing
-              // Declarative, so the field releases the keyboard the moment
-              // editing ends. Left holding focus it would swallow the next Esc,
-              // which the user means for the settings page.
+              // Declarative, so focus drops the moment editing ends; held, it would swallow
+              // the Esc meant for the page.
               focus: editing
               foreground: page.foreground
               accent: page.accent
@@ -378,16 +338,12 @@ FocusScope {
 
               onEditingChanged: if (sequenceField.editing) {
                 sequenceField.forceActiveFocus()
-                // Focus lands asynchronously and resets the selection, so the
-                // select-all has to follow it — otherwise typing appends to the
-                // existing sequence instead of replacing it.
+                // Focus lands asynchronously and resets the selection; select-all must follow.
                 Qt.callLater(function () { sequenceField.selectAll() })
               }
 
-              // A plain function, not an arrow: inside a Repeater delegate an
-              // arrow handler is bound to lexical JS scope instead of the QML
-              // scope chain, so ids like `page` and this object's own methods
-              // are simply not resolvable from it.
+              // A plain function, not an arrow: in a Repeater delegate an arrow binds lexical
+              // JS scope, and `page` and this object's methods don't resolve.
               Keys.priority: Keys.BeforeItem
               Keys.onPressed: function (event) {
                 if (!sequenceField.editing) return    // not this field's keyboard

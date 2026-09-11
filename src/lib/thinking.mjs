@@ -1,10 +1,4 @@
-// What the panel shows while an agent has not answered yet.
-//
-// A print-mode CLI says nothing until it says everything, and ten silent
-// seconds read as a hang. Claude Code fills that gap with a spinner, a verb
-// and a clock, and so does this — the same shape, so the wait looks like the
-// one people already know. The verbs are chosen once per question, not per
-// frame, so the line reads as a state and not as noise.
+// The line shown while an agent works: spinner, verb and clock, as Claude Code does.
 
 export const FRAMES = ['·', '✢', '✳', '✶', '✻', '✽', '✻', '✶', '✳', '✢']
 export const FRAME_MS = 100

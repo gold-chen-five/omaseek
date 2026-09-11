@@ -2,16 +2,8 @@ import QtQuick
 import qs.Commons
 import qs.Ui
 
-// Shown when the SearXNG instance is not running.
-//
-// It appears on its own rather than behind a key: an engine that is down is
-// not a search result the user can read past, and the plugin cannot start a
-// service on its own — Omarchy runs no install hooks — so the one useful thing
-// the panel can do is explain what it needs and ask.
-//
-// The explanation is not decoration. Docker, a download and a password prompt
-// are all consequences of saying yes, and nobody should meet them for the
-// first time after agreeing.
+// Shown when the SearXNG instance is down. It says what starting it involves
+// (Docker, a download, maybe sudo) before asking.
 Item {
   id: prompt
 
@@ -20,9 +12,7 @@ Item {
   property color accent: Color.menu.selectedText
   property string fontFamily: Style.font.menuFamily
 
-  // Which button the keyboard is on. Confirm is the landing point, as in
-  // the shell's own ConfirmDialog: the person summoned a search bar and
-  // was told the engine is off, so Enter should be the way forward.
+  // Confirm is the landing button, as in the shell's ConfirmDialog.
   property int selectedIndex: 1
   property color selectedBackground: Color.menu.selectedBackground
 
@@ -112,8 +102,7 @@ Item {
       wrapMode: Text.WordWrap
     }
 
-    // Two buttons drawn the way the shell's ConfirmDialog draws its own, so
-    // saying yes here looks like saying yes to an update in the menu.
+    // Drawn like the shell's ConfirmDialog.
     Row {
       anchors.right: parent.right
       spacing: Style.space(10)

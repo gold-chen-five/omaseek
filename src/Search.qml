@@ -9,22 +9,10 @@ import "lib/settings.mjs" as SettingsLib
 import "lib/keybinds.mjs" as Keybinds
 import "lib/states.mjs" as States
 
-// Web search overlay, through a SearXNG instance the user runs.
-//
-// The layer-shell recipe and the open/close/dismiss/toggle contract follow the
-// first-party overlays (see shell/plugins/emojis/Emojis.qml), so shell IPC
-// `toggle omaseek` behaves like every other Omarchy panel.
-//
-// This file is the wiring. State lives in four stores — ConfigStore (the
-// config file), Engine (the SearXNG instance), SearchSession (the query and
-// its pages), AiSession (the conversation with an agent) — and each view
-// handles its own keys and raises what it wants as a signal. What is left
-// here is the part only the panel can decide: which view is showing, whether
-// the field searches or asks (`panelMode`, Tab flips it), and which of the
-// field and the thing below it has the keyboard. That is a two-state
-// machine, field and results, hinged on the field: Enter searches or
-// asks and stays put, j or Down steps into what came back, Esc or i steps
-// back up.
+// Web search and AI overlay. The layer-shell setup and the open/close/dismiss/
+// toggle contract mirror shell/plugins/emojis/Emojis.qml, so shell IPC works
+// the same. State lives in the stores; this file decides which view shows and
+// whether the field or the view below it has the keyboard.
 Item {
   id: root
 
@@ -32,19 +20,17 @@ Item {
   property var manifest: null
 
   property bool opened: false
-  property string view: States.VIEW.SEARCH           // States.VIEW
-  property string panelMode: States.PANEL.SEARCH     // States.PANEL — what Enter does with the field
-  property string focusArea: States.FOCUS.FIELD      // States.FOCUS — who has the keyboard
+  property string view: States.VIEW.SEARCH
+  property string panelMode: States.PANEL.SEARCH  // what Enter does with the field
+  property string focusArea: States.FOCUS.FIELD  // who has the keyboard
   property string setupReason: ""              // what the backend said when the instance was down
 
   readonly property var settingsRows: SettingsLib.settingsRows(config.settings, engine.state, ai.agents)
 
-  // The two rebindable keys, parsed once into the spelling the views match on.
   readonly property string searchChord: Keybinds.parseChord(config.settings.searchKey) || "Return"
   readonly property string newSessionChord: Keybinds.parseChord(config.settings.newSessionKey) || "C-c"
 
-  // Theme tokens: the same [menu] surface the first-party overlays paint with,
-  // so a theme switch repaints this panel with no code of our own.
+  // [menu] tokens, as the first-party overlays use: a theme switch repaints this.
   readonly property color background: Color.menu.background
   readonly property color foreground: Color.menu.text
   readonly property color accent: Color.menu.selectedText
@@ -54,20 +40,13 @@ Item {
 
   // ---- shell contract -----------------------------------------------------
 
-  // The panel is keepLoaded, so the last search is still here when it is
-  // summoned again — and it comes back rather than being thrown away.
-  // Reopening is usually to try the next result, not to start over: the
-  // browser took the screen and the panel with it. It reopens where it left
-  // off, in normal mode, so j is already the way back into the results.
-  // A new search is `cc` — vim's clear-the-line — or i to edit this one.
+  // keepLoaded keeps the search and the conversation; reopen where they were.
   function open (payloadJson) {
     config.reload()
     opened = true
     view = States.VIEW.SEARCH                  // never reopen into settings or setup
     if (ai.agents === null) ai.probeAgents()   // once: which agents this machine has
-    // Normal when there is something below the field to step into — results,
-    // or a conversation — so j goes there; insert only when there is nothing
-    // to navigate and typing is the only thing left to do.
+    // Normal when there is something below to step into, insert otherwise.
     focusSearch(!hasBody())
   }
 
@@ -76,11 +55,7 @@ Item {
     session.cancel()
   }
 
-  // Tab: the same field, the other job. The text stays — a query that found
-  // nothing is often the question worth asking.
-  // Ctrl+N, or the button in the transcript: forget the conversation and
-  // start one. Only AI mode has a session to end — a search is replaced by
-  // the next search, not started over.
+  // Only AI mode has a session to end; a search is simply replaced.
   function newChat () {
     if (panelMode !== States.PANEL.AI) return
     ai.reset()
@@ -120,9 +95,7 @@ Item {
     focusSearch(false)
   }
 
-  // The instance is down. Rather than leaving an error on screen the panel
-  // cannot act on, ask — the answer is always the same one command, and the
-  // user should hear what it does before agreeing to it.
+  // The instance is down: ask to start it rather than show an error.
   function askToStartEngine (reason) {
     engine.state = "stopped"
     setupReason = reason
@@ -133,7 +106,7 @@ Item {
   function closeSetup () {
     view = States.VIEW.SEARCH
     setupReason = ""
-    focusSearch(true)                          // back to the query, still typed
+    focusSearch(true)
   }
 
   function runSettingAction (key, action) {
@@ -150,14 +123,13 @@ Item {
     if (panelMode === States.PANEL.AI) {
       ai.ask(query)
       input.clear()                            // the question now lives in the transcript
-      focusSearch(false)                       // normal: j steps into the transcript, i asks more
+      focusSearch(false)
       return
     }
     session.search(query)
     focusSearch(false)                         // normal: j steps into the results
   }
 
-  // Whether there is anything below the field to step into.
   function hasBody () {
     return panelMode === States.PANEL.AI ? ai.history.length > 0 : session.results.count > 0
   }
@@ -168,9 +140,8 @@ Item {
     Qt.callLater(() => target.forceActiveFocus())
   }
 
-  // Through setMode, not by assigning `mode`: leaving insert steps the cursor
-  // left as vim does and drops any half-typed operator, and doing it by hand
-  // here skipped both.
+  // Through setMode, so leaving insert steps the cursor left and clears any
+  // half-typed operator.
   function focusSearch (insertMode) {
     focusArea = States.FOCUS.FIELD
     input.setMode(insertMode ? "insert" : "normal")
@@ -256,9 +227,6 @@ Item {
         anchors.leftMargin: card.contentLeftInset
         spacing: Style.spacing.md
 
-        // The field and the button that runs it. A button because Enter is
-        // not discoverable, and because the panel is summoned with a mouse
-        // as often as it is typed at.
         Item {
           id: fieldRow
 
@@ -272,11 +240,7 @@ Item {
             foreground: root.foreground
             accent: root.accent
             font.family: root.fontFamily
-            font.pixelSize: Style.font.body    // the same size as the button beside it
-            // Ui.TextField sizes itself from the font plus this padding. The
-            // kit's default is sized for a dialog form, and the query text is
-            // a size smaller than that assumes — this sits one step under it:
-            // room around the text without turning the bar into a box.
+            font.pixelSize: Style.font.body
             verticalPadding: Style.spacing.md
             placeholderText: root.panelMode === States.PANEL.AI ? "Ask " + ai.agentName + "…" : "Search the web…"
             escapeSequences: config.keymap.sequences
@@ -292,10 +256,7 @@ Item {
             onNewSessionRequested: root.newChat()
           }
 
-          // Each half of the panel gets the buttons it has actions for. The
-          // block reserves the wider of the two arrangements and keeps it,
-          // so the field does not change width when Tab flips the mode —
-          // a search bar that resizes under you reads as a different bar.
+          // Reserves the wider arrangement, so the field keeps its width across modes.
           Item {
             id: actions
 
@@ -308,8 +269,8 @@ Item {
               id: searchButton
 
               visible: root.panelMode === States.PANEL.SEARCH
-              anchors.fill: parent               // the whole reserved block, so
-              text: "search"                     // the row has no gap in it
+              anchors.fill: parent
+              text: "search"
               active: true
               foreground: root.foreground
               accent: root.accent

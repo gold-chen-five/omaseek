@@ -1,7 +1,4 @@
-// vim text objects over a single line: iw, aw, i", a(, and the rest.
-//
-// Pure — text and a cursor in, a range out — so every case runs under node.
-// See test/textobjects.test.mjs.
+// vim text objects over one line: iw, aw, i", a( and the rest. Pure; under test.
 
 import { charClass, BLANK } from './motions.mjs'
 
@@ -14,12 +11,7 @@ const PAIRS = {
 
 const QUOTES = ['"', "'", '`']
 
-/**
- * Every object this understands, for the caller to validate a keystroke.
- *
- * A plain lookup rather than Object.hasOwn: QML's JS engine does not have it,
- * and node does, so the difference only shows at runtime in the shell.
- */
+/** Every object handled. A plain lookup, not Object.hasOwn, which QML's engine lacks. */
 export function isTextObject (key) {
   return key === 'w' || key === 'W' || QUOTES.indexOf(key) !== -1 || PAIRS[key] !== undefined
 }
@@ -99,11 +91,8 @@ function bracketRange (text, pos, open, close) {
 }
 
 /**
- * A text object as a half-open range, or null when there is nothing to act on
- * — a missing closing bracket, or a quote that never opens. Callers treat null
- * as a failed motion and drop the pending operator, which is what vim does.
- *
- * `scope` is 'i' for inner or 'a' for around.
+ * A text object as a half-open range, or null when there is nothing to act on;
+ * callers drop the pending operator, as vim does. `scope` is 'i' or 'a'.
  */
 export function resolve (text, pos, scope, object) {
   if (typeof text !== 'string' || text.length === 0) return null

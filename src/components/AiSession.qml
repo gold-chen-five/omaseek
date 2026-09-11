@@ -1,12 +1,8 @@
 import QtQuick
 import Quickshell.Io
 
-// The conversation with an AI agent, one print-mode process per turn.
-//
-// The agent CLI remembers nothing between runs, so the transcript lives here
-// and goes out with every question (bin/ask puts the last few turns in the
-// prompt). `agents` is what bin/ask --agents found on this machine; the
-// settings page offers exactly that list.
+// The conversation with an agent, one print-mode process per turn. The CLI
+// remembers nothing, so the transcript lives here and travels in each prompt.
 Item {
   id: session
 
@@ -20,7 +16,6 @@ Item {
   property var history: []                     // [{ role: 'user'|'assistant'|'error', text }]
   property var agents: null                    // { agents: [{id, name}], default, configured } once probed
 
-  // What bin/ask will answer as, for the placeholder and the thinking line.
   readonly property string agentName: agent !== "" ? agent
     : chatAgent !== "default" ? chatAgent
     : agents && agents.default ? agents.default
@@ -38,10 +33,8 @@ Item {
     run(askProcess, [session.askPath, "--json", JSON.stringify(payload)])
   }
 
-  // The turns worth repeating to the agent: questions that got an answer,
-  // and the answers. A failure and the question it failed on stay on screen
-  // but do not travel. Not `answered` — that is the signal above, and a
-  // function sharing the name makes the whole component fail to load.
+  // Answered questions and their answers; failures stay on screen only. Not named
+  // `answered`: a function sharing a signal's name fails the whole component.
   function answeredTurns () {
     const kept = []
     for (let i = 0; i < history.length; i++) {
@@ -56,7 +49,6 @@ Item {
     return kept
   }
 
-  // Hand text to the agent in a terminal — the selection, or a whole answer.
   function launch (text) {
     const prompt = String(text ?? "").trim()
     if (!prompt) return
@@ -65,13 +57,8 @@ Item {
                         JSON.stringify({ prompt: prompt, agent: chatAgent, launcher: launcher })])
   }
 
-  // Signed out, or signed in with nothing configured — neither is something
-  // the panel can fix: the CLI opens a browser, writes its own credentials,
-  // asks which provider to use. So it is handed off like any other context —
-  // to the launcher the user picked, carrying the question they just asked,
-  // so putting it right ends in the agent with that question already asked
-  // rather than back here to retype it. `fix` is which of the two the
-  // backend hit; it names a different command for some agents.
+  // Sign-in and setup belong to the CLI: hand them to a terminal with the pending
+  // question chained after. `fix` picks which command runs.
   function login (fix) {
     launching()
     run(launchProcess, [session.askPath, "--login", "--json",
@@ -98,11 +85,8 @@ Item {
     agent = ""
   }
 
-  // `agent` is who answered, and it outranks the setting when naming the
-  // agent on screen — an agent asked for by name should be reported by the
-  // name it answered under. It therefore belongs to one conversation and has
-  // to go when that conversation does, or the panel keeps offering to ask
-  // someone it is no longer going to ask.
+  // `agent` belongs to one conversation; clear it so the placeholder names who
+  // answers next.
   onChatAgentChanged: agent = ""
 
   function run (process, command) {
@@ -111,8 +95,6 @@ Item {
     process.running = true
   }
 
-  // A failure is written into the transcript under its question, where it
-  // is read, rather than only into the status strip, where it is missed.
   function fail (message) {
     status = "error"
     errorMessage = message
@@ -134,10 +116,7 @@ Item {
         }
         if (!payload.ok) {
           session.fail(payload.message ?? "The agent failed")
-          // Whatever the backend says is fixable in a terminal opens by
-          // itself there, with the question already on it. Being out of
-          // allowance is not: it is reported and left alone, because no
-          // command in a terminal will fix it.
+          // Out of allowance is only reported: nothing in a terminal fixes it.
           if (payload.login === true) session.login(payload.fix)
           return
         }

@@ -1,11 +1,5 @@
-// The panel's three pieces of state, spelled once.
-//
-// Search.qml sets them and lib/search.mjs reads them to build the status line
-// and the mode label, so they cross the QML ↔ node boundary constantly. A QML
-// `enum` cannot make that trip — it exists only inside a QML type, as an
-// integer — so these are strings, named here and nowhere else. The point is
-// the misspelling: `view = "setings"` was accepted silently and the panel
-// showed nothing; `States.VIEW.SETINGS` is undefined, and QML says so.
+// The panel's states, named once. Strings, not a QML enum: enums can't cross into
+// these node-tested modules. A misspelt key is undefined, and QML warns on it.
 
 export const VIEW = Object.freeze({
   SEARCH: 'search',       // the field and what is under it

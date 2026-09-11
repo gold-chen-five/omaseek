@@ -1,15 +1,7 @@
 #!/usr/bin/env bash
-# Restore plugin hot-reload for a repo that lives outside ~/.config/omarchy/plugins.
-#
-# Not needed for the usual setup: this plugin is developed in place, under the
-# plugins directory, where Omarchy's own watcher sees every save. Keep this for
-# a checkout that lives elsewhere and is symlinked in. Note that either way a
-# rescan does not reload a keepLoaded component — that needs
-# omarchy-restart-shell.
-#
-# Omarchy watches its plugins dir with `inotifywait -r`, which does not follow
-# symlinks — so edits to this repo never reach the shell on their own. This
-# watches the real directory and asks the shell to rescan.
+# Hot reload for a checkout outside ~/.config/omarchy/plugins: Omarchy's inotify
+# watcher doesn't follow symlinks. Not needed when developing in place. A rescan
+# never rebuilds a keepLoaded component; use omarchy-restart-shell for that.
 #
 # Usage: ./bin/dev-watch   (Ctrl-C to stop)
 

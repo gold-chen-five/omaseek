@@ -6,17 +6,8 @@ import "../lib/textobjects.mjs" as TextObjects
 import "../lib/keymap.mjs" as Keymap
 import "chord.js" as Chord
 
-// Search input with a vim editing model.
-//
-// GrowingField is the kit's field chrome on a TextArea, so cursorPosition,
-// select(), remove(), insert() and undo()/redo() are inherited — this file adds
-// the mode machine and key dispatch, while the cursor arithmetic lives in
-// lib/motions.mjs where it can be tested without a running shell.
-//
-// Normal and visual mode consume printable keys so they never land as text;
-// insert mode passes everything through untouched apart from the escape
-// sequence — `jk` by default, which is the one insert-mode binding vim users
-// reach for and the one this field has to fake.
+// The search field with a vim editing model: the mode machine and key dispatch.
+// Cursor arithmetic lives in lib/motions.mjs, where it runs under test.
 GrowingField {
   id: field
 
@@ -32,16 +23,12 @@ GrowingField {
   property string lastFindChar: ""
   property int visualAnchor: -1
 
-  // The insert-mode escape sequence, vim's `inoremap jk <Esc>`. Which keys and
-  // how long they may take comes from the user's config (see Search.qml); an
-  // empty list turns the whole thing off.
+  // Insert-mode escape sequence (vim's `inoremap jk <Esc>`); empty turns it off.
   property var escapeSequences: []
   property int escapeTimeout: 200
   property string escapePending: ""          // sequence keys typed so far
 
-  // Set from settings, already parsed. Both are checked before anything else,
-  // so rebinding search really does move it off enter rather than adding a
-  // second key that does the same thing.
+  // Parsed chords, checked first so rebinding search moves it off Enter.
   property string searchChord: "Return"
   property string newSessionChord: "C-c"
 
@@ -67,9 +54,7 @@ GrowingField {
     if (next === "normal") clampCursor()
   }
 
-  // A question can span lines (Ctrl+J breaks one), so "down" means a line
-  // down while there is one, and only from the last line does it mean the
-  // results. Column is kept the way vim keeps it, clamped to the new line.
+  // In a multi-line question, down is a line down; only the last line steps out.
   function onLastLine () { return text.indexOf("\n", cursorPosition) === -1 }
 
   function moveLineDown () {
@@ -176,15 +161,12 @@ GrowingField {
       remove(0, cursorPosition)
       event.accepted = true
     } else if (ctrl && event.key === Qt.Key_J) {
-      // A line break in the question. Enter is taken — it asks — so this is
-      // the terminal's spelling of newline, as herdr and readline have it.
+      // Enter asks, so Ctrl+J breaks the line.
       clearEscapePending()
       insert(cursorPosition, "\n")
       event.accepted = true
     } else if (event.key === Qt.Key_Down) {
-      // The results stay put after Enter, so the way down has to work from
-      // insert mode as well — vim's arrows do, and nobody wants Esc first.
-      // Inside a multi-line question it is first a line down.
+      // Down works from insert too; in a multi-line question it moves a line first.
       clearEscapePending()
       if (onLastLine()) { field.steppedDown(); event.accepted = true }
     } else if (plain && Keymap.isTypedKey(event.text)) {
@@ -194,9 +176,8 @@ GrowingField {
     }
   }
 
-  // The leading keys of the sequence type as normal and are taken back once it
-  // completes — vim shows that `j` too, then removes it — while the closing key
-  // is swallowed before it ever reaches the field.
+  // Leading keys type and are taken back when the sequence completes, as in vim;
+  // the closing key never reaches the field.
   function handleEscapeSequence (event) {
     const step = Keymap.advance(escapePending, event.text, escapeSequences)
 
@@ -377,8 +358,6 @@ GrowingField {
     onTriggered: field.escapePending = ""
   }
 
-  // Block cursor in normal/visual, thin bar in insert — the mode is readable
-  // from the cursor alone, without checking the indicator.
   cursorDelegate: Rectangle {
     width: field.normalish ? Math.max(2, metrics.averageCharacterWidth) : Math.max(1, Style.space(1))
     color: field.normalish ? Color.menu.selectedText : field.foreground
@@ -392,18 +371,13 @@ GrowingField {
   Keys.onPressed: event => {
     const ctrl = (event.modifiers & Qt.ControlModifier) !== 0
 
-    // Reaches the settings page from either mode, so it is never a question of
-    // which one you happen to be in. Ctrl+, still works: it was the original
-    // binding, and muscle memory outlives a rename.
+    // Any mode. Ctrl+, was the original binding and still works.
     if (ctrl && (event.key === Qt.Key_S || event.key === Qt.Key_Comma)) {
       field.requestedSettings()
       event.accepted = true
       return
     }
 
-    // The two the buttons carry, both rebindable. Same reason as settings: a
-    // new conversation should not need you to leave the field you are typing
-    // the next question in.
     const chord = Chord.of(event)
 
     if (chord !== "" && chord === field.newSessionChord) {
@@ -419,8 +393,7 @@ GrowingField {
       return
     }
 
-    // Tab never types or moves focus here — it is the panel's switch between
-    // searching and asking, from either mode, so it is taken before the modes.
+    // Tab switches search/ask from any mode, so it is taken before mode dispatch.
     if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
       clearEscapePending()
       field.tabbed()

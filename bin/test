@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
-# Unit tests for the pure logic in src/lib/*.mjs.
-#
-# These are plain ES modules, so node runs them directly — no shell, no
-# compositor, no network. Everything that can be tested this way should be.
+# Unit tests for src/lib/*.mjs: plain ES modules, run by node.
 
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."

@@ -4,11 +4,8 @@ import qs.Ui
 import "../lib/keys.mjs" as KeysLib
 import "chord.js" as Chord
 
-// Result rows plus the vim cursor that walks them.
-//
-// The list owns the keys that move its own cursor; anything that changes what
-// is on screen — a page turn, going back to the field, the settings page — is
-// raised as a signal, so the focus machine stays in Search.qml.
+// Result rows and the vim cursor that walks them; anything that changes the view
+// is raised as a signal.
 ListView {
   id: list
 
@@ -62,8 +59,6 @@ ListView {
     event.accepted = true
   }
 
-  // What this pane makes of the shared vocabulary: sideways is a page turn,
-  // and the thing under the cursor is a link to open.
   function run (command) {
     const rowHeight = Math.max(1, contentHeight / Math.max(1, count))
     const pageStep = Math.max(1, Math.floor(height / rowHeight / 2))

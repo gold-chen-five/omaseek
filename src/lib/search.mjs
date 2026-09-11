@@ -1,8 +1,4 @@
-// Search-result bookkeeping: normalising backend rows, merging pages, and
-// turning state into the strings the status line shows.
-//
-// Pure functions only, so the paging and de-duplication rules can be tested
-// under node rather than by clicking through a live search.
+// Result normalising, page merging, and the status line's strings. Pure, under test.
 
 import { VIEW, PANEL, FOCUS } from './states.mjs'
 
@@ -10,13 +6,7 @@ const ERROR_MESSAGES = {
   network: 'No network connection'
 }
 
-/**
- * Backend failure payload -> one line a person can act on.
- *
- * The backend's own message wins wherever it has one: it names the instance,
- * the port, or the exact settings.yml key to change, all of which a generic
- * line would throw away.
- */
+/** Backend failure -> one line a person can act on; the backend's own message wins. */
 export function describeError ({ error, message } = {}) {
   return message ?? ERROR_MESSAGES[error] ?? 'Search failed'
 }
@@ -38,15 +28,9 @@ function identity (row) {
 }
 
 /**
- * Merges a freshly fetched page into rows already on screen.
- *
- * Rows are de-duplicated twice over: on URL, because engines repeat hits
- * either side of a page boundary, and on domain+title, because engines return
- * the same document under several canonical paths and a URL comparison never
- * catches those.
- *
- * Returns the additions rather than a whole new list: the caller appends to a
- * live ListModel and needs to know whether the page advanced anything.
+ * Merge a fetched page into the rows on screen, de-duplicating on URL and on
+ * domain+title (engines return one document under several paths). Returns the
+ * additions, since the caller appends to a live ListModel.
  */
 export function mergeResults (existing = [], incoming = []) {
   const urls = new Set()
@@ -74,18 +58,12 @@ export function mergeResults (existing = [], incoming = []) {
   return added
 }
 
-/**
- * Right-hand side of the status strip.
- *
- * Results are paged rather than scrolled, so this always names the page the
- * cursor is on and whether another one exists.
- */
+/** Right-hand side of the status strip. */
 export function statusText ({
   view = VIEW.SEARCH, panelMode = PANEL.SEARCH, status, count = 0, query = '', page = 1,
   hasNext = false, loadingPage = false, errorMessage = '', backend = '',
   agent = '', selecting = false
 } = {}) {
-  // The other two views have no search state to report, only their keys.
   if (view === VIEW.SETTINGS) return 'j/k rows · h/l change · enter opens · saved as you go · esc back'
   if (view === VIEW.SETUP) return 'h/l choose · enter confirm · esc not now'
   if (panelMode === PANEL.AI) return askStatusText({ status, errorMessage, agent, selecting })
@@ -102,16 +80,12 @@ export function statusText ({
       if (errorMessage) return errorMessage
       return `page ${page} · ${count} results${hasNext ? '' : ' · end'} · h/l pages`
     default:
-      // The empty panel is the only place a first-timer looks, so this is
-      // where the settings key has to be named.
+      // The empty panel is where a first-timer looks, so it names the settings key.
       return 'enter searches · esc normal · ctrl+s settings'
   }
 }
 
-/**
- * The AI half of the panel. The agent is named while it is thinking, because
- * a ten-second wait with no name on it reads as a hang.
- */
+/** The AI half's status line. */
 function askStatusText ({ status, errorMessage, agent, selecting }) {
   switch (status) {
     case 'thinking':

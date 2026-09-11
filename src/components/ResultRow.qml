@@ -1,10 +1,7 @@
 import QtQuick
 import qs.Commons
 
-// One search result: favicon, title, domain, snippet.
-//
-// Model roles arrive as required properties, so this is a ListView delegate
-// and nothing else.
+// One search result. Model roles arrive as required properties: a ListView delegate.
 Rectangle {
   id: row
 

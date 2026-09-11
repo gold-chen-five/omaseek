@@ -1,8 +1,4 @@
-// Cursor motions over a single line of text.
-//
-// Every function here is pure — (text, position) in, position out — with no
-// QML or Qt dependency, so the vim model can be exercised under node without
-// starting a shell. See test/motions.test.mjs.
+// Cursor motions over one line: (text, position) -> position. Pure; under test.
 
 const WORD_CHAR = /[A-Za-z0-9_]/
 

@@ -1,14 +1,6 @@
-// Markdown -> the subset of HTML a QML TextEdit in RichText mode renders.
-//
-// Exists because a TextEdit can colour a *range* only in rich text, and the
-// transcript needs two colours: the question bright, the reply quiet — the
-// way Claude Code draws its own. Qt's Markdown mode has no such lever, so
-// the agent's Markdown is converted here instead. Small on purpose: fenced
-// code, headings, lists, blockquotes, paragraphs, and the inline marks that
-// show up in an answer. Anything else stays visible as typed.
-//
-// Pure, and within the JS subset QML's engine shares with node: indexed
-// loops, indexOf, and regexes without lookbehind.
+// Markdown -> the HTML subset a QML RichText TextEdit renders. Rich text is the
+// only way to colour ranges (question bright, reply quiet). Stays within the JS
+// QML shares with node: indexed loops, indexOf, no regex lookbehind.
 
 export function escapeHtml (text) {
   return String(text)
@@ -19,8 +11,7 @@ export function escapeHtml (text) {
 }
 
 /** Inline marks: code, bold, italic, links. Code first, so its contents are left alone. */
-// `link` colours anchors: a TextEdit paints <a> in Qt's own link blue unless
-// the tag says otherwise, and no theme this panel sits in has that blue in it.
+// `link` colours anchors, which a TextEdit otherwise paints Qt's link blue.
 export function inline (text, link = '') {
   const pieces = []
   const parts = escapeHtml(text).split('`')
@@ -132,16 +123,11 @@ export function toHtml (markdown, { color = '', lead = '', link = '' } = {}) {
   return out.join('')
 }
 
-/**
- * The conversation as one rich-text document. A question is bright after a
- * dim prompt glyph; a reply is quiet after a small dot — Claude Code's own
- * layout, which is what people reading this already know.
- */
+/** The conversation as one rich-text document, laid out as Claude Code's is. */
 export function renderTranscript (turns, {
   question = '#ffffff', answer = '#cccccc', glyph = '#888888', error = '#e06c75', link = '', dotSize = 0
 } = {}) {
-  // Smaller than the text, so on the baseline it sits low; middle alignment
-  // puts it on the line's centre, where the eye expects a bullet.
+  // Set smaller than the text, so centre it on the line.
   const dot = dotSize > 0 ? `font-size:${dotSize}px;vertical-align:middle;` : ''
   const parts = []
   for (let i = 0; i < (turns || []).length; i++) {

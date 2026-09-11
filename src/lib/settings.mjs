@@ -1,23 +1,13 @@
-// The user's settings: what the config file means, what the settings page
-// offers, and how a change is written back.
-//
-// UI and backend must agree on the option lists, so they are declared once
-// here. Pure, so the normalising rules run under node — see
-// test/settings.test.mjs.
+// Config text <-> settings, and the settings page rows. Option lists are declared
+// once here so the page and bin/search agree.
 
 import { readKeymap, DEFAULT_SEQUENCES, DEFAULT_TIMEOUT_MS } from './keymap.mjs'
 import { DEFAULT_BINDS, normalizeBind } from './keybinds.mjs'
 
 export const PAGE_SIZE_CHOICES = [5, 10, 15, 20]
 
-// There is one backend — a SearXNG instance you run yourself — so there is no
-// engine to choose. Its address lives in the config file as `searxng_url`,
-// hand-edited, because it is set once per machine and never toggled.
-// Where a hand-off from the AI answer opens the agent: a fresh terminal
-// window (omarchy-agent's own way), a new tmux window in the Work session,
-// or a new herdr tab. The chat agent is 'default' — whatever `omarchy default
-// agent` is — or one id from bin/ask --agents; that list is discovered at
-// runtime, so it is not declared here.
+// Where a hand-off opens the agent. Agents are discovered at runtime
+// (bin/ask --agents), so they are not declared here.
 export const LAUNCHER_CHOICES = ['terminal', 'tmux', 'herdr']
 export const DEFAULT_AGENT = 'default'
 
@@ -45,19 +35,13 @@ function oneOf (value, choices, fallback) {
   return choices.indexOf(value) !== -1 ? value : fallback
 }
 
-/**
- * Config text -> the settings the panel runs on.
- *
- * Every unreadable or unknown value falls back to its default rather than
- * failing: a typo in the config should cost that one setting, not the panel.
- */
+/** Config text -> settings; anything unreadable or unknown falls back to its default. */
 export function readSettings (source) {
   const config = parse(source)
   const keymap = readKeymap(source)
 
   return {
-    // Empty means off. The keymap reader already handles strings, lists and
-    // "", so show the first sequence it resolved.
+    // Empty means off.
     escapeSequence: keymap.sequences.length > 0 ? keymap.sequences[0] : '',
     escapeTimeoutMs: keymap.timeoutMs,
     resultsPerPage: oneOf(config.resultsPerPage ?? config.results_per_page, PAGE_SIZE_CHOICES, DEFAULTS.resultsPerPage),
@@ -69,23 +53,18 @@ export function readSettings (source) {
   }
 }
 
-// An unparseable chord costs that one binding, not the button: the default
-// stands in, and the settings row shows what is actually bound.
+// An unparseable chord falls back to the default.
 function bind (value, fallback) {
   return normalizeBind(value) || fallback
 }
 
-// Any non-empty id is kept: which agents exist is only known at runtime, and
-// bin/ask falls back to the default when the named one is not installed.
+// Any non-empty id is kept; bin/ask falls back when it isn't installed.
 function agentId (value) {
   const id = typeof value === 'string' ? value.trim() : ''
   return id === '' ? DEFAULT_AGENT : id
 }
 
-/**
- * Settings -> the JSON to persist, preserving anything else already in the
- * file so hand-written keys are never silently dropped.
- */
+/** Settings -> JSON, preserving keys this module does not own. */
 export function writeSettings (settings, source) {
   const config = parse(source)
 
@@ -103,12 +82,8 @@ export function writeSettings (settings, source) {
 export const ENGINE_STATES = ['unknown', 'running', 'stopped']
 
 /**
- * The rows the settings page shows, in order.
- *
- * `engine` is not a setting — it is whether the instance answered the last
- * probe — but it belongs on the same page, because starting and stopping it is
- * the one thing about the backend a person does from the panel. The row is
- * `type: 'action'`: no value to store, only a button to press.
+ * The settings page rows, in order. `engine` is the SearXNG switch: whether the
+ * instance answers, not a stored setting.
  */
 export function settingsRows (settings, engine = 'unknown', agents = null) {
   const state = ENGINE_STATES.indexOf(engine) === -1 ? 'unknown' : engine
@@ -161,8 +136,6 @@ export function settingsRows (settings, engine = 'unknown', agents = null) {
       options: LAUNCHER_CHOICES,
       value: settings.launcher
     },
-    // The keys a person is most likely to want their own spelling of: the
-    // one that leaves insert, and the two the buttons carry.
     { type: 'section', label: 'Keys' },
     {
       key: 'escapeSequence',
@@ -194,23 +167,15 @@ export function settingsRows (settings, engine = 'unknown', agents = null) {
   ]
 }
 
-/**
- * A typed row's text -> what to store, or null when the row refuses it.
- *
- * The settings page does not know what makes a value good, only which rule
- * a row named, so the rules stay here with the rows that name them.
- */
+/** A typed row's text -> the value to store, or null when the row's rule refuses it. */
 export function normalizeRow (row, raw) {
   if (row && row.normalize === 'bind') return normalizeBind(raw) || null
   return normalizeSequence(raw)
 }
 
 /**
- * A typed escape sequence -> what to store, or null when it cannot be used.
- *
- * Empty turns the sequence off. A single character is refused rather than
- * accepted, because binding one key would make that key untypable — the
- * keymap reader drops it anyway, so accepting it would silently mean "off".
+ * Escape sequence text -> the value to store, or null. Empty turns it off; one
+ * character is refused because it would make that key untypable.
  */
 export function normalizeSequence (raw) {
   const value = String(raw ?? '').trim()

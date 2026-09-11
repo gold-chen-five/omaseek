@@ -2,11 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// The SearXNG instance, as far as the panel can see it: whether it answers,
-// and the one script that starts or stops it.
-//
-// Both scripts are resolved through Qt.resolvedUrl so they are found through
-// the dev symlink rather than under ~/.config/omarchy/plugins.
+// The SearXNG instance: whether it answers, and the script that starts or stops it.
 Item {
   id: engine
 
@@ -18,8 +14,7 @@ Item {
 
   signal launching()                           // a terminal is about to take the screen
 
-  // A cheap question — /healthz, no upstream engines — so the settings page
-  // can show whether the instance is up without running a search.
+  // /healthz touches no upstream engine, so this is cheap to ask.
   function probe () {
     state = "unknown"
     statusProcess.running = false
@@ -29,9 +24,7 @@ Item {
   function start () { run("") }
   function stop () { run(" --stop") }
 
-  // A terminal, not a detached process: docker asks for sudo unless you are
-  // in the docker group, and the first run pulls an image worth watching. So
-  // this opens the user's terminal and leaves it open afterwards.
+  // In a terminal: docker may ask for sudo, and the first pull is worth watching.
   function run (flag) {
     launching()
     state = "unknown"                          // whatever it was, it is changing

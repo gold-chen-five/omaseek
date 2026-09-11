@@ -1,16 +1,11 @@
 #!/usr/bin/env bash
-# Bring up the SearXNG instance this panel searches through.
-#
-# Idempotent by design: run it to create the container, to start it again
-# after a reboot, or just to check on it. It installs no packages and touches
-# nothing outside ~/.config/searxng and one container named `searxng`.
+# Create or start the SearXNG instance this panel searches through. Idempotent.
 #
 #   ./bin/searxng-up          create or start it, and wait until it answers
-#   ./bin/searxng-up --stop   stop it, keeping the container for a quick start
+#   ./bin/searxng-up --stop   stop it, keeping the container
 #   ./bin/searxng-up --down   stop and remove the container (config is kept)
 #
-# Docker wants root unless you are in the `docker` group, so this asks for
-# sudo only for the calls that actually need it, and says so before it does.
+# Asks for sudo only for docker calls, and only outside the docker group.
 
 set -euo pipefail
 
@@ -27,7 +22,6 @@ die()  { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 
 command -v docker >/dev/null || die "docker is not installed — sudo pacman -S docker"
 
-# Work out once whether docker needs sudo, rather than sprinkling it about.
 docker=(docker)
 if ! docker info >/dev/null 2>&1; then
   if ! systemctl is-active --quiet docker; then
@@ -44,8 +38,6 @@ fi
 exists() { "${docker[@]}" ps -a --format '{{.Names}}' | grep -qx "$NAME"; }
 running() { "${docker[@]}" ps --format '{{.Names}}' | grep -qx "$NAME"; }
 
-# The panel's settings page calls this for its Stop button. A stopped
-# container comes back in a second; a removed one is recreated from the image.
 if [[ ${1:-} == --stop ]]; then
   running || { say "$NAME is not running"; exit 0; }
   "${docker[@]}" stop "$NAME" >/dev/null

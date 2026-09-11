@@ -1,17 +1,9 @@
 #!/usr/bin/env bash
-# Install omaseek for the current user, and give it a way to be opened.
+# Enable omaseek and give it a way in: SUPER + D and an Omarchy menu row.
+# Omarchy never runs plugin scripts or edits your config, so this is the
+# opt-in step. Safe to re-run; never overwrites a binding you already have.
 #
-# Omarchy installs a plugin by copying files and recording its id — nothing
-# more. It never runs a script from a plugin and never edits your Hyprland or
-# menu config, which is the right boundary: a plugin that could rewrite your
-# dotfiles the moment you downloaded it would be a plugin that could do
-# anything. So the keybind and the menu entry live in *your* files, and this
-# script is the opt-in way to put them there: you run it, knowingly, and it
-# says exactly what it changed.
-#
-# Safe to re-run. It never overwrites a binding you already have.
-#
-#   ./bin/install              link, enable, bind SUPER + D, add a menu entry
+#   ./bin/install              link and enable, bind SUPER + D, add a menu entry
 #   ./bin/install --no-bind    skip the keybind
 #   ./bin/install --no-menu    skip the menu entry
 
@@ -47,8 +39,6 @@ echo "omaseek"
 mkdir -p "$PLUGINS_DIR"
 link="$PLUGINS_DIR/$PLUGIN_ID"
 if [[ $REPO == "$link" ]]; then
-  # Already where Omarchy looks — the shape the plugin docs describe, and
-  # what you get by developing in place rather than from a clone elsewhere.
   say "already in place: $REPO"
 elif [[ -L $link && $(readlink -f "$link") == "$REPO" ]]; then
   say "already linked: $link"
@@ -67,9 +57,7 @@ say "enabled"
 
 # ---- the keybind ------------------------------------------------------------
 #
-# Refused rather than merged when SUPER + D is already spoken for: silently
-# taking a key someone else bound is how a plugin breaks a setup it was never
-# asked about.
+# Left alone when SUPER + D is already bound to something else.
 
 if (( do_bind )); then
   if [[ ! -f $BINDINGS ]]; then
@@ -90,8 +78,7 @@ fi
 
 # ---- the menu entry ---------------------------------------------------------
 #
-# So it is reachable without a keybind at all. The file is JSONC and the menu
-# strips trailing commas, so a new row goes in right after the opening brace.
+# JSONC, and the menu strips trailing commas: insert after the opening brace.
 
 if (( do_menu )); then
   mkdir -p "$(dirname "$MENU_EXT")"

@@ -1,27 +1,17 @@
 #!/usr/bin/env python3
 """Web search -> JSON on stdout, through a SearXNG instance you run yourself.
 
-Deliberately stdlib-only so the plugin has no venv and no dependencies.
-Kept out of QML so fetching and shaping stay testable on their own:
-
     ./bin/search "python asyncio" | jq
+    ./bin/search --next '<the next payload>'      the following page
+    ./bin/search --status                          is the instance up?
 
-Output is always a single JSON object:
+Output is always one JSON object:
     {"ok": true,  "results": [...], "next": {...}|null, "backend": "searxng"}
     {"ok": false, "error": "network"|"http"|"usage", "message": "...", "setup": true}
+    {"ok": true, "running": true|false, "url": "http://localhost:8888"}    (--status)
 
-`--status` asks only whether the instance is up, for the settings page:
-    {"ok": true, "running": true|false, "url": "http://localhost:8888"}
-
-SearXNG is a metasearch engine: it queries the upstream engines on your behalf
-and hands back merged results, so this panel talks only to a service you run.
-That is the whole reason there is one backend and no scraping — nothing here
-pretends to be a browser, and nothing here is subject to anyone else's terms.
-See bin/searxng-up for getting one running.
-
-`setup: true` marks the single failure a person can fix from the panel: the
-instance is simply not running, so the panel offers to start it. Everything
-else is reported as-is, because guessing would be worse than saying what broke.
+`setup: true` marks the one failure the panel can fix: the instance is not
+running. One backend by design: nothing here scrapes or calls a third-party API.
 """
 
 import hashlib
@@ -33,9 +23,8 @@ import urllib.parse
 import urllib.request
 
 SEARXNG_DEFAULT_URL = "http://localhost:8888"
-# Short on purpose: this sits behind a keypress, and a wedged instance should
-# say so quickly rather than holding the panel. SearXNG's own upstream timeout
-# (outgoing.request_timeout in settings.yml) is what bounds a normal search.
+# Short: this sits behind a keypress. SearXNG's own outgoing.request_timeout
+# bounds a normal search.
 TIMEOUT = 8
 
 CONFIG_PATH = os.path.join(
@@ -51,9 +40,7 @@ CACHE_DIR = os.path.join(
 # ResultRow falls back to the domain's initial whenever it does not answer.
 ICON_ENDPOINT = "https://external-content.duckduckgo.com/ip3/"
 
-# Every page shows the same number of results. SearXNG pages vary in size —
-# how many upstream engines answered in time decides it — so chunks are
-# accumulated in a session buffer and sliced evenly from there.
+# SearXNG pages vary in size, so rows are buffered per query and sliced evenly.
 PAGE_SIZE = 10          # overridden by results_per_page in the config
 ENGINES = []            # overridden by searxng_engines in the config
 PAGE_SIZE_CHOICES = (5, 10, 15, 20)
@@ -104,15 +91,9 @@ def configured_url(config):
 
 
 def configured_engines(config):
-    """Which engines to ask, by SearXNG name. Hand-edited, like the URL.
-
-    SearXNG answers when every engine in the category has, so one slow engine
-    sets the pace for all of them — and its defaults include ones that only
-    ever fill an infobox this panel never shows. Naming the engines that
-    actually return rows (measured here: 0.3s instead of 1.2s) is the single
-    biggest speed lever, and it needs no edit to the container's settings.
-    Empty or malformed means SearXNG's own choice.
-    """
+    """Engines to ask, by SearXNG name (hand-edited). SearXNG waits for every
+    engine in the category, so naming the fast ones is the main speed lever.
+    Empty or malformed means SearXNG's own choice."""
     engines = config.get("searxng_engines")
     if not isinstance(engines, list):
         return []
@@ -136,10 +117,8 @@ def fetch(base, query, pageno):
             payload = json.loads(response.read().decode("utf-8", "replace"))
     except urllib.error.HTTPError as exc:
         if exc.code in (403, 404):
-            # By far the most common misconfiguration: SearXNG ships with
-            # `formats: [html]`, so the JSON API 403s until it is turned on.
-            # Running the setup script will not fix an existing settings.yml,
-            # so this is deliberately not marked `setup`.
+            # SearXNG ships `formats: [html]`, so the JSON API 403s until enabled. The setup
+            # script can't fix an existing settings.yml, so this is not marked `setup`.
             raise SearchError(
                 "http",
                 f"SearXNG refused the JSON API at {base} — add 'json' under "
@@ -266,12 +245,7 @@ def grow_session(session, target):
 
 
 def emit_page(session, offset):
-    # Fill the page, and not one row more. Asking for a lookahead row used to
-    # cost a whole extra request whenever a SearXNG page came back exactly
-    # PAGE_SIZE long — doubling the wait on a keypress to learn something the
-    # panel recovers from anyway. `next` is now offered whenever SearXNG still
-    # has a page to give; if that page turns out empty, the panel stays put and
-    # stops offering more.
+    # Exactly one page: a lookahead row cost a whole extra request.
     grow_session(session, offset + PAGE_SIZE)
     save_session(session)
 

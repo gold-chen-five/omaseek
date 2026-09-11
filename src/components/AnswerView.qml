@@ -7,36 +7,17 @@ import "../lib/markdown.mjs" as Markdown
 import "../lib/thinking.mjs" as Thinking
 import "chord.js" as Chord
 
-// The conversation with the agent, read with vim keys.
-//
-// One read-only TextEdit renders the whole transcript, so the cursor and a
-// selection can run across turns. It is drawn the way Claude Code draws its
-// own: the question bright after a dim ">", on a quiet grey bar; the reply
-// in a softer colour after a small dot. Two colours in one TextEdit means
-// rich text, so the agent's Markdown goes through lib/markdown.mjs. The
-// grey bars are rectangles painted behind the TextEdit at the lines each
-// question occupies; the layout is asked where those lines are once it has
-// settled.
-//
-// The cursor is walked the way the search field is: j/k by line, h/l/w/b/e
-// within one, 0/$ and gg/G, Ctrl+D/U half a screen. `v` selects by character
-// and `V` by line, `y` yanks (and leaves the selection lit for a moment, as
-// LazyVim's yank highlight does), `gv` reselects, and Enter hands the
-// selection — or the whole transcript, when nothing is selected — to the
-// agent in a terminal. Line motions go through the TextEdit's own layout
-// (positionAt and positionToRectangle) because wrapped Markdown has no line
-// structure of its own to count; word motions reuse lib/motions.mjs on the
-// plain text.
+// The transcript, read with vim keys. One read-only rich-text TextEdit holds
+// every turn, so the cursor and a selection can cross turns. Line motions use
+// its layout (positionAt/positionToRectangle): wrapped Markdown has no lines of
+// its own to count.
 FocusScope {
   id: view
 
   property var turns: []                       // [{ role: 'user'|'assistant', text }]
-  property bool thinking: false                // the agent has the question and has not answered
+  property bool thinking: false
   property string agentName: ""
 
-  // The wait: a spinner, a verb and a clock under the question, as Claude
-  // Code draws its own. A print-mode CLI says nothing until it says
-  // everything, and ten silent seconds read as a hang.
   property int tick: 0
   property real startedAt: 0
   property string verb: ""
@@ -61,7 +42,7 @@ FocusScope {
   property color selectedBackground: Color.menu.selectedBackground
   property string fontFamily: Style.font.menuFamily
 
-  property int cursor: 0                       // the reading position; the TextEdit follows it
+  property int cursor: 0
   property int anchor: -1                      // visual mode's other end, or -1
   property bool linewise: false                // V rather than v
   property var lastVisual: null                // for gv: { anchor, cursor, linewise }
@@ -94,15 +75,11 @@ FocusScope {
     anchor = -1
     preferredX = -1
     answer.text = render()
-    // The layout settles after the text lands; only then are the line
-    // rectangles real. Land at the *start* of the newest answer, so j reads
-    // down through it — landing at the end left j with nowhere to go and
-    // thirty presses of k to reach the top of a long reply.
+    // Once the layout settles, land at the start of the newest reply so j reads
+    // down through it.
     Qt.callLater(() => { placeCursor(startOfNewest()); findMarks() })
   }
 
-  // Where the newest reply begins in the plain text: after its dot. While
-  // only the question is there, the end.
   function startOfNewest () {
     const last = turns.length > 0 ? turns[turns.length - 1] : null
     if (!last || last.role !== "assistant") return answer.length
@@ -118,7 +95,7 @@ FocusScope {
       answer: answerColor,
       glyph: glyphColor,
       error: Color.urgent.toString(),
-      link: questionColor,                     // the bright foreground, underlined by Qt: a link, in the theme's own ink
+      link: questionColor,  // theme ink, not Qt's link blue
       dotSize: Math.round(Style.font.body * 0.6)
     })
   }
@@ -180,10 +157,8 @@ FocusScope {
     placeCursor(answer.positionAt(preferredX, y), true)
   }
 
-  // The content moves with the cursor, vim's scrolloff turned all the way
-  // up: once the transcript is taller than the view, the cursor line is held
-  // near the middle and every j or k visibly scrolls. Left to the edges, a
-  // long answer read from the bottom did not move for twenty presses.
+  // Once the transcript overflows, hold the cursor line centred so every j or k
+  // scrolls.
   property rect cursorRect: Qt.rect(0, 0, 0, 0)
 
   function ensureVisible () {
@@ -253,9 +228,6 @@ FocusScope {
     event.accepted = true
   }
 
-  // What this pane makes of the shared vocabulary: sideways is a character,
-  // the ends are the ends of the transcript, and Enter hands over what is
-  // selected. The word motions are the search field's, on the plain text.
   function run (command) {
     switch (command) {
     case "settings":     settingsRequested(); break
@@ -297,10 +269,7 @@ FocusScope {
                    + (spinner.visible ? spinner.height + Style.spacing.xs : 0)
     boundsBehavior: Flickable.StopAtBounds
 
-    // Painted behind the text: one quiet block per question, the grey box
-    // Claude Code puts a prompt in. No accent — the reply is the content.
-    // Rounded like everything else in the panel, which is to say however
-    // Hyprland's decoration:rounding is set.
+    // A quiet bar behind each question, as Claude Code draws a prompt.
     Repeater {
       model: view.marks
 
@@ -312,13 +281,11 @@ FocusScope {
         width: flick.width
         height: modelData.height + Style.spacing.xs * 2
         color: Util.alpha(view.foreground, 0.07)
-        radius: Style.cornerRadius                  // Hyprland's decoration:rounding
+        radius: Style.cornerRadius
       }
     }
 
-    // The line the cursor is on, lit the way an editor's cursorline is: a
-    // two-pixel caret at half strength was easy to lose in a long answer,
-    // and then j and k looked like they did nothing.
+    // Cursorline: the caret alone is easy to lose in a long answer.
     Rectangle {
       visible: view.activeFocus && !view.selecting
       x: 0
@@ -328,8 +295,7 @@ FocusScope {
       color: Util.alpha(view.foreground, 0.06)
     }
 
-    // Sits where the answer's dot will: same column, same tone, so when the
-    // reply lands it takes the spinner's place rather than appearing under it.
+    // Where the reply's dot will be, so the answer replaces it in place.
     Row {
       id: spinner
 
@@ -338,9 +304,7 @@ FocusScope {
       y: answer.contentHeight + answer.topPadding + answer.bottomPadding
       spacing: Style.spacing.xs
 
-      // The frames are not all the same width, and a verb that shuffles left
-      // and right with each one reads as broken. The glyph gets a box the
-      // widest frame fits in, centred, so only the glyph changes.
+      // A fixed-width box: the frames differ in width and would shift the text.
       Text {
         width: Math.ceil(Style.font.body * 1.4)
         horizontalAlignment: Text.AlignHCenter
@@ -379,8 +343,6 @@ FocusScope {
       font.pixelSize: Style.font.body
       cursorVisible: view.activeFocus
 
-      // A block cursor, as in the field's normal mode: the reading position
-      // has to be visible for j/k and v to mean anything.
       cursorDelegate: Rectangle {
         width: Math.max(2, metrics.averageCharacterWidth)
         color: view.accent
