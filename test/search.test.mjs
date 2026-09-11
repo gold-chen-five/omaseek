@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { describeError, normalizeRow, mergeResults, statusText, modeLabel } from '../src/lib/search.mjs'
+import { VIEW, PANEL, FOCUS } from '../src/lib/states.mjs'
 
 test('the backend message wins, because it names the port or the setting to fix', () => {
   assert.equal(
@@ -94,27 +95,27 @@ test('fetching the next page announces the page being fetched', () => {
 })
 
 test('mode label follows focus, not just the editor mode', () => {
-  assert.equal(modeLabel({ focusArea: 'results', mode: 'normal' }), 'RESULTS')
-  assert.equal(modeLabel({ focusArea: 'search', mode: 'insert' }), 'INSERT')
-  assert.equal(modeLabel({ view: 'settings', focusArea: 'results', mode: 'insert' }), 'SETTINGS')
-  assert.equal(modeLabel({ view: 'setup', focusArea: 'search', mode: 'normal' }), 'SETUP')
+  assert.equal(modeLabel({ focusArea: FOCUS.RESULTS, mode: 'normal' }), 'RESULTS')
+  assert.equal(modeLabel({ focusArea: FOCUS.FIELD, mode: 'insert' }), 'INSERT')
+  assert.equal(modeLabel({ view: VIEW.SETTINGS, focusArea: FOCUS.RESULTS, mode: 'insert' }), 'SETTINGS')
+  assert.equal(modeLabel({ view: VIEW.SETUP, focusArea: FOCUS.FIELD, mode: 'normal' }), 'SETUP')
 })
 
 test('the settings and setup views name their keys instead of search state', () => {
-  assert.match(statusText({ view: 'settings', status: 'ok', count: 10 }), /esc back/)
-  assert.match(statusText({ view: 'setup', status: 'error', errorMessage: 'x' }), /h\/l choose/)
-  assert.match(statusText({ view: 'search', status: 'ok', count: 10, page: 1 }), /^page 1/)
+  assert.match(statusText({ view: VIEW.SETTINGS, status: 'ok', count: 10 }), /esc back/)
+  assert.match(statusText({ view: VIEW.SETUP, status: 'error', errorMessage: 'x' }), /h\/l choose/)
+  assert.match(statusText({ view: VIEW.SEARCH, status: 'ok', count: 10, page: 1 }), /^page 1/)
 })
 
 test('AI mode names the agent while it thinks and its keys once it has answered', () => {
-  assert.equal(statusText({ panelMode: 'ai', status: 'thinking', agent: 'claude' }), 'asking claude…')
-  assert.match(statusText({ panelMode: 'ai', status: 'ok' }), /v select/)
-  assert.match(statusText({ panelMode: 'ai', status: 'ok', selecting: true }), /hands the selection/)
-  assert.equal(statusText({ panelMode: 'ai', status: 'error', errorMessage: 'nope' }), 'nope')
-  assert.match(statusText({ panelMode: 'ai', status: 'idle' }), /tab search/)
-  assert.match(statusText({ panelMode: 'ai', view: 'settings', status: 'ok' }), /esc back/, 'the settings view wins')
-  assert.equal(modeLabel({ panelMode: 'ai', focusArea: 'search', mode: 'insert' }), 'AI · INSERT')
-  assert.equal(modeLabel({ panelMode: 'ai', focusArea: 'results', mode: 'normal' }), 'AI · ANSWER')
-  assert.equal(modeLabel({ panelMode: 'ai', focusArea: 'results', mode: 'normal', selecting: true }), 'AI · VISUAL')
+  assert.equal(statusText({ panelMode: PANEL.AI, status: 'thinking', agent: 'claude' }), 'asking claude…')
+  assert.match(statusText({ panelMode: PANEL.AI, status: 'ok' }), /v select/)
+  assert.match(statusText({ panelMode: PANEL.AI, status: 'ok', selecting: true }), /hands the selection/)
+  assert.equal(statusText({ panelMode: PANEL.AI, status: 'error', errorMessage: 'nope' }), 'nope')
+  assert.match(statusText({ panelMode: PANEL.AI, status: 'idle' }), /tab search/)
+  assert.match(statusText({ panelMode: PANEL.AI, view: VIEW.SETTINGS, status: 'ok' }), /esc back/, 'the settings view wins')
+  assert.equal(modeLabel({ panelMode: PANEL.AI, focusArea: FOCUS.FIELD, mode: 'insert' }), 'AI · INSERT')
+  assert.equal(modeLabel({ panelMode: PANEL.AI, focusArea: FOCUS.RESULTS, mode: 'normal' }), 'AI · ANSWER')
+  assert.equal(modeLabel({ panelMode: PANEL.AI, focusArea: FOCUS.RESULTS, mode: 'normal', selecting: true }), 'AI · VISUAL')
 })
 

@@ -7,6 +7,7 @@ import "components"
 import "lib/search.mjs" as SearchLib
 import "lib/settings.mjs" as SettingsLib
 import "lib/keybinds.mjs" as Keybinds
+import "lib/states.mjs" as States
 
 // Web search overlay, through a SearXNG instance the user runs.
 //
@@ -21,7 +22,7 @@ import "lib/keybinds.mjs" as Keybinds
 // here is the part only the panel can decide: which view is showing, whether
 // the field searches or asks (`panelMode`, Tab flips it), and which of the
 // field and the thing below it has the keyboard. That is a two-state
-// machine, "search" and "results", hinged on the field: Enter searches or
+// machine, field and results, hinged on the field: Enter searches or
 // asks and stays put, j or Down steps into what came back, Esc or i steps
 // back up.
 Item {
@@ -31,9 +32,9 @@ Item {
   property var manifest: null
 
   property bool opened: false
-  property string view: "search"               // search | settings | setup
-  property string panelMode: "search"          // search | ai — what Enter does with the field
-  property string focusArea: "search"          // search | results
+  property string view: States.VIEW.SEARCH           // States.VIEW
+  property string panelMode: States.PANEL.SEARCH     // States.PANEL — what Enter does with the field
+  property string focusArea: States.FOCUS.FIELD      // States.FOCUS — who has the keyboard
   property string setupReason: ""              // what the backend said when the instance was down
 
   readonly property var settingsRows: SettingsLib.settingsRows(config.settings, engine.state, ai.agents)
@@ -62,7 +63,7 @@ Item {
   function open (payloadJson) {
     config.reload()
     opened = true
-    view = "search"                            // never reopen into settings or setup
+    view = States.VIEW.SEARCH                  // never reopen into settings or setup
     if (ai.agents === null) ai.probeAgents()   // once: which agents this machine has
     // Normal when there is something below the field to step into — results,
     // or a conversation — so j goes there; insert only when there is nothing
@@ -81,15 +82,15 @@ Item {
   // start one. Only AI mode has a session to end — a search is replaced by
   // the next search, not started over.
   function newChat () {
-    if (panelMode !== "ai") return
+    if (panelMode !== States.PANEL.AI) return
     ai.reset()
     input.clear()
     focusSearch(true)
   }
 
   function toggleMode () {
-    panelMode = panelMode === "search" ? "ai" : "search"
-    view = "search"
+    panelMode = panelMode === States.PANEL.SEARCH ? States.PANEL.AI : States.PANEL.SEARCH
+    view = States.VIEW.SEARCH
     focusSearch(true)
   }
 
@@ -108,14 +109,14 @@ Item {
   // ---- views --------------------------------------------------------------
 
   function openSettings () {
-    view = "settings"
+    view = States.VIEW.SETTINGS
     engine.probe()
     ai.probeAgents()
     settingsPage.open()
   }
 
   function closeSettings () {
-    view = "search"
+    view = States.VIEW.SEARCH
     focusSearch(false)
   }
 
@@ -125,12 +126,12 @@ Item {
   function askToStartEngine (reason) {
     engine.state = "stopped"
     setupReason = reason
-    view = "setup"
+    view = States.VIEW.SETUP
     setupPrompt.open()
   }
 
   function closeSetup () {
-    view = "search"
+    view = States.VIEW.SEARCH
     setupReason = ""
     focusSearch(true)                          // back to the query, still typed
   }
@@ -146,7 +147,7 @@ Item {
   function runSearch () {
     const query = input.text.trim()
     if (!query) return
-    if (panelMode === "ai") {
+    if (panelMode === States.PANEL.AI) {
       ai.ask(query)
       input.clear()                            // the question now lives in the transcript
       focusSearch(false)                       // normal: j steps into the transcript, i asks more
@@ -158,12 +159,12 @@ Item {
 
   // Whether there is anything below the field to step into.
   function hasBody () {
-    return panelMode === "ai" ? ai.history.length > 0 : session.results.count > 0
+    return panelMode === States.PANEL.AI ? ai.history.length > 0 : session.results.count > 0
   }
 
   function focusResults () {
-    focusArea = "results"
-    const target = panelMode === "ai" ? answerView : resultsList
+    focusArea = States.FOCUS.RESULTS
+    const target = panelMode === States.PANEL.AI ? answerView : resultsList
     Qt.callLater(() => target.forceActiveFocus())
   }
 
@@ -171,7 +172,7 @@ Item {
   // left as vim does and drops any half-typed operator, and doing it by hand
   // here skipped both.
   function focusSearch (insertMode) {
-    focusArea = "search"
+    focusArea = States.FOCUS.FIELD
     input.setMode(insertMode ? "insert" : "normal")
     Qt.callLater(() => input.forceActiveFocus())
   }
@@ -277,7 +278,7 @@ Item {
             // a size smaller than that assumes — this sits one step under it:
             // room around the text without turning the bar into a box.
             verticalPadding: Style.spacing.md
-            placeholderText: root.panelMode === "ai" ? "Ask " + ai.agentName + "…" : "Search the web…"
+            placeholderText: root.panelMode === States.PANEL.AI ? "Ask " + ai.agentName + "…" : "Search the web…"
             escapeSequences: config.keymap.sequences
             escapeTimeout: config.keymap.timeoutMs
             searchChord: root.searchChord
@@ -306,7 +307,7 @@ Item {
             Button {
               id: searchButton
 
-              visible: root.panelMode === "search"
+              visible: root.panelMode === States.PANEL.SEARCH
               anchors.fill: parent               // the whole reserved block, so
               text: "search"                     // the row has no gap in it
               active: true
@@ -321,7 +322,7 @@ Item {
             Row {
               id: askActions
 
-              visible: root.panelMode === "ai"
+              visible: root.panelMode === States.PANEL.AI
               anchors.right: parent.right
               height: parent.height
               spacing: Style.spacing.sm
@@ -360,7 +361,7 @@ Item {
           foreground: root.foreground
           accent: root.accent
           fontFamily: root.fontFamily
-          isError: (root.panelMode === "ai" ? ai.status : session.status) === "error"
+          isError: (root.panelMode === States.PANEL.AI ? ai.status : session.status) === "error"
           mode: SearchLib.modeLabel({
             view: root.view, panelMode: root.panelMode, focusArea: root.focusArea,
             mode: input.mode, selecting: answerView.selecting
@@ -368,13 +369,13 @@ Item {
           detail: SearchLib.statusText({
             view: root.view,
             panelMode: root.panelMode,
-            status: root.panelMode === "ai" ? ai.status : session.status,
+            status: root.panelMode === States.PANEL.AI ? ai.status : session.status,
             count: session.results.count,
             query: session.lastQuery,
             page: session.pageIndex + 1,
             hasNext: session.hasNext,
             loadingPage: session.loadingPage,
-            errorMessage: root.panelMode === "ai" ? ai.errorMessage : session.errorMessage,
+            errorMessage: root.panelMode === States.PANEL.AI ? ai.errorMessage : session.errorMessage,
             backend: session.backend,
             agent: ai.agentName,
             selecting: answerView.selecting
@@ -384,7 +385,7 @@ Item {
         SetupPrompt {
           id: setupPrompt
 
-          visible: root.view === "setup"
+          visible: root.view === States.VIEW.SETUP
           width: parent.width
           reason: root.setupReason
           foreground: root.foreground
@@ -398,7 +399,7 @@ Item {
         SettingsPage {
           id: settingsPage
 
-          visible: root.view === "settings"
+          visible: root.view === States.VIEW.SETTINGS
           width: parent.width
           rows: root.settingsRows
           foreground: root.foreground
@@ -414,7 +415,7 @@ Item {
         AnswerView {
           id: answerView
 
-          visible: root.view === "search" && root.panelMode === "ai"
+          visible: root.view === States.VIEW.SEARCH && root.panelMode === States.PANEL.AI
           width: parent.width
           height: parent.height - fieldRow.height - statusLine.height - Style.spacing.md * 2
           turns: ai.history
@@ -436,7 +437,7 @@ Item {
         ResultList {
           id: resultsList
 
-          visible: root.view === "search" && root.panelMode === "search"
+          visible: root.view === States.VIEW.SEARCH && root.panelMode === States.PANEL.SEARCH
           width: parent.width
           height: parent.height - fieldRow.height - statusLine.height - Style.spacing.md * 2
           model: session.results

@@ -56,6 +56,7 @@ merging and config parsing are all under test without a compositor.
 - `src/lib/settings.mjs` — config text → settings, and the settings-page row list
 - `src/lib/markdown.mjs` — the agent's Markdown → the rich-text subset a TextEdit colours; the transcript layout
 - `src/lib/keys.mjs` — chord → command name for the reading panes, and the `gg`/`gv` prefix machine
+- `src/lib/states.mjs` — the panel's `VIEW`, `PANEL` and `FOCUS` values; never write them as bare strings
 
 `VimTextField.qml` is therefore only a mode machine and key dispatch — if you
 add a motion or an object, the logic goes in `src/lib` with tests and the QML

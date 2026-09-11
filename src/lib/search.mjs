@@ -4,6 +4,8 @@
 // Pure functions only, so the paging and de-duplication rules can be tested
 // under node rather than by clicking through a live search.
 
+import { VIEW, PANEL, FOCUS } from './states.mjs'
+
 const ERROR_MESSAGES = {
   network: 'No network connection'
 }
@@ -79,14 +81,14 @@ export function mergeResults (existing = [], incoming = []) {
  * cursor is on and whether another one exists.
  */
 export function statusText ({
-  view = 'search', panelMode = 'search', status, count = 0, query = '', page = 1,
+  view = VIEW.SEARCH, panelMode = PANEL.SEARCH, status, count = 0, query = '', page = 1,
   hasNext = false, loadingPage = false, errorMessage = '', backend = '',
   agent = '', selecting = false
 } = {}) {
   // The other two views have no search state to report, only their keys.
-  if (view === 'settings') return 'j/k rows · h/l change · enter opens · saved as you go · esc back'
-  if (view === 'setup') return 'h/l choose · enter confirm · esc not now'
-  if (panelMode === 'ai') return askStatusText({ status, errorMessage, agent, selecting })
+  if (view === VIEW.SETTINGS) return 'j/k rows · h/l change · enter opens · saved as you go · esc back'
+  if (view === VIEW.SETUP) return 'h/l choose · enter confirm · esc not now'
+  if (panelMode === PANEL.AI) return askStatusText({ status, errorMessage, agent, selecting })
 
   switch (status) {
     case 'loading':
@@ -126,12 +128,12 @@ function askStatusText ({ status, errorMessage, agent, selecting }) {
 }
 
 /** Left-hand side of the status strip: the view, or the vim mode inside it. */
-export function modeLabel ({ view = 'search', panelMode = 'search', focusArea, mode, selecting = false }) {
-  if (view === 'settings') return 'SETTINGS'
-  if (view === 'setup') return 'SETUP'
-  if (panelMode === 'ai') {
-    if (focusArea === 'results') return selecting ? 'AI · VISUAL' : 'AI · ANSWER'
+export function modeLabel ({ view = VIEW.SEARCH, panelMode = PANEL.SEARCH, focusArea, mode, selecting = false }) {
+  if (view === VIEW.SETTINGS) return 'SETTINGS'
+  if (view === VIEW.SETUP) return 'SETUP'
+  if (panelMode === PANEL.AI) {
+    if (focusArea === FOCUS.RESULTS) return selecting ? 'AI · VISUAL' : 'AI · ANSWER'
     return 'AI · ' + String(mode).toUpperCase()
   }
-  return focusArea === 'results' ? 'RESULTS' : String(mode).toUpperCase()
+  return focusArea === FOCUS.RESULTS ? 'RESULTS' : String(mode).toUpperCase()
 }
