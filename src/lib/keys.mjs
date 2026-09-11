@@ -39,6 +39,7 @@ export const ANSWER_KEYS = merge(NAV, {
   'w': 'wordForward', 'W': 'wordForwardBig',
   'b': 'wordBackward', 'B': 'wordBackwardBig',
   'e': 'wordEnd',
+  'E': 'wordEndBig',
   '0': 'lineStart', '^': 'lineStart', 'Home': 'lineStart',
   '$': 'lineEnd', 'End': 'lineEnd',
   'v': 'selectChars',

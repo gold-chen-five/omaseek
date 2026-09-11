@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { urlAt, isOpenable, hostOf } from '../src/lib/urls.mjs'
+import { urlAt, isOpenable, hostOf, urlFromSelection } from '../src/lib/urls.mjs'
 
 const book = 'Good places are (https://doc.rust-lang.org/book/), and Rustlings.'
 
@@ -34,4 +34,22 @@ test('the host, for the status line', () => {
   assert.equal(hostOf('https://www.rust-lang.org/learn'), 'rust-lang.org')
   assert.equal(hostOf('https://doc.rust-lang.org/book/'), 'doc.rust-lang.org')
   assert.equal(hostOf('not a url'), '')
+})
+
+test('a selection opens when it is a URL, cleaned of what surrounds it', () => {
+  assert.equal(urlFromSelection('https://doc.rust-lang.org/book/'), 'https://doc.rust-lang.org/book/')
+  assert.equal(urlFromSelection('(https://doc.rust-lang.org/book/),'), 'https://doc.rust-lang.org/book/')
+  assert.equal(urlFromSelection('  https://rust-lang.org\u2029'), 'https://rust-lang.org')
+})
+
+test('a bare domain in a selection gets https', () => {
+  assert.equal(urlFromSelection('rust-lang.org/learn'), 'https://rust-lang.org/learn')
+  assert.equal(urlFromSelection('www.rust-lang.org'), 'https://www.rust-lang.org')
+  assert.equal(urlFromSelection('localhost.dev:8080/x'), 'https://localhost.dev:8080/x')
+})
+
+test('a selection that is not a web URL opens nothing', () => {
+  for (const s of ['Rust', 'hello world', 'v1.2', 'e.g', 'file:///etc/passwd', 'javascript:alert(1)', 'mailto:a@b.co', '']) {
+    assert.equal(urlFromSelection(s), '', s)
+  }
 })

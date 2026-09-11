@@ -138,7 +138,7 @@ FocusScope {
   // Every motion ends here so the selection follows the cursor as one thing.
   function placeCursor (pos, keepColumn) {
     cursor = Math.max(0, Math.min(answer.length, pos))
-    cursorLink = linkUnder(cursor)
+    cursorLink = selecting ? Urls.urlFromSelection(selection()) : linkUnder(cursor)
     if (selecting) {
       if (linewise) answer.select(lineStartAt(Math.min(anchor, cursor)), lineEndAt(Math.max(anchor, cursor)))
       else answer.select(anchor, cursor)
@@ -203,6 +203,7 @@ FocusScope {
     linewise = false
     answer.deselect()
     answer.cursorPosition = cursor
+    cursorLink = linkUnder(cursor)
   }
 
   function reselect () {
@@ -212,8 +213,18 @@ FocusScope {
     placeCursor(lastVisual.cursor, true)
   }
 
+  // Charwise visual includes the character under the cursor, as vim's does;
+  // TextEdit.select(a, b) stops before b, so the text is read directly.
+  function selection () {
+    if (!selecting) return ""
+    if (linewise) return answer.selectedText
+    const from = Math.min(anchor, cursor)
+    const to = Math.min(answer.length, Math.max(anchor, cursor) + 1)
+    return answer.getText(from, to)
+  }
+
   function yank () {
-    const value = selecting ? answer.selectedText : plain()
+    const value = selecting ? selection() : plain()
     if (value) Quickshell.execDetached(["wl-copy", "--", value])
     // The selection stays lit for a beat so the yank is seen to happen.
     if (selecting) yankFlash.restart()
@@ -234,12 +245,14 @@ FocusScope {
   }
 
   function openLink () {
-    const url = linkUnder(cursor)
-    if (url) linkOpened(url)
+    const url = selecting ? Urls.urlFromSelection(selection()) : linkUnder(cursor)
+    if (!url) return
+    if (selecting) stopSelecting()
+    linkOpened(url)
   }
 
   function handOff () {
-    const context = selecting && answer.selectedText ? answer.selectedText : plain()
+    const context = selection() || plain()
     if (selecting) stopSelecting()
     handedOff(context)
   }
@@ -287,8 +300,9 @@ FocusScope {
     case "wordBackward":    placeCursor(Motions.wordBackward(plain(), cursor)); break
     case "wordBackwardBig": placeCursor(Motions.wordBackward(plain(), cursor, true)); break
     case "wordEnd":         placeCursor(Motions.wordEnd(plain(), cursor)); break
+    case "wordEndBig":      placeCursor(Motions.wordEnd(plain(), cursor, true)); break
     case "lineStart":       placeCursor(lineStartAt(cursor)); break
-    case "lineEnd":         placeCursor(lineEndAt(cursor)); break
+    case "lineEnd":         placeCursor(Math.max(lineStartAt(cursor), lineEndAt(cursor) - 1)); break  // on the last character, as vim puts it
 
     case "selectChars": if (selecting && !linewise) stopSelecting(); else startSelecting(false); break
     case "selectLines": if (selecting && linewise) stopSelecting(); else startSelecting(true); break

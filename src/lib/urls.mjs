@@ -43,3 +43,15 @@ export function hostOf (url) {
   const m = /^https?:\/\/([^/?#]+)/i.exec(String(url == null ? '' : url))
   return m ? m[1].replace(/^www\./, '') : ''
 }
+
+/** A visual selection as a URL to open, or ''. A bare domain gets https://. */
+export function urlFromSelection (text) {
+  const raw = String(text == null ? '' : text).replace(/[\u2028\u2029\r\n]+/g, '').trim()
+  if (!raw || /\s/.test(raw)) return ''
+  const url = trim(raw.replace(/^[(<[]+/, ''))
+  if (isOpenable(url)) return url
+  if (/^[a-z][a-z0-9+.-]*:(?!\d)/i.test(url)) return ''       // some other scheme; host:8080 is a port
+  const host = url.split(/[/?#]/)[0]
+  if (/^[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}(:\d+)?$/i.test(host)) return 'https://' + url
+  return ''
+}

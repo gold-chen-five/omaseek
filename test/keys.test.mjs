@@ -59,3 +59,7 @@ test('gx opens a link in the answer; the list has no links to open', () => {
   assert.equal(resolve(ANSWER_KEYS, 'g', 'x').command, 'openLink')
   assert.equal(resolve(LIST_KEYS, 'g', 'x').command, '')
 })
+
+test('E reaches the end of a WORD in the answer, so vE selects a whole URL', () => {
+  assert.equal(resolve(ANSWER_KEYS, '', 'E').command, 'wordEndBig')
+})
