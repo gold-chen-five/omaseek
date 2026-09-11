@@ -1,12 +1,10 @@
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import qs.Commons
 import "../lib/keys.mjs" as KeysLib
 import "../lib/motions.mjs" as Motions
 import "../lib/markdown.mjs" as Markdown
 import "../lib/thinking.mjs" as Thinking
-import "../lib/palette.mjs" as Palette
 import "../lib/urls.mjs" as Urls
 import "chord.js" as Chord
 
@@ -32,26 +30,14 @@ FocusScope {
     }
   }
 
-  // The same file, and the same path, the shell's Color reads.
-  FileView {
-    path: Quickshell.env("HOME") + "/.local/state/omarchy/current/theme/colors.toml"
-    preload: true
-    watchChanges: true
-    printErrors: false
-    onLoaded: view.themeColors = text()
-    onLoadFailed: view.themeColors = ""
-    onFileChanged: reload()
-  }
-
-  TextMetrics {
-    id: frameMetrics
+  FontMetrics {
+    id: labelMetrics
     font.family: view.fontFamily
     font.pixelSize: Style.font.body
-    text: "●●●"
   }
 
   Timer {
-    interval: Thinking.FRAME_MS
+    interval: Thinking.CLOCK_MS
     running: view.thinking && view.visible
     repeat: true
     onTriggered: view.tick = view.tick + 1
@@ -78,11 +64,6 @@ FocusScope {
   readonly property string questionColor: view.foreground.toString()
   readonly property string answerColor: blend(view.foreground, Color.menu.background, 0.78)
   readonly property string glyphColor: blend(view.foreground, Color.menu.background, 0.5)
-  // The thinking dots take one colour from the theme: its yellow, the usual
-  // "still working" hue, apart from the accent the mode label uses and the
-  // red of errors. Every bundled theme defines it; muted stands in otherwise.
-  property string themeColors: ""
-  readonly property color iconColor: Palette.paletteColor(themeColors, "yellow") || Color.muted
 
   function blend (a, b, t) {
     return Qt.rgba(a.r * t + b.r * (1 - t), a.g * t + b.g * (1 - t), a.b * t + b.b * (1 - t), 1).toString()
@@ -380,17 +361,26 @@ FocusScope {
       y: answer.contentHeight + answer.topPadding + answer.bottomPadding
       spacing: Style.spacing.xs
 
-      // As wide as the widest frame, so the label never shifts.
-      Text {
-        width: Math.ceil(frameMetrics.advanceWidth)
-        horizontalAlignment: Text.AlignHCenter
-        textFormat: Text.PlainText
-        text: Thinking.FRAMES[view.tick % Thinking.FRAMES.length]
-        color: view.iconColor
-        font.family: view.fontFamily
-        font.pixelSize: Style.font.body
+      // One dot, breathing slowly, in the colour of the text beside it. Drawn
+      // rather than typed: a small glyph sits on its own baseline, low against
+      // the label, so this is centred on the label's x-height instead.
+      Rectangle {
+        width: Math.round(Style.font.body * 0.55)
+        height: width
+        radius: width / 2
+        color: view.answerColor
+        y: Math.round(waitLabel.y + waitLabel.baselineOffset - labelMetrics.xHeight / 2 - height / 2)
+
+        SequentialAnimation on opacity {
+          running: view.thinking && view.visible
+          loops: Animation.Infinite
+          NumberAnimation { to: 0.2; duration: Thinking.PULSE_MS / 2; easing.type: Easing.InOutSine }
+          NumberAnimation { to: 1; duration: Thinking.PULSE_MS / 2; easing.type: Easing.InOutSine }
+        }
       }
       Text {
+        id: waitLabel
+
         textFormat: Text.PlainText
         // tick is read so the clock re-evaluates every frame.
         text: view.tick >= 0 ? Thinking.thinkingLabel(view.agentName, Date.now() - view.startedAt) : ""

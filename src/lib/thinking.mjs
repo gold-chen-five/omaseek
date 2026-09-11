@@ -1,9 +1,9 @@
-// The indicator shown while an agent works: a dot sweeping across three, as
-// if looking for something. omaseek's own mark, deliberately not Claude
-// Code's sparkle and verbs, and slow on purpose: it says "still working".
+// The line shown while an agent works: one dot breathing slowly beside who is
+// working and for how long. omaseek's own, deliberately not Claude Code's
+// sparkle and verbs.
 
-export const FRAMES = ['●∙∙', '∙●∙', '∙∙●', '∙●∙']
-export const FRAME_MS = 240
+export const PULSE_MS = 1600      // one slow breath, out and back
+export const CLOCK_MS = 500       // how often the clock is redrawn
 
 /** "7s", "1m 07s", "12m 03s" — a clock, not a stopwatch. */
 export function elapsedText (ms) {
@@ -14,7 +14,7 @@ export function elapsedText (ms) {
   return minutes + 'm ' + (seconds < 10 ? '0' : '') + seconds + 's'
 }
 
-/** The line beside the dots: who is working, and for how long. */
+/** The line beside the dot: who is working, and for how long. */
 export function thinkingLabel (agent, ms) {
   const who = String(agent == null ? '' : agent).trim() || 'the agent'
   return who + ' is thinking · ' + elapsedText(ms)

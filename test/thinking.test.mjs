@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { FRAMES, FRAME_MS, elapsedText, thinkingLabel } from '../src/lib/thinking.mjs'
+import { PULSE_MS, CLOCK_MS, elapsedText, thinkingLabel } from '../src/lib/thinking.mjs'
 
 test('the clock reads like a clock', () => {
   assert.equal(elapsedText(0), '0s')
@@ -11,15 +11,9 @@ test('the clock reads like a clock', () => {
   assert.equal(elapsedText('junk'), '0s')
 })
 
-test('the frames are one dot sweeping across three, every frame the same width', () => {
-  for (const frame of FRAMES) {
-    assert.equal([...frame].length, 3, frame)
-    assert.equal(frame.split('●').length - 1, 1, frame)
-  }
-})
-
-test('the sweep is slow: well over a tenth of a second a frame', () => {
-  assert.ok(FRAME_MS >= 200)
+test('the dot breathes slowly, and the clock keeps up with the seconds', () => {
+  assert.ok(PULSE_MS >= 1200)
+  assert.ok(CLOCK_MS <= 1000)
 })
 
 test('the label names who is working and for how long', () => {
