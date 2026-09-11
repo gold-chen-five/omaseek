@@ -121,12 +121,12 @@ Item {
     const query = input.text.trim()
     if (!query) return
     if (panelMode === States.PANEL.AI) {
-      ai.ask(query)
+      ai.ask(query.split(input.lineBreak).join("\n"))
       input.clear()                            // the question now lives in the transcript
       focusSearch(false)
       return
     }
-    session.search(query)
+    session.search(query.split(input.lineBreak).join(" "))
     focusSearch(false)                         // normal: j steps into the results
   }
 
@@ -261,8 +261,8 @@ Item {
             id: actions
 
             anchors.right: parent.right
-            anchors.top: parent.top                // the field grows down; the buttons stay a line
-            height: input.oneLineHeight
+            anchors.verticalCenter: parent.verticalCenter
+            height: input.height
             width: Math.max(searchButton.implicitWidth, askActions.implicitWidth)
 
             Button {

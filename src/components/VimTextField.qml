@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import qs.Commons
+import qs.Ui as Ui
 import "../lib/motions.mjs" as Motions
 import "../lib/textobjects.mjs" as TextObjects
 import "../lib/keymap.mjs" as Keymap
@@ -8,7 +9,7 @@ import "chord.js" as Chord
 
 // The search field with a vim editing model: the mode machine and key dispatch.
 // Cursor arithmetic lives in lib/motions.mjs, where it runs under test.
-GrowingField {
+Ui.TextField {
   id: field
 
   property string mode: "insert"            // insert | normal | visual
@@ -26,6 +27,7 @@ GrowingField {
   // Insert-mode escape sequence (vim's `inoremap jk <Esc>`); empty turns it off.
   property var escapeSequences: []
   property int escapeTimeout: 200
+  readonly property string lineBreak: "↵"      // Ctrl+J's marker for a newline
   property string escapePending: ""          // sequence keys typed so far
 
   // Parsed chords, checked first so rebinding search moves it off Enter.
@@ -52,20 +54,6 @@ GrowingField {
     mode = next
     clearPending()
     if (next === "normal") clampCursor()
-  }
-
-  // In a multi-line question, down is a line down; only the last line steps out.
-  function onLastLine () { return text.indexOf("\n", cursorPosition) === -1 }
-
-  function moveLineDown () {
-    const nl = text.indexOf("\n", cursorPosition)
-    if (nl === -1) return false
-    const lineStart = text.lastIndexOf("\n", cursorPosition - 1) + 1
-    const column = cursorPosition - lineStart
-    const nextEnd = text.indexOf("\n", nl + 1)
-    const nextLen = (nextEnd === -1 ? text.length : nextEnd) - (nl + 1)
-    cursorPosition = nl + 1 + Math.min(column, nextLen)
-    return true
   }
 
   function clearPending () {
@@ -161,14 +149,16 @@ GrowingField {
       remove(0, cursorPosition)
       event.accepted = true
     } else if (ctrl && event.key === Qt.Key_J) {
-      // Enter asks, so Ctrl+J breaks the line.
+      // Enter asks, and a single-line field cannot draw a newline, so Ctrl+J
+      // puts a marker in; Search.qml turns it into a real one when asking.
       clearEscapePending()
-      insert(cursorPosition, "\n")
+      insert(cursorPosition, lineBreak)
       event.accepted = true
     } else if (event.key === Qt.Key_Down) {
-      // Down works from insert too; in a multi-line question it moves a line first.
+      // Down works from insert too, as vim's arrows do.
       clearEscapePending()
-      if (onLastLine()) { field.steppedDown(); event.accepted = true }
+      field.steppedDown()
+      event.accepted = true
     } else if (plain && Keymap.isTypedKey(event.text)) {
       handleEscapeSequence(event)             // types normally unless it closes the sequence
     } else {
@@ -262,7 +252,7 @@ GrowingField {
         clearPending()                      // dj and friends mean nothing on one line
         return
       }
-      if (!moveLineDown()) field.steppedDown()
+      field.steppedDown()
       return
 
     // modes
@@ -422,7 +412,7 @@ GrowingField {
     }
 
     if (event.key === Qt.Key_Down) {
-      if (!moveLineDown()) field.steppedDown()
+      field.steppedDown()
       event.accepted = true
       return
     }
