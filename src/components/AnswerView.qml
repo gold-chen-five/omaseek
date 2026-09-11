@@ -1,10 +1,12 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import qs.Commons
 import "../lib/keys.mjs" as KeysLib
 import "../lib/motions.mjs" as Motions
 import "../lib/markdown.mjs" as Markdown
 import "../lib/thinking.mjs" as Thinking
+import "../lib/palette.mjs" as Palette
 import "../lib/urls.mjs" as Urls
 import "chord.js" as Chord
 
@@ -21,15 +23,31 @@ FocusScope {
 
   property int tick: 0
   property real startedAt: 0
-  property string verb: ""
 
   onThinkingChanged: {
     if (thinking) {
       startedAt = Date.now()
-      verb = Thinking.pickVerb(startedAt)
       tick = 0
       Qt.callLater(() => { flick.contentY = Math.max(0, flick.contentHeight - flick.height) })
     }
+  }
+
+  // The same file, and the same path, the shell's Color reads.
+  FileView {
+    path: Quickshell.env("HOME") + "/.local/state/omarchy/current/theme/colors.toml"
+    preload: true
+    watchChanges: true
+    printErrors: false
+    onLoaded: view.themeColors = text()
+    onLoadFailed: view.themeColors = ""
+    onFileChanged: reload()
+  }
+
+  TextMetrics {
+    id: frameMetrics
+    font.family: view.fontFamily
+    font.pixelSize: Style.font.body
+    text: "●●●"
   }
 
   Timer {
@@ -60,6 +78,11 @@ FocusScope {
   readonly property string questionColor: view.foreground.toString()
   readonly property string answerColor: blend(view.foreground, Color.menu.background, 0.78)
   readonly property string glyphColor: blend(view.foreground, Color.menu.background, 0.5)
+  // The thinking dots take one colour from the theme: its yellow, the usual
+  // "still working" hue, apart from the accent the mode label uses and the
+  // red of errors. Every bundled theme defines it; muted stands in otherwise.
+  property string themeColors: ""
+  readonly property color iconColor: Palette.paletteColor(themeColors, "yellow") || Color.muted
 
   function blend (a, b, t) {
     return Qt.rgba(a.r * t + b.r * (1 - t), a.g * t + b.g * (1 - t), a.b * t + b.b * (1 - t), 1).toString()
@@ -357,19 +380,20 @@ FocusScope {
       y: answer.contentHeight + answer.topPadding + answer.bottomPadding
       spacing: Style.spacing.xs
 
-      // A fixed-width box: the frames differ in width and would shift the text.
+      // As wide as the widest frame, so the label never shifts.
       Text {
-        width: Math.ceil(Style.font.body * 1.4)
+        width: Math.ceil(frameMetrics.advanceWidth)
         horizontalAlignment: Text.AlignHCenter
         textFormat: Text.PlainText
         text: Thinking.FRAMES[view.tick % Thinking.FRAMES.length]
-        color: view.accent
+        color: view.iconColor
         font.family: view.fontFamily
         font.pixelSize: Style.font.body
       }
       Text {
         textFormat: Text.PlainText
-        text: view.verb + "… (" + Thinking.elapsedText(view.tick * Thinking.FRAME_MS) + ")"
+        // tick is read so the clock re-evaluates every frame.
+        text: view.tick >= 0 ? Thinking.thinkingLabel(view.agentName, Date.now() - view.startedAt) : ""
         color: view.answerColor
         font.family: view.fontFamily
         font.pixelSize: Style.font.body

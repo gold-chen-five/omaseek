@@ -1,19 +1,9 @@
-// The line shown while an agent works: spinner, verb and clock, as Claude Code does.
+// The indicator shown while an agent works: a dot sweeping across three, as
+// if looking for something. omaseek's own mark, deliberately not Claude
+// Code's sparkle and verbs, and slow on purpose: it says "still working".
 
-export const FRAMES = ['·', '✢', '✳', '✶', '✻', '✽', '✻', '✶', '✳', '✢']
-export const FRAME_MS = 100
-
-export const VERBS = [
-  'Thinking', 'Pondering', 'Mulling', 'Cogitating', 'Ruminating', 'Musing',
-  'Considering', 'Brewing', 'Percolating', 'Simmering', 'Marinating', 'Stewing',
-  'Composing', 'Weighing', 'Reckoning', 'Working', 'Crunching', 'Noodling'
-]
-
-/** A verb for this question — deterministic for a seed, so a re-render keeps it. */
-export function pickVerb (seed) {
-  const n = Math.abs(Math.floor(Number(seed) || 0))
-  return VERBS[n % VERBS.length]
-}
+export const FRAMES = ['●∙∙', '∙●∙', '∙∙●', '∙●∙']
+export const FRAME_MS = 240
 
 /** "7s", "1m 07s", "12m 03s" — a clock, not a stopwatch. */
 export function elapsedText (ms) {
@@ -24,8 +14,8 @@ export function elapsedText (ms) {
   return minutes + 'm ' + (seconds < 10 ? '0' : '') + seconds + 's'
 }
 
-/** The whole line: glyph, verb, clock. `tick` is any counter; it picks the frame. */
-export function thinkingLine (tick, verb, ms) {
-  const frame = FRAMES[Math.abs(Math.floor(Number(tick) || 0)) % FRAMES.length]
-  return frame + ' ' + verb + '… (' + elapsedText(ms) + ')'
+/** The line beside the dots: who is working, and for how long. */
+export function thinkingLabel (agent, ms) {
+  const who = String(agent == null ? '' : agent).trim() || 'the agent'
+  return who + ' is thinking · ' + elapsedText(ms)
 }

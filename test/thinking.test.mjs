@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { FRAMES, VERBS, pickVerb, elapsedText, thinkingLine } from '../src/lib/thinking.mjs'
+import { FRAMES, FRAME_MS, elapsedText, thinkingLabel } from '../src/lib/thinking.mjs'
 
 test('the clock reads like a clock', () => {
   assert.equal(elapsedText(0), '0s')
@@ -11,14 +11,18 @@ test('the clock reads like a clock', () => {
   assert.equal(elapsedText('junk'), '0s')
 })
 
-test('a verb is fixed for a seed and always one of the list', () => {
-  assert.equal(pickVerb(3), pickVerb(3))
-  assert.ok(VERBS.includes(pickVerb(123456789)))
-  assert.ok(VERBS.includes(pickVerb('nonsense')))
+test('the frames are one dot sweeping across three, every frame the same width', () => {
+  for (const frame of FRAMES) {
+    assert.equal([...frame].length, 3, frame)
+    assert.equal(frame.split('●').length - 1, 1, frame)
+  }
 })
 
-test('the line cycles through the frames and carries the clock', () => {
-  assert.equal(thinkingLine(0, 'Thinking', 3000), FRAMES[0] + ' Thinking… (3s)')
-  assert.equal(thinkingLine(FRAMES.length, 'Thinking', 0), FRAMES[0] + ' Thinking… (0s)')
-  assert.equal(thinkingLine(4, 'Brewing', 61000), FRAMES[4] + ' Brewing… (1m 01s)')
+test('the sweep is slow: well over a tenth of a second a frame', () => {
+  assert.ok(FRAME_MS >= 200)
+})
+
+test('the label names who is working and for how long', () => {
+  assert.equal(thinkingLabel('claude', 7400), 'claude is thinking · 7s')
+  assert.equal(thinkingLabel('', 61000), 'the agent is thinking · 1m 01s')
 })
