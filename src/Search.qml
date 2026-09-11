@@ -235,29 +235,72 @@ Item {
           id: fieldRow
 
           width: parent.width
-          height: input.height
+          height: fieldFrame.height
 
-          VimTextField {
-            id: input
+          // The field's frame, drawn here rather than by the field: the field
+          // scrolls inside it, and a frame it drew itself would scroll too. One
+          // line tall at rest — the single-line field's height — and a row taller
+          // for each Ctrl+J, up to six.
+          BorderSurface {
+            id: fieldFrame
+
+            readonly property real insetTop: Border.top(input.borderSpec) + input.verticalPadding
+            readonly property real insetBottom: Border.bottom(input.borderSpec) + input.verticalPadding
+            readonly property real oneLineHeight: Math.round(input.lineHeight + insetTop + insetBottom)
 
             width: parent.width - actions.width - Style.spacing.sm
-            foreground: root.foreground
-            accent: root.accent
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.body
-            verticalPadding: Style.spacing.md
-            placeholderText: root.panelMode === States.PANEL.AI ? "Ask " + ai.agentName + "…" : "Search the web…"
-            escapeSequences: config.keymap.sequences
-            escapeTimeout: config.keymap.timeoutMs
-            searchChord: root.searchChord
-            newSessionChord: root.newSessionChord
+            height: Math.round(Math.min(input.lineCount, 6) * input.lineHeight + insetTop + insetBottom)
+            radius: Style.cornerRadius
+            color: Style.controlFill(input.activeFocus, input.hovered, root.foreground, root.accent)
+            borderSpec: input.borderSpec
 
-            onSubmitted: root.runSearch()
-            onCancelled: root.dismiss()
-            onSteppedDown: if (root.hasBody()) root.focusResults()
-            onRequestedSettings: root.openSettings()
-            onTabbed: root.toggleMode()
-            onNewSessionRequested: root.newChat()
+            Flickable {
+              id: fieldScroll
+
+              anchors.fill: parent
+              anchors.leftMargin: Border.left(input.borderSpec) + input.horizontalPadding
+              anchors.rightMargin: Border.right(input.borderSpec) + input.horizontalPadding
+              anchors.topMargin: fieldFrame.insetTop
+              anchors.bottomMargin: fieldFrame.insetBottom
+              clip: true
+              interactive: false               // it follows the cursor; nothing drags it
+              contentWidth: input.width
+              contentHeight: input.height
+
+              VimTextField {
+                id: input
+
+                width: Math.max(fieldScroll.width, implicitWidth)
+                height: Math.max(fieldScroll.height, implicitHeight)
+                multiline: root.panelMode === States.PANEL.AI
+                foreground: root.foreground
+                accent: root.accent
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.body
+                verticalPadding: Style.spacing.md
+                placeholderText: root.panelMode === States.PANEL.AI ? "Ask " + ai.agentName + "…" : "Search the web…"
+                escapeSequences: config.keymap.sequences
+                escapeTimeout: config.keymap.timeoutMs
+                searchChord: root.searchChord
+                newSessionChord: root.newSessionChord
+
+                onSubmitted: root.runSearch()
+                onCancelled: root.dismiss()
+                onSteppedDown: if (root.hasBody()) root.focusResults()
+                onRequestedSettings: root.openSettings()
+                onTabbed: root.toggleMode()
+                onNewSessionRequested: root.newChat()
+
+                // The frame scrolls to keep the cursor in view as it passes an edge.
+                onCursorRectangleChanged: {
+                  const r = cursorRectangle
+                  if (r.x < fieldScroll.contentX) fieldScroll.contentX = r.x
+                  else if (r.x + r.width > fieldScroll.contentX + fieldScroll.width) fieldScroll.contentX = r.x + r.width - fieldScroll.width
+                  if (r.y < fieldScroll.contentY) fieldScroll.contentY = r.y
+                  else if (r.y + r.height > fieldScroll.contentY + fieldScroll.height) fieldScroll.contentY = r.y + r.height - fieldScroll.height
+                }
+              }
+            }
           }
 
           // Reserves the wider arrangement, so the field keeps its width across modes.
@@ -265,8 +308,8 @@ Item {
             id: actions
 
             anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            height: input.height
+            anchors.top: parent.top                // the field grows down; the buttons stay a line
+            height: fieldFrame.oneLineHeight
             width: Math.max(searchButton.implicitWidth, askActions.implicitWidth)
 
             Button {

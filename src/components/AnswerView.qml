@@ -134,7 +134,12 @@ FocusScope {
     })
   }
 
-  function plain () { return answer.getText(0, answer.length) }
+  // A <br> in a question comes back as U+2028, not \n. Swapping one for the
+  // other keeps every position where it was, and lets a question typed on
+  // several lines be found again by its text.
+  function plain () {
+    return answer.getText(0, answer.length).split(String.fromCharCode(0x2028)).join("\n")
+  }
 
   function findMarks () {
     const source = plain()

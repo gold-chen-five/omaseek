@@ -1,7 +1,7 @@
 import QtQuick
 import Quickshell
+import QtQuick.Controls
 import qs.Commons
-import qs.Ui as Ui
 import "../lib/motions.mjs" as Motions
 import "../lib/textobjects.mjs" as TextObjects
 import "../lib/keymap.mjs" as Keymap
@@ -9,8 +9,30 @@ import "chord.js" as Chord
 
 // The search field with a vim editing model: the mode machine and key dispatch.
 // Cursor arithmetic lives in lib/motions.mjs, where it runs under test.
-Ui.TextField {
+//
+// A TextArea, not a TextField: a question can hold line breaks, which a
+// TextInput strips. It never wraps — a long line scrolls sideways inside the
+// frame Search.qml draws around it, as the single-line field did — so only a
+// Ctrl+J adds a row. The frame is the container's because the field scrolls.
+TextArea {
   id: field
+
+  property color foreground: Color.foreground
+  property color accent: Color.accent
+  property real horizontalPadding: Style.spacing.controlPaddingX
+  property real verticalPadding: Style.spacing.inputPaddingY
+  property bool multiline: false            // AI mode: Ctrl+J breaks the line
+  readonly property var borderSpec: Border.controlSpec(activeFocus ? "focus" : (hovered ? "hover-cursor" : "normal"), foreground, accent)
+  readonly property real lineHeight: contentHeight / Math.max(1, lineCount)
+
+  padding: 0
+  background: null
+  wrapMode: TextEdit.NoWrap
+  selectByMouse: true
+  color: foreground
+  selectionColor: Style.selectionFillFor(foreground, accent)
+  selectedTextColor: foreground
+  placeholderTextColor: Qt.darker(foreground, 1.6)
 
   property string mode: "insert"            // insert | normal | visual
   property string register: ""              // vim's unnamed register
@@ -27,7 +49,7 @@ Ui.TextField {
   // Insert-mode escape sequence (vim's `inoremap jk <Esc>`); empty turns it off.
   property var escapeSequences: []
   property int escapeTimeout: 200
-  readonly property string lineBreak: "↵"      // Ctrl+J's marker for a newline
+  readonly property string lineBreak: "\n"      // what Ctrl+J inserts, in AI mode
   property string escapePending: ""          // sequence keys typed so far
 
   // Parsed chords, checked first so rebinding search moves it off Enter.
@@ -67,6 +89,14 @@ Ui.TextField {
     const count = pendingCount > 0 ? pendingCount : fallback
     pendingCount = 0
     return count
+  }
+
+  // A line down or up within the text; down from its last line leaves the
+  // field for what is below it, as it always has.
+  function moveLine (down) {
+    const next = down ? Motions.lineDown(text, cursorPosition) : Motions.lineUp(text, cursorPosition)
+    if (next !== -1) cursorPosition = next
+    else if (down) field.steppedDown()
   }
 
   function clampCursor () {
@@ -149,15 +179,16 @@ Ui.TextField {
       remove(0, cursorPosition)
       event.accepted = true
     } else if (ctrl && event.key === Qt.Key_J) {
-      // Enter asks, and a single-line field cannot draw a newline, so Ctrl+J
-      // puts a marker in; Search.qml turns it into a real one when asking.
+      // A line break in a question; Enter is taken, it asks. A search is one
+      // line, so there it does nothing.
       clearEscapePending()
-      insert(cursorPosition, lineBreak)
+      if (multiline) insert(cursorPosition, lineBreak)
       event.accepted = true
-    } else if (event.key === Qt.Key_Down) {
-      // Down works from insert too, as vim's arrows do.
+    } else if (event.key === Qt.Key_Down || event.key === Qt.Key_Up) {
+      // Down works from insert too, as vim's arrows do; within a question of
+      // several lines, Up and Down move between its lines first.
       clearEscapePending()
-      field.steppedDown()
+      moveLine(event.key === Qt.Key_Down)
       event.accepted = true
     } else if (plain && Keymap.isTypedKey(event.text)) {
       handleEscapeSequence(event)             // types normally unless it closes the sequence
@@ -248,11 +279,12 @@ Ui.TextField {
     switch (key) {
     // leaving the field — the result list is the next line down
     case "j":
+    case "k":
       if (mode === "visual" || pendingOperator !== "") {
-        clearPending()                      // dj and friends mean nothing on one line
+        clearPending()                      // dj and friends mean nothing here
         return
       }
-      field.steppedDown()
+      moveLine(key === "j")
       return
 
     // modes
@@ -411,8 +443,8 @@ Ui.TextField {
       return
     }
 
-    if (event.key === Qt.Key_Down) {
-      field.steppedDown()
+    if (event.key === Qt.Key_Down || event.key === Qt.Key_Up) {
+      moveLine(event.key === Qt.Key_Down)
       event.accepted = true
       return
     }

@@ -35,8 +35,8 @@ Insert mode:
 | `jk` (the escape sequence) | to normal mode |
 | `ctrl+w` | delete the word before the cursor |
 | `ctrl+u` | delete to the start of the line |
-| `ctrl+j` | a line break in a question: shown as `↵`, sent as a newline |
-| `down` | step into the results or the transcript |
+| `ctrl+j` | a line break in a question — AI mode; the bar grows a row, up to six |
+| `down` `up` | a line down or up within a question of several lines; down from the last, into the results or the transcript |
 | `enter` (the search key) | search, or ask; the field drops to normal, so `j` steps into what came back |
 
 Normal mode is vim, on one line: `h l w W b B e 0 ^ $`, `f F t T{char}`,

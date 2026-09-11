@@ -100,3 +100,24 @@ export function repeat (motion, count, pos) {
   for (let i = 0; i < count; i++) at = motion(at)
   return at
 }
+
+/** j or Down inside a question of several lines: the same column on the next line, or -1 on the last. */
+export function lineDown (text, pos) {
+  const nl = text.indexOf('\n', pos)
+  if (nl === -1) return -1
+  const lineStart = pos === 0 ? 0 : text.lastIndexOf('\n', pos - 1) + 1
+  const column = pos - lineStart
+  const nextEnd = text.indexOf('\n', nl + 1)
+  const nextLength = (nextEnd === -1 ? text.length : nextEnd) - (nl + 1)
+  return nl + 1 + Math.min(column, nextLength)
+}
+
+/** k or Up: the same column on the line above, or -1 on the first. */
+export function lineUp (text, pos) {
+  const lineStart = pos === 0 ? 0 : text.lastIndexOf('\n', pos - 1) + 1
+  if (lineStart === 0) return -1
+  const column = pos - lineStart
+  const prevStart = lineStart - 2 < 0 ? 0 : text.lastIndexOf('\n', lineStart - 2) + 1
+  const prevLength = (lineStart - 1) - prevStart
+  return prevStart + Math.min(column, prevLength)
+}
