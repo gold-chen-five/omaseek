@@ -53,3 +53,9 @@ test('escape and enter are named keys, not their control characters', () => {
   assert.equal(resolve(LIST_KEYS, '', '\r').command, '')
 })
 
+
+test('gx opens a link in the answer; the list has no links to open', () => {
+  assert.deepEqual(resolve(ANSWER_KEYS, '', 'g'), { command: '', pending: 'g' })
+  assert.equal(resolve(ANSWER_KEYS, 'g', 'x').command, 'openLink')
+  assert.equal(resolve(LIST_KEYS, 'g', 'x').command, '')
+})

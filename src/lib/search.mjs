@@ -1,6 +1,7 @@
 // Result normalising, page merging, and the status line's strings. Pure, under test.
 
 import { VIEW, PANEL, FOCUS } from './states.mjs'
+import { hostOf } from './urls.mjs'
 
 const ERROR_MESSAGES = {
   network: 'No network connection'
@@ -62,11 +63,11 @@ export function mergeResults (existing = [], incoming = []) {
 export function statusText ({
   view = VIEW.SEARCH, panelMode = PANEL.SEARCH, status, count = 0, query = '', page = 1,
   hasNext = false, loadingPage = false, errorMessage = '', backend = '',
-  agent = '', selecting = false
+  agent = '', selecting = false, link = ''
 } = {}) {
   if (view === VIEW.SETTINGS) return 'j/k rows · h/l change · enter opens · saved as you go · esc back'
   if (view === VIEW.SETUP) return 'h/l choose · enter confirm · esc not now'
-  if (panelMode === PANEL.AI) return askStatusText({ status, errorMessage, agent, selecting })
+  if (panelMode === PANEL.AI) return askStatusText({ status, errorMessage, agent, selecting, link })
 
   switch (status) {
     case 'loading':
@@ -86,16 +87,16 @@ export function statusText ({
 }
 
 /** The AI half's status line. */
-function askStatusText ({ status, errorMessage, agent, selecting }) {
+function askStatusText ({ status, errorMessage, agent, selecting, link }) {
   switch (status) {
     case 'thinking':
       return agent ? `asking ${agent}…` : 'asking…'
     case 'error':
       return errorMessage
     case 'ok':
-      return selecting
-        ? 'enter hands the selection to the agent · y yanks · esc drops it'
-        : 'j/k move · v select · enter hands off · i asks more · ctrl+c new session'
+      if (selecting) return 'enter hands the selection to the agent · y yanks · esc drops it'
+      if (link) return `gx opens ${hostOf(link)} · j/k move · v select · enter hands off`
+      return 'j/k move · v select · enter hands off · i asks more · ctrl+c new session'
     default:
       return 'enter asks · tab search · ctrl+s settings'
   }

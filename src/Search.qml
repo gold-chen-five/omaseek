@@ -150,7 +150,11 @@ Item {
 
   function openResult (index) {
     if (index < 0 || index >= session.results.count) return
-    const url = session.results.get(index).url
+    openUrl(session.results.get(index).url)
+  }
+
+  // The browser takes the screen, so the panel steps aside.
+  function openUrl (url) {
     if (!url) return
     dismiss()
     Quickshell.execDetached(["omarchy-launch-browser", url])
@@ -339,7 +343,8 @@ Item {
             errorMessage: root.panelMode === States.PANEL.AI ? ai.errorMessage : session.errorMessage,
             backend: session.backend,
             agent: ai.agentName,
-            selecting: answerView.selecting
+            selecting: answerView.selecting,
+            link: answerView.cursorLink
           })
         }
 
@@ -387,6 +392,7 @@ Item {
           fontFamily: root.fontFamily
 
           onHandedOff: context => ai.launch(context)
+          onLinkOpened: url => root.openUrl(url)
           onEscaped: root.focusSearch(false)
           onInsertRequested: root.focusSearch(true)
           onSettingsRequested: root.openSettings()

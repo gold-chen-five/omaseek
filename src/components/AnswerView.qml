@@ -5,6 +5,7 @@ import "../lib/keys.mjs" as KeysLib
 import "../lib/motions.mjs" as Motions
 import "../lib/markdown.mjs" as Markdown
 import "../lib/thinking.mjs" as Thinking
+import "../lib/urls.mjs" as Urls
 import "chord.js" as Chord
 
 // The transcript, read with vim keys. One read-only rich-text TextEdit holds
@@ -48,6 +49,7 @@ FocusScope {
   property var lastVisual: null                // for gv: { anchor, cursor, linewise }
   property string pending: ""                  // an unfinished sequence: "g" after g
   property string newSessionChord: "C-c"          // from settings, already parsed
+  property string cursorLink: ""               // the openable link under the cursor, or ""
   property real preferredX: -1                 // the column j/k try to keep
   property var marks: []                       // [{ y, height }] — where the questions are
 
@@ -64,13 +66,17 @@ FocusScope {
   }
 
   signal handedOff(string context)             // Enter: give this to the agent
+  signal linkOpened(string url)                // gx on a link
   signal escaped()                             // esc: back to the field, normal mode
   signal insertRequested()                     // i or /: back to the field, typing
   signal settingsRequested()
   signal tabbed()
   signal newSessionRequested()                 // the new-session chord, or the button
 
-  onActiveFocusChanged: pending = ""
+  onActiveFocusChanged: {
+    pending = ""
+    if (activeFocus) cursorLink = linkUnder(cursor)   // the layout may not have existed when the answer landed
+  }
   onTurnsChanged: {
     anchor = -1
     preferredX = -1
@@ -132,6 +138,7 @@ FocusScope {
   // Every motion ends here so the selection follows the cursor as one thing.
   function placeCursor (pos, keepColumn) {
     cursor = Math.max(0, Math.min(answer.length, pos))
+    cursorLink = linkUnder(cursor)
     if (selecting) {
       if (linewise) answer.select(lineStartAt(Math.min(anchor, cursor)), lineEndAt(Math.max(anchor, cursor)))
       else answer.select(anchor, cursor)
@@ -212,6 +219,25 @@ FocusScope {
     if (selecting) yankFlash.restart()
   }
 
+  // gx: the link under the cursor, whether the agent wrote it as Markdown (a
+  // real anchor) or bare in the text.
+  function linkUnder (pos) {
+    const here = answer.positionToRectangle(pos)
+    const next = answer.positionToRectangle(Math.min(answer.length, pos + 1))
+    const x = next.y === here.y && next.x > here.x ? (here.x + next.x) / 2 : here.x + 1
+    const y = here.y + here.height / 2
+    // linkAt wants content coordinates, inside the padding, unlike the
+    // rectangles positionToRectangle returns.
+    const href = answer.linkAt(x - answer.leftPadding, y - answer.topPadding)
+    const url = href || Urls.urlAt(plain(), pos)
+    return Urls.isOpenable(url) ? url : ""
+  }
+
+  function openLink () {
+    const url = linkUnder(cursor)
+    if (url) linkOpened(url)
+  }
+
   function handOff () {
     const context = selecting && answer.selectedText ? answer.selectedText : plain()
     if (selecting) stopSelecting()
@@ -268,6 +294,7 @@ FocusScope {
     case "selectLines": if (selecting && linewise) stopSelecting(); else startSelecting(true); break
     case "reselect":    reselect(); break
     case "yank":        yank(); break
+    case "openLink":    openLink(); break
     }
   }
 

@@ -72,6 +72,7 @@ them.
 | `V` | select by line |
 | `gv` | reselect what was last selected |
 | `y` | yank the selection, or the whole transcript |
+| `gx` | open the link under the cursor in the browser — http and https only |
 | `enter` | hand the selection to the agent in a terminal |
 | `ctrl+c` (the new-session key) | start a new conversation |
 | `i`, `/` | back to the field, typing |
