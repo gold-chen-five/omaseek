@@ -71,7 +71,7 @@ them.
 | `v` | select by character |
 | `V` | select by line |
 | `gv` | reselect what was last selected |
-| `y` | yank the selection, or the whole transcript |
+| `y` | yank the selection — or, with nothing selected, the reply under the cursor as the agent wrote it (Markdown); on a question, its answer |
 | `gx` | open the link under the cursor — or, in visual mode, the selected URL — in the browser; http and https only, a bare domain gets `https://` |
 | `enter` | hand the selection to the agent in a terminal |
 | `ctrl+c` (the new-session key) | start a new conversation |

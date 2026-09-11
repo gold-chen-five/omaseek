@@ -6,6 +6,7 @@ import "../lib/motions.mjs" as Motions
 import "../lib/markdown.mjs" as Markdown
 import "../lib/thinking.mjs" as Thinking
 import "../lib/urls.mjs" as Urls
+import "../lib/transcript.mjs" as Transcript
 import "chord.js" as Chord
 
 // The transcript, read with vim keys. One read-only rich-text TextEdit holds
@@ -65,6 +66,10 @@ FocusScope {
   property var marks: []                       // [{ y, height }] — where the questions are
   property var dots: []                        // [{ x, y }] — where each reply's dot goes
   property var replyStarts: []                 // plain-text index of each reply's ●
+  property var replyTurns: []                  // and which turn each one is
+  property var questionStarts: []              // plain-text index of each question's >
+  property int pendingAt: -1                   // the waiting placeholder's ●, or -1
+  property var yankBand: null                  // { y, height } of a reply just yanked, while lit
   property var pendingDot: null                // while thinking: the placeholder reply's dot
   property var pendingText: null               // and where its text would begin
   readonly property int dotDiameter: Math.round(Style.font.body * 0.55)
@@ -136,6 +141,8 @@ FocusScope {
     const bars = []
     const leads = []
     const starts = []
+    const questions = []
+    const owners = []
     let from = 0
     for (let i = 0; i < turns.length; i++) {
       const turn = turns[i]
@@ -146,11 +153,13 @@ FocusScope {
         const first = answer.positionToRectangle(at)
         const last = answer.positionToRectangle(Math.max(at, at + line.length - 1))
         bars.push({ y: first.y, height: last.y + last.height - first.y })
+        questions.push(at)
         from = at + line.length
       } else if (turn.role === "assistant") {
         const at = source.indexOf("●", from)
         if (at === -1) continue
         starts.push(at)
+        owners.push(i)
         leads.push(dotAt(at))
         from = at + 1
       }
@@ -161,6 +170,9 @@ FocusScope {
     marks = bars
     dots = leads
     replyStarts = starts
+    replyTurns = owners
+    questionStarts = questions
+    pendingAt = waiting
   }
 
   // Where a reply's text begins, and its baseline.
@@ -273,17 +285,43 @@ FocusScope {
   // TextEdit.select(a, b) stops before b, so the text is read directly.
   function selection () {
     if (!selecting) return ""
-    if (linewise) return answer.selectedText
-    const from = Math.min(anchor, cursor)
-    const to = Math.min(answer.length, Math.max(anchor, cursor) + 1)
-    return answer.getText(from, to)
+    const from = linewise ? lineStartAt(Math.min(anchor, cursor)) : Math.min(anchor, cursor)
+    const to = linewise ? lineEndAt(Math.max(anchor, cursor)) : Math.min(answer.length, Math.max(anchor, cursor) + 1)
+    return Transcript.cut(answer.getText(from, to), from, leadRanges())
+  }
+
+  // The ● before each reply, and the waiting placeholder: present in the text
+  // only to hold a drawn dot's place, so copied text leaves them out.
+  function leadRanges () {
+    const ranges = []
+    for (let i = 0; i < replyStarts.length; i++) ranges.push([replyStarts[i], replyStarts[i] + 2])
+    if (pendingAt !== -1) ranges.push([pendingAt, pendingAt + 3])
+    return ranges
   }
 
   function yank () {
-    const value = selecting ? selection() : plain()
-    if (value) Quickshell.execDetached(["wl-copy", "--", value])
-    // The selection stays lit for a beat so the yank is seen to happen.
-    if (selecting) yankFlash.restart()
+    if (selecting) {
+      const value = selection()
+      if (value) Quickshell.execDetached(["wl-copy", "--", value])
+      yankFlash.restart()                      // lit for a beat, as LazyVim does
+      return
+    }
+    // Nothing selected: the reply under the cursor, as the agent wrote it —
+    // Markdown, so a link or a code block survives the paste. On a question,
+    // the reply that answers it.
+    let r = Transcript.replyIndexAt(cursor, questionStarts, replyStarts)
+    if (r === -1) r = replyStarts.length - 1
+    if (r === -1) return
+    const text = String(turns[replyTurns[r]].text)
+    if (text) Quickshell.execDetached(["wl-copy", "--", text])
+    // Lit by a band behind its lines, not by selecting it: a selection
+    // appearing on the text is taken for a mouse drag and starts visual mode.
+    const from = replyStarts[r] + 2
+    const to = Transcript.replyEnd(r, questionStarts, replyStarts, pendingAt, answer.length)
+    const top = answer.positionToRectangle(from)
+    const bottom = answer.positionToRectangle(Math.max(from, to - 1))
+    yankBand = { y: top.y, height: bottom.y + bottom.height - top.y }
+    replyFlash.restart()
   }
 
   // gx: the link under the cursor, whether the agent wrote it as Markdown (a
@@ -311,6 +349,14 @@ FocusScope {
     const context = selection() || plain()
     if (selecting) stopSelecting()
     handedOff(context)
+  }
+
+  // A reply yanked whole is lit for a beat.
+  Timer {
+    id: replyFlash
+
+    interval: 250
+    onTriggered: view.yankBand = null
   }
 
   Timer {
@@ -455,6 +501,16 @@ FocusScope {
       color: view.answerColor
       font.family: view.fontFamily
       font.pixelSize: Style.font.body
+    }
+
+    Rectangle {
+      visible: view.yankBand !== null
+      x: 0
+      y: view.yankBand ? view.yankBand.y - Style.spacing.xs : 0
+      width: flick.width
+      height: view.yankBand ? view.yankBand.height + Style.spacing.xs * 2 : 0
+      color: Util.alpha(view.accent, 0.3)
+      radius: Style.cornerRadius
     }
 
     TextEdit {
