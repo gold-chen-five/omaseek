@@ -2,7 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   charClass, wordForward, wordBackward, wordEnd,
-  firstNonBlank, find, flipFind, clampToLine, repeat, BLANK, WORD, PUNCT
+  firstNonBlank, find, findInLine, findMatchPosition, matchingCharsInLine,
+  flipFind, clampToLine, repeat, BLANK, WORD, PUNCT
 } from '../src/lib/motions.mjs'
 
 test('charClass separates blanks, word characters and punctuation', () => {
@@ -57,6 +58,27 @@ test('f and t differ by one, F and T search backwards', () => {
   assert.equal(find(text, 0, 't', 'b'), 5)
   assert.equal(find(text, 16, 'F', 'b'), 6)
   assert.equal(find(text, 16, 'T', 'b'), 7)
+})
+
+test('a repeated f starts after its current match', () => {
+  const text = 'bananas'
+  const first = find(text, 0, 'f', 'a')
+  assert.equal(first, 1)
+  assert.equal(find(text, first, 'f', 'a'), 3, 'semicolon repeats at the next match')
+})
+
+test('clever-f can reverse through the same matches with F', () => {
+  const text = 'bananas'
+  assert.equal(findInLine(text, 1, 'f', 'a', 1, true), 3)
+  assert.equal(findInLine(text, 3, 'F', 'a', 1, true), 1)
+})
+
+test('find highlights name every match and the actual t/T target', () => {
+  assert.deepEqual(matchingCharsInLine('a banana\na pear', 3, 'a'), [0, 3, 5, 7])
+  assert.deepEqual(matchingCharsInLine('a banana\na pear', 10, 'a'), [9, 13])
+  assert.equal(findMatchPosition(2, 'f'), 2)
+  assert.equal(findMatchPosition(2, 't'), 3)
+  assert.equal(findMatchPosition(2, 'T'), 1)
 })
 
 test('a find that misses returns -1', () => {

@@ -9,6 +9,11 @@ export const IDLE = Object.freeze({ keys: '', count: 0, before: 0, operator: '',
 
 const FINDS = 'fFtT'
 
+function sameFindKind (a, b) {
+  return (a === 'f' || a === 'F') ? (b === 'f' || b === 'F')
+    : (a === 't' || a === 'T') && (b === 't' || b === 'T')
+}
+
 function amend (state, changes) {
   const out = {
     keys: state.keys, count: state.count, before: state.before,
@@ -39,7 +44,7 @@ function done (action) {
  * a sequence is half-typed or once it has been dropped. A command carries the
  * operator it was typed under; the view drops one that is not a motion.
  */
-export function feed (state, chord, keymap, visual) {
+export function feed (state, chord, keymap, visual, activeFind = null) {
   if (!chord) return { state, action: null }             // a bare modifier
 
   if (state.find !== '') {
@@ -50,13 +55,16 @@ export function feed (state, chord, keymap, visual) {
     if (chord.length !== 1) return done(null)
     return done({ type: 'object', scope: state.scope, object: chord, operator: state.operator })
   }
-  if (chord === 'Escape' && busy(state)) return done(null)
+  if (chord === 'Escape' && (busy(state) || activeFind)) return done(null)
 
   if (state.keys === '') {
     if ((chord >= '1' && chord <= '9' && chord.length === 1) || (chord === '0' && state.count > 0)) {
       return { state: amend(state, { count: state.count * 10 + Number(chord) }), action: null }
     }
     if (chord.length === 1 && FINDS.indexOf(chord) !== -1) {
+      if (activeFind && state.operator === '' && sameFindKind(activeFind.command, chord)) {
+        return done({ type: 'repeatFind', command: chord, count: total(state), operator: state.operator })
+      }
       return { state: amend(state, { find: chord }), action: null }
     }
     if (chord === ';' || chord === ',') {

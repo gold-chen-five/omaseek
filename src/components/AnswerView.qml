@@ -63,6 +63,10 @@ FocusScope {
   property var lastVisual: null                // for gv: { anchor, cursor, linewise }
   property var grammar: Grammar.IDLE           // a half-typed sequence: 3, y, yi, f, g
   property var lastFind: null                  // { command, char }, for ; and ,
+  property bool repeatFindReady: false         // clever-f: fa, then f/F walk the same target
+  property int currentFindHit: -1              // actual match; t/T leave the cursor beside it
+  readonly property var findMatches: repeatFindReady && lastFind
+    ? Motions.matchingCharsInLine(plain(), currentFindHit, lastFind.char) : []
   property bool flashing: false                // a yanked range is lit, not selected
   property string newSessionChord: "C-c"          // from settings, already parsed
   property string cursorLink: ""               // the openable link under the cursor, or ""
@@ -105,7 +109,9 @@ FocusScope {
   signal handedOff(string context)             // Enter: give this to the agent
   signal linkOpened(string url)                // gx on a link
   signal escaped()                             // esc: back to the field, normal mode
-  signal insertRequested()                     // i or /: back to the field, typing
+  signal normalRequested()                     // /: back to the field, normal mode
+  signal insertRequested()                     // i: back to the field, insert before the cursor
+  signal appendRequested()                     // a: back to the field, insert after the cursor
   signal settingsRequested()
   signal tabbed()
   signal newSessionRequested()                 // the new-session chord, or the button
@@ -113,6 +119,8 @@ FocusScope {
 
   onActiveFocusChanged: {
     grammar = Grammar.IDLE
+    repeatFindReady = false
+    currentFindHit = -1
     if (activeFocus) cursorLink = linkUnder(cursor)   // the layout may not have existed when the answer landed
   }
   onTurnsChanged: Qt.callLater(refresh)
@@ -122,6 +130,8 @@ FocusScope {
   function refresh () {
     anchor = -1
     preferredX = -1
+    repeatFindReady = false
+    currentFindHit = -1
     answer.text = render()
     Qt.callLater(settle)                       // the layout settles after the text lands
   }
@@ -324,6 +334,14 @@ FocusScope {
       pos: Motions.findInLine(plain(), cursor, command, char, count, again),
       inclusive: command === "f" || command === "t"
     }
+  }
+
+  function characterRect (pos) {
+    const start = answer.positionToRectangle(pos)
+    const next = answer.positionToRectangle(Math.min(answer.length, pos + 1))
+    const width = Math.abs(next.y - start.y) < 1 && next.x > start.x
+      ? next.x - start.x : labelMetrics.averageCharacterWidth
+    return Qt.rect(start.x, start.y, Math.max(1, width), start.height)
   }
 
   function go (target, operator) {
@@ -557,14 +575,20 @@ FocusScope {
       event.accepted = true
       return
     }
-    const step = Grammar.feed(grammar, chord, readerKeys, selecting)
+    const step = Grammar.feed(grammar, chord, readerKeys, selecting, repeatFindReady ? lastFind : null)
     grammar = step.state
+    if (!step.action && chord !== "") {
+      const onlyCount = grammar.count > 0 && grammar.keys === "" && grammar.before === 0 &&
+        grammar.operator === "" && grammar.find === "" && grammar.scope === ""
+      if (!onlyCount) repeatFindReady = false
+    }
     perform(step.action)
     event.accepted = true
   }
 
   function perform (action) {
     if (!action) return
+    if (action.type !== "find" && action.type !== "repeatFind") repeatFindReady = false
     switch (action.type) {
     case "command": {
       const target = motionTarget(action.command, action.count)
@@ -573,13 +597,28 @@ FocusScope {
       break
     }
     case "find":
-      lastFind = { command: action.command, char: action.char }
-      go(findTarget(action.command, action.char, action.count, false), action.operator)
+      {
+        const target = findTarget(action.command, action.char, action.count, false)
+        if (target.pos >= 0) {
+          lastFind = { command: action.command, char: action.char }
+          repeatFindReady = true
+          currentFindHit = Motions.findMatchPosition(target.pos, action.command)
+        }
+        go(target, action.operator)
+      }
       break
     case "repeatFind":
       if (!lastFind) break
-      go(findTarget(action.reverse ? Motions.flipFind(lastFind.command) : lastFind.command,
-                    lastFind.char, action.count, true), action.operator)
+      {
+        const command = action.command || (action.reverse ? Motions.flipFind(lastFind.command) : lastFind.command)
+        const target = findTarget(command, lastFind.char, action.count, true)
+        if (target.pos >= 0) {
+          if (action.command) lastFind = { command: command, char: lastFind.char }
+          repeatFindReady = true
+          currentFindHit = Motions.findMatchPosition(target.pos, command)
+        }
+        go(target, action.operator)
+      }
       break
     case "object": takeObject(action.scope, action.object, action.operator); break
     case "line":   yankLines(action.count); break
@@ -594,7 +633,9 @@ FocusScope {
     case "handOffPage":  handOffAll(); break
     case "accept":       openLink(); break
     case "cancel":       if (selecting) stopSelecting(); else escaped(); break
+    case "fieldNormal":  if (selecting) stopSelecting(); normalRequested(); break
     case "insert":       insertRequested(); break
+    case "append":       appendRequested(); break
     case "selectChars": if (selecting && !linewise) stopSelecting(); else startSelecting(false); break
     case "selectLines": if (selecting && linewise) stopSelecting(); else startSelecting(true); break
     case "reselect":    reselect(); break
@@ -732,6 +773,24 @@ FocusScope {
       height: view.yankBand ? view.yankBand.height + Style.spacing.xs * 2 : 0
       color: Util.alpha(view.accent, 0.3)
       radius: Style.cornerRadius
+    }
+
+    Repeater {
+      model: view.findMatches
+
+      Rectangle {
+        required property int modelData
+        readonly property rect hitRect: view.characterRect(modelData)
+        readonly property bool current: modelData === view.currentFindHit
+
+        x: hitRect.x
+        y: hitRect.y
+        width: hitRect.width
+        height: hitRect.height
+        color: current ? view.accent : view.foreground
+        opacity: current ? 0.42 : 0.14
+        radius: 2
+      }
     }
 
     TextEdit {

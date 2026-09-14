@@ -150,6 +150,23 @@ export function findInLine (text, pos, command, target, count = 1, again = false
   return hit
 }
 
+/** The matched character for a find landing; t/T leave the cursor beside it. */
+export function findMatchPosition (landing, command) {
+  if (landing < 0) return -1
+  if (command === 't') return landing + 1
+  if (command === 'T') return landing - 1
+  return landing
+}
+
+/** Every occurrence of target on the logical line containing pos. */
+export function matchingCharsInLine (text, pos, target) {
+  if (typeof target !== 'string' || target.length !== 1) return []
+  const bounds = lineBounds(text, pos)
+  const matches = []
+  for (let i = bounds.start; i < bounds.end; i++) if (text[i] === target) matches.push(i)
+  return matches
+}
+
 /** Whole logical lines starting at the cursor, including their following break. */
 export function lineRange (text, pos, count = 1) {
   const start = lineBounds(text, pos).start

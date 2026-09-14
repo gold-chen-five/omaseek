@@ -37,14 +37,19 @@ TextArea {
   property string mode: "insert"            // insert | normal | visual
   property string register: ""              // vim's unnamed register
 
-  // Pending state for multi-key sequences: 2dw, d3w, f{char}, ...
+  // Pending state for multi-key sequences: 2dw, d3w, f{char}, r{char}, ...
   property int operatorCount: 1
   property string pendingOperator: ""
   property string pendingFind: ""           // f/F/t/T awaiting its target
+  property int pendingReplace: 0            // r awaiting its character; value is the count
   property string pendingTextObject: ""     // i/a awaiting its object, as in diw
   property int pendingCount: 0
   property string lastFindCommand: ""       // for ; and ,
   property string lastFindChar: ""
+  property bool repeatFindReady: false       // clever-f: fa, then f/F walk the same target
+  property int currentFindHit: -1            // actual match; t/T leave the cursor beside it
+  readonly property var findMatches: repeatFindReady
+    ? Motions.matchingCharsInLine(text, currentFindHit, lastFindChar) : []
   property bool visualLinewise: false
   property int visualCursor: 0
   property int visualAnchor: -1
@@ -85,12 +90,22 @@ TextArea {
     if (next === "normal") clampCursor()
   }
 
+  // Enter from a reading pane exactly as the matching normal-mode command
+  // would: i inserts at the cursor, while a advances one character first.
+  function enterInsert (motion) {
+    clearPending()
+    handleNormalKey(motion === "a" ? "a" : "i")
+  }
+
   function clearPending () {
     pendingOperator = ""
     operatorCount = 1
     pendingFind = ""
+    pendingReplace = 0
     pendingTextObject = ""
     pendingCount = 0
+    repeatFindReady = false
+    currentFindHit = -1
   }
 
   function takeCount (fallback) {
@@ -295,20 +310,58 @@ TextArea {
   function handlePendingFind (key) {
     const command = pendingFind
     pendingFind = ""
-    lastFindCommand = command
-    lastFindChar = key
-
-    let target = cursorPosition
     const count = takeCount(1)
-    for (let i = 0; i < count; i++) {
-      const next = Motions.find(text, target, command, key)
-      if (next < 0) {
-        target = -1
-        break
-      }
-      target = next
+    const target = Motions.findInLine(text, cursorPosition, command, key, count, false)
+    if (target >= 0) {
+      lastFindCommand = command
+      lastFindChar = key
+      repeatFindReady = true
+      currentFindHit = Motions.findMatchPosition(target, command)
     }
     applyMotion(target, pendingOperator !== "")
+  }
+
+  function sameFindKind (a, b) {
+    return (a === "f" || a === "F") ? (b === "f" || b === "F")
+      : (a === "t" || a === "T") && (b === "t" || b === "T")
+  }
+
+  function repeatLastFind (command, count, rememberDirection) {
+    if (!lastFindChar) return
+    const target = Motions.findInLine(text, cursorPosition, command, lastFindChar, count, true)
+    if (target >= 0) {
+      if (rememberDirection) lastFindCommand = command
+      repeatFindReady = true
+      currentFindHit = Motions.findMatchPosition(target, command)
+    } else {
+      return
+    }
+    applyMotion(target, pendingOperator !== "")
+  }
+
+  function characterRect (pos) {
+    const start = positionToRectangle(pos)
+    const next = positionToRectangle(Math.min(length, pos + 1))
+    const width = Math.abs(next.y - start.y) < 1 && next.x > start.x
+      ? next.x - start.x : metrics.averageCharacterWidth
+    return Qt.rect(start.x, start.y, Math.max(1, width), start.height)
+  }
+
+  // r{char}: replace count characters without entering insert mode, leaving
+  // the cursor on the last replacement. Like Vim, it fails at a line end.
+  function handleReplace (key) {
+    const count = pendingReplace
+    pendingReplace = 0
+    const from = cursorPosition
+    const end = Motions.lineBounds(text, from).end
+    if (count < 1 || from + count > end) return
+
+    let value = ""
+    for (let i = 0; i < count; i++) value += key
+    remove(from, from + count)
+    insert(from, value)
+    cursorPosition = from + count - 1
+    clampCursor()
   }
 
   // The key after i or a: diw, ci", da(. A missing pair drops the operator
@@ -341,6 +394,7 @@ TextArea {
     const count = takeCount(1)
     const pos = mode === "visual" && visualLinewise ? visualCursor : cursorPosition
     const step = (motion, big) => Motions.repeat(at => motion(text, at, big), count, pos)
+    if ("fFtT;,".indexOf(key) === -1) repeatFindReady = false
 
     switch (key) {
     // leaving the field — the result list is the next line down
@@ -402,13 +456,18 @@ TextArea {
     case "e": applyMotion(step(Motions.wordEnd, false), true); return
     case "E": applyMotion(step(Motions.wordEnd, true), true); return
     case "f": case "F": case "t": case "T":
+      if (repeatFindReady && sameFindKind(lastFindCommand, key)) {
+        repeatLastFind(key, count, true)
+        return
+      }
       pendingFind = key
       pendingCount = count > 1 ? count : 0
+      repeatFindReady = false
       return
     case ";": case ",": {
       if (!lastFindCommand) return
       const command = key === "," ? Motions.flipFind(lastFindCommand) : lastFindCommand
-      applyMotion(Motions.find(text, pos, command, lastFindChar), pendingOperator !== "")
+      repeatLastFind(command, count, false)
       return
     }
 
@@ -430,6 +489,9 @@ TextArea {
     case "Y": operateLines("y", count); return
 
     // single-key edits
+    case "r":
+      if (mode !== "visual") pendingReplace = count
+      return
     case "x":
       if (mode === "visual") operateOnVisual("d")
       else applyOperator("d", pos, Math.min(text.length, pos + count))
@@ -473,13 +535,32 @@ TextArea {
     onTriggered: field.escapePending = ""
   }
 
+  FontMetrics { id: metrics; font: field.font }
+
+  Repeater {
+    model: field.findMatches
+
+    Rectangle {
+      required property int modelData
+      readonly property rect hitRect: field.characterRect(modelData)
+      readonly property bool current: modelData === field.currentFindHit
+
+      x: hitRect.x
+      y: hitRect.y
+      width: hitRect.width
+      height: hitRect.height
+      color: current ? field.accent : field.foreground
+      opacity: current ? 0.42 : 0.14
+      radius: 2
+    }
+  }
+
   cursorDelegate: Rectangle {
     width: field.normalish ? Math.max(2, metrics.averageCharacterWidth) : Math.max(1, Style.space(1))
     color: field.normalish ? Color.menu.selectedText : field.foreground
     opacity: field.normalish ? 0.55 : 1.0
     radius: 1
 
-    FontMetrics { id: metrics; font: field.font }
   }
 
   Keys.priority: Keys.BeforeItem
@@ -523,7 +604,7 @@ TextArea {
 
     if (event.key === Qt.Key_Escape) {
       if (mode === "visual") setMode("normal")
-      else if (pendingOperator || pendingCount > 0 || pendingFind || pendingTextObject) clearPending()
+      else if (pendingOperator || pendingCount > 0 || pendingFind || repeatFindReady || pendingReplace > 0 || pendingTextObject) clearPending()
       else field.cancelled()
       event.accepted = true
       return
@@ -548,6 +629,11 @@ TextArea {
 
     if (pendingFind !== "") {
       handlePendingFind(key)
+      return
+    }
+
+    if (pendingReplace > 0) {
+      handleReplace(key)
       return
     }
 

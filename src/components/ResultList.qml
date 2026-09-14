@@ -22,7 +22,9 @@ ListView {
   signal pageHandedOff()
   signal activated(int index)
   signal escaped()                       // esc: back to the field, normal mode
-  signal insertRequested()               // i or /: back to the field, typing
+  signal normalRequested()               // /: back to the field, normal mode
+  signal insertRequested()               // i: back to the field, insert before the cursor
+  signal appendRequested()               // a: back to the field, insert after the cursor
   signal settingsRequested()
   signal tabbed()                        // the panel switches search <-> ai
   signal nextPageRequested()
@@ -76,7 +78,9 @@ ListView {
     case "handOff":      if (count > 0) handedOff(currentIndex); break
     case "handOffPage":  if (count > 0) pageHandedOff(); break
     case "cancel":       escaped(); break
+    case "fieldNormal":  normalRequested(); break
     case "insert":       insertRequested(); break
+    case "append":       appendRequested(); break
     case "halfPageDown": moveCursor(pageStep * times); break
     case "halfPageUp":   moveCursor(-pageStep * times); break
     case "down":         moveCursor(times); break

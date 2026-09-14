@@ -4,11 +4,11 @@ import { IDLE, feed, trimExclusive } from '../src/lib/grammar.mjs'
 import { ANSWER_KEYS } from '../src/lib/keys.mjs'
 
 // Types a run of chords and returns the last action and the state left behind.
-const type = (chords, visual = false) => {
+const type = (chords, visual = false, activeFind = null) => {
   let state = IDLE
   let action = null
   for (const chord of chords) {
-    const step = feed(state, chord, ANSWER_KEYS, visual)
+    const step = feed(state, chord, ANSWER_KEYS, visual, activeFind)
     state = step.state
     action = step.action
   }
@@ -41,9 +41,11 @@ test('yiw and ya( name a text object', () => {
   assert.deepEqual(type(['y', 'a', '(']).action, { type: 'object', scope: 'a', object: '(', operator: 'y' })
 })
 
-test('in visual mode i starts an object; outside it, i leaves for the field', () => {
+test('in visual mode i and a start objects; outside it, they enter the field', () => {
   assert.deepEqual(type(['i', 'w'], true).action, { type: 'object', scope: 'i', object: 'w', operator: '' })
+  assert.deepEqual(type(['a', '('], true).action, { type: 'object', scope: 'a', object: '(', operator: '' })
   assert.equal(type(['i']).action.command, 'insert')
+  assert.equal(type(['a']).action.command, 'append')
 })
 
 test('y in visual mode yanks the selection at once', () => {
@@ -62,6 +64,16 @@ test('; repeats the last find and , reverses it', () => {
   assert.equal(type([',']).action.reverse, true)
 })
 
+test('f and F repeat an active character find without another target', () => {
+  const active = { command: 'f', char: 'a' }
+  assert.deepEqual(type(['f'], false, active).action,
+    { type: 'repeatFind', command: 'f', count: 1, operator: '' })
+  assert.deepEqual(type(['3', 'F'], false, active).action,
+    { type: 'repeatFind', command: 'F', count: 3, operator: '' })
+  assert.equal(type(['t'], false, active).action, null, 'a different find kind still waits for its target')
+  assert.equal(type(['y', 'f'], false, active).action, null, 'an operator starts a fresh find')
+})
+
 test('g sequences still work, under an operator too', () => {
   assert.equal(type(['g', 'g']).action.command, 'top')
   assert.equal(type(['y', 'g', 'g']).action.operator, 'y')
@@ -75,6 +87,8 @@ test('esc drops a half-typed sequence, and only then means cancel', () => {
     assert.deepEqual(state, IDLE, run.join(' '))
   }
   assert.equal(type(['Escape']).action.command, 'cancel')
+  assert.equal(type(['Escape'], false, { command: 'f', char: 'a' }).action, null,
+    'the first esc ends an active clever-f without leaving normal mode')
 })
 
 test('a bare modifier keeps what is pending', () => {

@@ -49,7 +49,7 @@ Item {
     view = States.VIEW.SEARCH                  // never reopen into settings or setup
     if (ai.agents === null) ai.probeAgents()   // once: which agents this machine has
     // Normal when there is something below to step into, insert otherwise.
-    focusSearch(!hasBody())
+    focusSearch(hasBody() ? "normal" : "insert")
   }
 
   function close () {
@@ -62,13 +62,13 @@ Item {
     if (panelMode !== States.PANEL.AI) return
     ai.reset()
     input.clear()
-    focusSearch(true)
+    focusSearch("insert")
   }
 
   function toggleMode () {
     panelMode = panelMode === States.PANEL.SEARCH ? States.PANEL.AI : States.PANEL.SEARCH
     view = States.VIEW.SEARCH
-    focusSearch(true)
+    focusSearch("insert")
   }
 
   function dismiss () {
@@ -94,7 +94,7 @@ Item {
 
   function closeSettings () {
     view = States.VIEW.SEARCH
-    focusSearch(false)
+    focusSearch("normal")
   }
 
   // The instance is down: ask to start it rather than show an error.
@@ -108,7 +108,7 @@ Item {
   function closeSetup () {
     view = States.VIEW.SEARCH
     setupReason = ""
-    focusSearch(true)
+    focusSearch("insert")
   }
 
   function runSettingAction (key, action) {
@@ -125,11 +125,11 @@ Item {
     if (panelMode === States.PANEL.AI) {
       ai.ask(query.split(input.lineBreak).join("\n"))
       input.clear()                            // the question now lives in the transcript
-      focusSearch(false)
+      focusSearch("normal")
       return
     }
     session.search(query.split(input.lineBreak).join(" "))
-    focusSearch(false)                         // normal: j steps into the results
+    focusSearch("normal")                      // normal: j steps into the results
   }
 
   function hasBody () {
@@ -137,6 +137,9 @@ Item {
   }
 
   function focusResults () {
+    // A reading pane is normal mode. Converting here gives a later i/a the
+    // same character-under-cursor starting point as Vim.
+    input.setMode("normal")
     focusArea = States.FOCUS.RESULTS
     const target = panelMode === States.PANEL.AI ? answerView : resultsList
     Qt.callLater(() => target.forceActiveFocus())
@@ -144,9 +147,10 @@ Item {
 
   // Through setMode, so leaving insert steps the cursor left and clears any
   // half-typed operator.
-  function focusSearch (insertMode) {
+  function focusSearch (mode) {
     focusArea = States.FOCUS.FIELD
-    input.setMode(insertMode ? "insert" : "normal")
+    if (mode === "i" || mode === "a") input.enterInsert(mode)
+    else input.setMode(mode)
     Qt.callLater(() => input.forceActiveFocus())
   }
 
@@ -444,13 +448,15 @@ Item {
 
           onHandedOff: context => ai.launch(context)
           onLinkOpened: url => root.openUrl(url)
-          onEscaped: root.focusSearch(false)
-          onInsertRequested: root.focusSearch(true)
+          onEscaped: root.focusSearch("normal")
+          onNormalRequested: root.focusSearch("normal")
+          onInsertRequested: root.focusSearch("i")
+          onAppendRequested: root.focusSearch("a")
           onSettingsRequested: root.openSettings()
           onTabbed: root.toggleMode()
           onNewSessionRequested: root.newChat()
           onPutRequested: (text, after) => {
-            root.focusSearch(false)
+            root.focusSearch("normal")
             input.put(after, text)
           }
           newSessionChord: root.newSessionChord
@@ -472,8 +478,10 @@ Item {
           onHandedOff: index => ai.launch(session.handoffText(index))
           onPageHandedOff: ai.launch(session.handoffText(-1))
           onActivated: index => root.openResult(index)
-          onEscaped: root.focusSearch(false)
-          onInsertRequested: root.focusSearch(true)
+          onEscaped: root.focusSearch("normal")
+          onNormalRequested: root.focusSearch("normal")
+          onInsertRequested: root.focusSearch("i")
+          onAppendRequested: root.focusSearch("a")
           onSettingsRequested: root.openSettings()
           onNextPageRequested: session.nextPage()
           onPreviousPageRequested: session.previousPage()

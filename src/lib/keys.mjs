@@ -29,7 +29,8 @@ const NAV = {
   'k': 'up', 'Up': 'up',
   'g g': 'top',
   'G': 'bottom',
-  '/': 'insert'
+  '/': 'fieldNormal',
+  'a': 'append'
 }
 
 const FIXED = {
@@ -67,7 +68,8 @@ const LABELS = {
   settings: 'settings', toggleMode: 'switch search / ask', cancel: 'esc',
   halfPageDown: 'half a screen down', halfPageUp: 'half a screen up',
   down: 'move down', up: 'move up', right: 'move right', left: 'move left',
-  top: 'go to the top', bottom: 'go to the bottom', insert: 'back to the field',
+  top: 'go to the top', bottom: 'go to the bottom',
+  fieldNormal: 'back to the field in normal mode', insert: 'insert before the cursor', append: 'insert after the cursor',
   nextPage: 'next page', previousPage: 'previous page',
   wordForward: 'a word motion', wordForwardBig: 'a word motion', wordBackward: 'a word motion',
   wordBackwardBig: 'a word motion', wordEnd: 'a word motion', wordEndBig: 'a word motion',
@@ -88,7 +90,8 @@ export function readerKeys (pane, binds) {
     const sequence = parseBinding(action, raw) || parseBinding(action, action.default)
     keys[sequence] = action.command
   }
-  return keys
+  // Fixed Vim keys stay fixed even if a hand-edited or older config collides.
+  return merge(keys, FIXED[pane] || {})
 }
 
 // The tables with every key at its default.

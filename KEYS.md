@@ -21,7 +21,7 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 | Open link | `open_link_key` | `gx` | answer: the URL under the cursor or in the selection |
 | Next page | `next_page_key` | `l` | results (`right` always works too) |
 | Previous page | `previous_page_key` | `h` | results (`left` always works too) |
-| Back to the field | `insert_key` | `i` | results and answer: the field, typing (`/` always works too) |
+| Back to the field | `insert_key` | `i` | results and answer: the field, inserting at the cursor (`/` returns in normal mode; `a` appends) |
 
 A hand-off opens the agent (Settings → Ask → Hand off to) with the text
 pasted into its input and not sent: edit it, then submit it yourself.
@@ -43,7 +43,7 @@ empty value restores the default.
 | `super+d` | summon or dismiss (Hyprland, not the panel — `omarchy-shell shell toggle omaseek`) |
 | `ctrl+s` (Settings), `ctrl+,` | open or close settings |
 | `tab` (Switch search / ask), `shift+tab` | switch between searching and asking |
-| `esc` | leave: normal mode from insert, the field from a list, the panel from the field |
+| `esc` | leave one step: cancel a pending/active find, normal mode from insert, the field from a list, the panel from the field |
 
 ## The field
 
@@ -58,8 +58,10 @@ Insert mode:
 | `down` `up` | a line down or up within a question of several lines; down from the last, into the results or the transcript |
 | `enter` (Search / ask) | search, or ask; the field drops to normal, so `j` steps into what came back |
 
-Normal mode uses vim editing: `h l w W b B e 0 ^ $`, `f F t T{char}`,
-`i a I A`, `x`, `d c y` with a motion or doubled (`dd cc yy`), `v`,
+Normal mode uses vim editing: `h l w W b B e 0 ^ $`, `f F t T{char}`;
+after a find, `f`/`F` keep walking that character forward/backward, and `;`/`,`
+also repeat/reverse. All matches on the line are highlighted; the current one
+uses the accent colour. `i a I A`, `r{char}`, `x`, `d c y` with a motion or doubled (`dd cc yy`), `v`,
 counts (`3w`, `2dw`), and text objects (`diw`, `ci"`, `da(`). `p` `P` put
 the system clipboard after or before the cursor — every yank in the panel,
 field or answer, lands there — and in visual mode replace the selection.
@@ -89,7 +91,9 @@ relative to the current row: `2j` moves down two results, `2k` moves up two.
 | `enter` (Open) | open in the browser and dismiss |
 | `ga` (Hand off to agent) | the selected result, as an editable draft in the agent |
 | `gA` (Hand off everything) | every result on the current page, as an editable draft |
-| `i` (Back to the field), `/` | back to the field, typing |
+| `/` | back to the field, normal mode |
+| `i` (Back to the field) | back to the field, insert before the cursor, as in vim |
+| `a` | back to the field, insert after the cursor, as in vim |
 | `esc` | back to the field, normal mode |
 
 ## The answer
@@ -103,7 +107,7 @@ follow the layout when the panel width changes and are excluded from copied text
 | `j` `k` `h` `l`, arrows | move the cursor by line and character |
 | `w` `W` `b` `B` `e` `E` | by word |
 | `0` `^` `home`, `$` `end` | line ends |
-| `f` `F` `t` `T` {char}, `;` `,` | find on the line, and repeat it |
+| `f` `F` `t` `T` {char}, `;` `,` | find on the line; matches are highlighted with the current one accented, and `f`/`F` keep walking forward/backward |
 | `gg` `G` | transcript ends |
 | `ctrl+d` `ctrl+u` | half a screen |
 | a count | repeats a motion: `3w`, `2j`, `2fx` |
@@ -121,8 +125,10 @@ follow the layout when the panel width changes and are excluded from copied text
 | `ga` (Hand off to agent) | the selection; else the reply under the cursor and the question it answers, as the agent wrote them — an editable draft |
 | `gA` (Hand off everything) | the whole conversation, failures left out, as an editable draft |
 | `ctrl+c` (New session) | start a new conversation |
-| `i` (Back to the field), `/` | back to the field, typing |
-| `esc` | drop the selection, else back to the field |
+| `/` | back to the field, normal mode |
+| `i` (Back to the field) | back to the field, insert before the cursor, as in vim |
+| `a` | back to the field, insert after the cursor, as in vim |
+| `esc` | drop the selection or active find, else back to the field |
 
 ## Settings
 
@@ -135,6 +141,7 @@ follow the layout when the panel width changes and are excluded from copied text
 | `enter` while editing | commit — a refused key says why under its label until the cursor moves |
 | `esc` while editing | cancel |
 | `j` `k`, `enter`, `esc` in an open dropdown | walk it, pick, close |
+| `/` | back to the field, normal mode |
 | `esc`, `ctrl+s` (Settings), `ctrl+,` | back to the panel |
 
 The settings page scrolls within the panel; keyboard navigation keeps the

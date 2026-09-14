@@ -250,4 +250,5 @@ test('the fixed keys close the page as read-only rows, so it lists everything pr
     assert.equal(row.key, undefined, 'nothing to write')
     assert.ok(row.hint)
   }
+  assert.match(FIXED_KEYS.find(entry => entry.label === 'Settings').keys, /\/ field normal/)
 })

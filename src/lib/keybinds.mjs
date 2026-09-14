@@ -46,7 +46,7 @@ export const ACTIONS = [
   { id: 'previousPage', config: 'previous_page_key', default: 'h', scope: 'reader', panes: ['results'], command: 'previousPage',
     label: 'Previous page', hint: 'results: the page before, from the cache (← too)' },
   { id: 'insert', config: 'insert_key', default: 'i', scope: 'reader', command: 'insert',
-    label: 'Back to the field', hint: 'results and answer: return to the field, typing (/ too)' }
+    label: 'Back to the field', hint: 'results and answer: return to the field with vim’s i (/ returns in normal mode; a appends)' }
 ]
 
 export const PANES = ['results', 'answer']

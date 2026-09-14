@@ -32,7 +32,7 @@ FocusScope {
 
   signal changed(string key, var value)
   signal activated(string key, string action) // a toggle row was flipped
-  signal closed()                            // esc, or the chord that opened the page
+  signal closed()                            // /, esc, or the chord that opened the page
   signal editingFinished()                   // hand the keyboard back to Search.qml
 
   implicitHeight: layout.implicitHeight
@@ -134,8 +134,8 @@ FocusScope {
     if (editingIndex !== -1 || dropdownIndex !== -1) return
 
     const chord = Chord.of(event)
-    if (event.key === Qt.Key_Escape || (chord !== "" && (chord === page.settingsChord || chord === "C-,"))) {
-      closed()                               // the same chord that opened it, so it toggles
+    if (event.key === Qt.Key_Escape || event.text === "/" || (chord !== "" && (chord === page.settingsChord || chord === "C-,"))) {
+      closed()
     } else if (event.key === Qt.Key_Down || event.text === "j") {
       moveCursor(1)
     } else if (event.key === Qt.Key_Up || event.text === "k") {

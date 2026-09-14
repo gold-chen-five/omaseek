@@ -10,6 +10,14 @@ test('a bound chord is its command', () => {
   assert.deepEqual(resolve(LIST_KEYS, '', 'C-d'), { command: 'halfPageDown', pending: '' })
 })
 
+test('reader panes return to the field with vim entry semantics', () => {
+  for (const keys of [LIST_KEYS, ANSWER_KEYS]) {
+    assert.equal(resolve(keys, '', '/').command, 'fieldNormal')
+    assert.equal(resolve(keys, '', 'i').command, 'insert')
+    assert.equal(resolve(keys, '', 'a').command, 'append')
+  }
+})
+
 test('g waits for the second half, and gg is the top', () => {
   const first = resolve(LIST_KEYS, '', 'g')
   assert.deepEqual(first, { command: '', pending: 'g' })
@@ -131,6 +139,11 @@ test('an unreadable binding falls back to the default rather than vanishing', ()
   assert.equal(resolve(keys, 'g', 'a').command, 'handOff')
 })
 
+test('fixed reader keys survive a colliding persisted binding', () => {
+  const keys = readerKeys('results', { ...DEFAULTS, nextPageKey: 'a' })
+  assert.equal(resolve(keys, '', 'a').command, 'append')
+})
+
 test('no two default keys collide', () => {
   for (const action of ACTIONS) {
     assert.equal(bindingProblem(action.id, action.default, DEFAULTS), '', action.id)
@@ -145,6 +158,7 @@ test('a key already taken is refused with what takes it', () => {
   assert.match(bindingProblem('handoff', '3', DEFAULTS), /count/)
   assert.match(bindingProblem('nextPage', 'j', DEFAULTS), /move down/)
   assert.match(bindingProblem('openLink', 'l', DEFAULTS), /move right/)
+  assert.match(bindingProblem('nextPage', 'a', DEFAULTS), /insert after/)
   assert.match(bindingProblem('settings', 'ctrl+w', DEFAULTS), /delete a word/)
   assert.match(bindingProblem('settings', 'ctrl+d', DEFAULTS), /half a screen/)
   assert.match(bindingProblem('newSession', 'ctrl+s', DEFAULTS), /Settings/)
