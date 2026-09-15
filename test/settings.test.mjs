@@ -228,6 +228,12 @@ test('keys from a config written before they were rebindable still read', () => 
   assert.equal(readSettings('{"search_key":"q"}').searchKey, 'enter', 'a letter the field would type falls back')
 })
 
+test('old field-return defaults migrate to gi', () => {
+  assert.equal(readSettings('{"insert_key":"i"}').insertKey, 'gi')
+  assert.equal(readSettings('{"insert_key":"/"}').insertKey, 'gi')
+  assert.equal(readSettings('{"insert_key":"ctrl+o"}').insertKey, 'ctrl+o')
+})
+
 test('the page refuses a key another action has, and says which', () => {
   const rows = settingsRows(readSettings(''))
   const row = rows.find(row => row.key === 'handoffKey')

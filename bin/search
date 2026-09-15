@@ -42,7 +42,12 @@ ICON_ENDPOINT = "https://external-content.duckduckgo.com/ip3/"
 
 # SearXNG pages vary in size, so rows are buffered per query and sliced evenly.
 PAGE_SIZE = 10          # overridden by results_per_page in the config
-ENGINES = []            # overridden by searxng_engines in the config
+ENGINES = []            # set from searxng_engines / DEFAULT_ENGINES at startup
+# Measured against a local instance: the engines that actually answer, fast.
+# brave and google page; bing fills page one only, so brave carries h/l.
+# SearXNG silently ignores a name its instance does not have, so naming
+# these is safe even where one is missing.
+DEFAULT_ENGINES = ("brave", "bing", "google")
 PAGE_SIZE_CHOICES = (5, 10, 15, 20)
 # Never burst: a single page turn may top the buffer up at most this many times.
 MAX_FETCHES_PER_PAGE = 3
@@ -92,11 +97,16 @@ def configured_url(config):
 
 def configured_engines(config):
     """Engines to ask, by SearXNG name (hand-edited). SearXNG waits for every
-    engine in the category, so naming the fast ones is the main speed lever.
-    Empty or malformed means SearXNG's own choice."""
+    engine in the category, so naming the fast ones is the main speed lever —
+    asking every enabled engine measured ~3x slower and drags in the ones
+    answering with a CAPTCHA.
+
+    An absent or malformed key means DEFAULT_ENGINES, so a fresh install gets
+    the fast path without a config file. An explicit [] is the escape hatch:
+    it names nothing and leaves the choice to SearXNG."""
     engines = config.get("searxng_engines")
     if not isinstance(engines, list):
-        return []
+        return list(DEFAULT_ENGINES)
     return [e.strip() for e in engines if isinstance(e, str) and e.strip()]
 
 

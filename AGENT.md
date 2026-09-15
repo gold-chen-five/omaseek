@@ -97,6 +97,16 @@ waits for every engine in the category, so `searxng_engines` in config.json
 that answer took a query from ~1.1 s to ~0.3 s locally. `outgoing.request_timeout`
 in its `settings.yml` is the backstop.
 
+`DEFAULT_ENGINES` in `bin/search` is what an install ships, because the
+installer never writes a config and an unnamed list means *every* enabled
+engine — the slow path. Measured locally: **brave** (20 rows, pages),
+**bing** (10 rows, fastest, but `paging: false`, so brave carries `h`/`l`) and
+**google** (10 rows, pages). Most of the rest answer with a CAPTCHA, a parsing
+error, or nothing at all, and `wikipedia`/`wikidata` return *no rows by
+construction* — they answer in `infoboxes`, which `parse()` does not read.
+SearXNG ignores an engine name its instance lacks, so the list is safe to ship;
+an explicit `[]` is the escape hatch that hands the choice back to SearXNG.
+
 Pages are sliced from a session buffer under `~/.cache/omaseek/` rather
 than served straight from SearXNG, because a SearXNG page is however many
 engines answered in time. Rows are de-duplicated on URL *and* domain+title, in
@@ -152,8 +162,8 @@ question also opens as a draft; the user submits it themselves.
 
 `Search.qml` is wiring: it decides which view shows (`view`: `search` |
 `settings` | `setup`) and which of the field and the list has the keyboard
-(`focusArea`, a two-state machine — Enter searches and stays in the field;
-`j`/Down step into the results). Everything else
+(`focusArea`, a two-state machine — Enter searches and focuses the first
+result when it arrives; `j`/Down also step into existing results). Everything else
 is held by non-visual `Item`s in `src/components`, the way first-party
 plugins keep state in a `Service.qml`:
 

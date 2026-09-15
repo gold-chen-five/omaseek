@@ -129,7 +129,7 @@ Item {
       return
     }
     session.search(query.split(input.lineBreak).join(" "))
-    focusSearch("normal")                      // normal: j steps into the results
+    focusSearch("normal")                      // keep the query readable while results load
   }
 
   function hasBody () {
@@ -179,7 +179,11 @@ Item {
     id: session
     backendPath: engine.backendPath
 
-    onPageShown: resultsList.moveCursorTo(0)
+    onPageShown: {
+      resultsList.moveCursorTo(0)
+      if (root.view === States.VIEW.SEARCH && root.panelMode === States.PANEL.SEARCH)
+        root.focusResults()
+    }
     onEngineDown: reason => root.askToStartEngine(reason)
     onEngineUp: engine.state = "running"
   }

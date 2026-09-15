@@ -30,6 +30,7 @@ const NAV = {
   'g g': 'top',
   'G': 'bottom',
   '/': 'fieldNormal',
+  'i': 'insert',
   'a': 'append'
 }
 

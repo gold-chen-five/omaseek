@@ -8,8 +8,8 @@ A web search and AI panel for [Omarchy](https://omarchy.org) 4, driven with vim 
 |---|---|
 | `super+d` | summon or dismiss |
 | `tab` | search ⇄ ask |
-| `enter` | search, or ask |
-| `j` `k` | into and through the results |
+| `enter` | search and focus the first result, or ask |
+| `j` `k` | through the results |
 | `enter` on a result | open it in the browser |
 | `h` `l` | previous and next page |
 | `v` `V` then `y` | select in an answer, and yank |
@@ -37,16 +37,17 @@ shape [its plugin docs](https://plugins.omarchy.org/develop.html) describe.
 Omarchy then enables a plugin by recording its id and nothing else: it never
 runs a script from a plugin and never edits your Hyprland or menu config, so
 the keybind cannot come with the download. `./bin/install` is the opt-in way
-to add it — it enables the plugin, binds `SUPER + D`, and adds a row to the
-Omarchy menu. It is safe to re-run, backs up what it touches, and leaves
-`SUPER + D` alone if you have already bound it to something else. `--no-bind`
-and `--no-menu` skip either half.
+to add it — it enables the plugin, binds `SUPER + D`, and adds a small search
+icon to the middle of the bar. It is safe to re-run and leaves
+`SUPER + D` alone if you have already bound it to something else. On an
+upgrade, it removes only the menu row written by the previous installer.
+`--no-bind` skips the keybind.
 
 By hand instead:
 
 ```bash
 omarchy-shell shell rescanPlugins
-omarchy plugin enable omaseek
+omarchy bar put omaseek --section center --index 0
 ```
 
 then in `~/.config/hypr/bindings.lua`, followed by `hyprctl reload`:

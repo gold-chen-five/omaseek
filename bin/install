@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-# Enable omaseek and give it a way in: SUPER + D and an Omarchy menu row.
+# Enable omaseek and give it a way in: SUPER + D and a bar icon.
 # Omarchy never runs plugin scripts or edits your config, so this is the
 # opt-in step. Safe to re-run; never overwrites a binding you already have.
 #
-#   ./bin/install              link and enable, bind SUPER + D, add a menu entry
+#   ./bin/install              link and enable, bind SUPER + D, add a bar icon
 #   ./bin/install --no-bind    skip the keybind
-#   ./bin/install --no-menu    skip the menu entry
 
 set -euo pipefail
 
@@ -13,24 +12,37 @@ REPO=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 PLUGIN_ID=omaseek
 PLUGINS_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins"
 BINDINGS="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/bindings.lua"
+SHELL_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/shell.json"
 MENU_EXT="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/extensions/omarchy-menu.jsonc"
 
 BIND_KEY="SUPER + D"
 BIND_LINE="o.bind(\"$BIND_KEY\", \"Search\", \"omarchy-shell shell toggle $PLUGIN_ID\")"
-MENU_LINE="  \"$PLUGIN_ID\": {\"icon\":\"\",\"label\":\"Search\",\"action\":\"omarchy-shell shell toggle $PLUGIN_ID\",\"description\":\"Web search and AI, with vim keys\"},"
+LEGACY_MENU_LINE="  \"$PLUGIN_ID\": {\"icon\":\"\",\"label\":\"Search\",\"action\":\"omarchy-shell shell toggle $PLUGIN_ID\",\"description\":\"Web search and AI, with vim keys\"},"
 
 do_bind=1
-do_menu=1
 for arg in "$@"; do
   case "$arg" in
     --no-bind) do_bind=0 ;;
-    --no-menu) do_menu=0 ;;
     -h|--help) awk 'NR > 1 { if ($0 !~ /^#/) exit; sub(/^# ?/, ""); print }' "$0"; exit 0 ;;
     *) echo "unknown option: $arg" >&2; exit 1 ;;
   esac
 done
 
 say () { printf '  %s\n' "$1"; }
+
+on_bar () {
+  [[ -f $SHELL_CONFIG ]] && jq -e --arg id "$PLUGIN_ID" '
+    [.bar.layout.left[]?, .bar.layout.center[]?, .bar.layout.right[]?]
+    | any(if type == "object" then .id == $id else . == $id end)
+  ' "$SHELL_CONFIG" >/dev/null 2>&1
+}
+
+in_plugin_list () {
+  [[ -f $SHELL_CONFIG ]] && jq -e --arg id "$PLUGIN_ID" '
+    [.plugins[]?]
+    | any(if type == "object" then .id == $id else . == $id end)
+  ' "$SHELL_CONFIG" >/dev/null 2>&1
+}
 
 echo "omaseek"
 
@@ -52,8 +64,19 @@ else
 fi
 
 omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
-omarchy plugin enable "$PLUGIN_ID" >/dev/null 2>&1 || true
-say "enabled"
+
+# bar put waits for an in-progress plugin scan. Older installs recorded this
+# overlay in plugins[]; remove that entry before retrying so it can move to the bar.
+omarchy bar put "$PLUGIN_ID" --section center --index 0 >/dev/null
+if ! on_bar && in_plugin_list; then
+  omarchy plugin disable "$PLUGIN_ID" >/dev/null
+  omarchy bar put "$PLUGIN_ID" --section center --index 0 >/dev/null
+fi
+if ! on_bar; then
+  echo "  could not add $PLUGIN_ID to the bar; make sure omarchy-shell is running" >&2
+  exit 1
+fi
+say "enabled and added the search icon to the middle of the bar"
 
 # ---- the keybind ------------------------------------------------------------
 #
@@ -76,25 +99,17 @@ if (( do_bind )); then
   fi
 fi
 
-# ---- the menu entry ---------------------------------------------------------
-#
-# JSONC, and the menu strips trailing commas: insert after the opening brace.
+# ---- old menu entry ---------------------------------------------------------
 
-if (( do_menu )); then
-  mkdir -p "$(dirname "$MENU_EXT")"
-  [[ -f $MENU_EXT ]] || printf '{\n}\n' >"$MENU_EXT"
-  if grep -qF "\"$PLUGIN_ID\":" "$MENU_EXT"; then
-    say "menu entry already there"
-  else
-    cp "$MENU_EXT" "$MENU_EXT.omaseek-backup"
-    awk -v line="$MENU_LINE" '
-      !done && /^[[:space:]]*\{/ { print; print line; done = 1; next }
-      { print }
-    ' "$MENU_EXT.omaseek-backup" >"$MENU_EXT"
-    say "added to the Omarchy menu (backup: $MENU_EXT.omaseek-backup)"
-  fi
+# Remove only the exact row written by the old installer, not a user-authored
+# entry that happens to use the same id.
+if [[ -f $MENU_EXT ]] && grep -qxF "$LEGACY_MENU_LINE" "$MENU_EXT"; then
+  menu_backup="$MENU_EXT.omaseek-menu-backup"
+  cp "$MENU_EXT" "$menu_backup"
+  awk -v line="$LEGACY_MENU_LINE" '$0 != line' "$menu_backup" >"$MENU_EXT"
+  say "removed the old Omarchy menu entry (backup: $menu_backup)"
 fi
 
 echo
-say "open it with $BIND_KEY, or from the Omarchy menu"
+say "open it with $BIND_KEY, or the search icon on the bar"
 say "searching needs a SearXNG instance: ./bin/searxng-up"

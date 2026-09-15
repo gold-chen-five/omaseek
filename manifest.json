@@ -6,10 +6,19 @@
   "author": "gold_chen_five",
   "description": "Web search and AI, with vim keybindings, through your own SearXNG",
   "kinds": [
-    "overlay"
+    "overlay",
+    "bar-widget"
   ],
   "keepLoaded": true,
   "entryPoints": {
-    "overlay": "src/Search.qml"
+    "overlay": "src/Search.qml",
+    "barWidget": "src/BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Omaseek",
+    "description": "Open web search and AI",
+    "category": "Utilities",
+    "allowMultiple": false,
+    "defaultSection": "center"
   }
 }

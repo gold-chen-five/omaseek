@@ -21,7 +21,7 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 | Open link | `open_link_key` | `gx` | answer: the URL under the cursor or in the selection |
 | Next page | `next_page_key` | `l` | results (`right` always works too) |
 | Previous page | `previous_page_key` | `h` | results (`left` always works too) |
-| Back to the field | `insert_key` | `i` | results and answer: the field, inserting at the cursor (`/` returns in normal mode; `a` appends) |
+| Back to the field | `insert_key` | `gi` | results and answer: return to the field in normal mode (`/` always works) |
 
 A hand-off opens the agent (Settings → Ask → Hand off to) with the text
 pasted into its input and not sent: edit it, then submit it yourself.
@@ -56,7 +56,7 @@ Insert mode:
 | `ctrl+u` | delete to the start of the line |
 | `ctrl+j` | a line break in a question — AI mode; the bar grows a row, up to six |
 | `down` `up` | a line down or up within a question of several lines; down from the last, into the results or the transcript |
-| `enter` (Search / ask) | search, or ask; the field drops to normal, so `j` steps into what came back |
+| `enter` (Search / ask) | search and focus the first result when it arrives; asking leaves the field in normal mode |
 
 Normal mode uses vim editing: `h l w W b B e 0 ^ $`, `f F t T{char}`;
 after a find, `f`/`F` keep walking that character forward/backward, and `;`/`,`
@@ -91,8 +91,9 @@ relative to the current row: `2j` moves down two results, `2k` moves up two.
 | `enter` (Open) | open in the browser and dismiss |
 | `ga` (Hand off to agent) | the selected result, as an editable draft in the agent |
 | `gA` (Hand off everything) | every result on the current page, as an editable draft |
+| `gi` (Back to the field) | back to the field, normal mode |
 | `/` | back to the field, normal mode |
-| `i` (Back to the field) | back to the field, insert before the cursor, as in vim |
+| `i` | back to the field, insert before the cursor, as in vim |
 | `a` | back to the field, insert after the cursor, as in vim |
 | `esc` | back to the field, normal mode |
 
@@ -125,8 +126,9 @@ follow the layout when the panel width changes and are excluded from copied text
 | `ga` (Hand off to agent) | the selection; else the reply under the cursor and the question it answers, as the agent wrote them — an editable draft |
 | `gA` (Hand off everything) | the whole conversation, failures left out, as an editable draft |
 | `ctrl+c` (New session) | start a new conversation |
+| `gi` (Back to the field) | back to the field, normal mode |
 | `/` | back to the field, normal mode |
-| `i` (Back to the field) | back to the field, insert before the cursor, as in vim |
+| `i` | back to the field, insert before the cursor, as in vim |
 | `a` | back to the field, insert after the cursor, as in vim |
 | `esc` | drop the selection or active find, else back to the field |
 

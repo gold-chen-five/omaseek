@@ -13,6 +13,7 @@ test('a bound chord is its command', () => {
 test('reader panes return to the field with vim entry semantics', () => {
   for (const keys of [LIST_KEYS, ANSWER_KEYS]) {
     assert.equal(resolve(keys, '', '/').command, 'fieldNormal')
+    assert.equal(resolve(keys, 'g', 'i').command, 'fieldNormal')
     assert.equal(resolve(keys, '', 'i').command, 'insert')
     assert.equal(resolve(keys, '', 'a').command, 'append')
   }
