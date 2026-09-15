@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# Unit tests for the draft launcher and src/lib/*.mjs.
+# Tests for the QML field, draft launcher, and src/lib/*.mjs.
 
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
+QT_QPA_PLATFORM=offscreen /usr/lib/qt6/bin/qmltestrunner \
+  -input test/qml \
+  -import test/qml/imports
 python3 test/agent-draft.test.py
 exec node --test test/*.test.mjs

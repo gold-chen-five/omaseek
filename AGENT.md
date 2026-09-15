@@ -14,7 +14,7 @@ modules run by node's own test runner.
 ## Commands
 
 ```bash
-./bin/test                              # all unit tests (node --test, no shell, no network)
+./bin/test                              # offscreen QML, Python and node tests; no compositor/network
 node --test test/motions.test.mjs       # one file
 node --test --test-name-pattern 'iw'    # one test by name
 
@@ -30,6 +30,8 @@ quickshell log -p /usr/share/omarchy/shell -f   # QML errors and console.log (no
 ```
 
 Run `./bin/test` after touching anything in `src/lib`. There is no linter.
+The QML test drives `VimTextField` with real key events; its import stubs expose
+only the shell types needed to instantiate the field outside Quickshell.
 
 **A QML change needs `omarchy-restart-shell`, not a rescan.** Omarchy watches
 the plugins directory and rescans on save, but `keepLoaded: true` means this
@@ -166,6 +168,9 @@ question also opens as a draft; the user submits it themselves.
 result when it arrives; `j`/Down also step into existing results). Everything else
 is held by non-visual `Item`s in `src/components`, the way first-party
 plugins keep state in a `Service.qml`:
+
+The field's Vim mode survives closing and reopening the panel, and switching
+between search and AI with Tab; only an explicit mode-changing action changes it.
 
 - `ConfigStore.qml` — the config file: `FileView` watch, `reload()`,
   `change(key, value)` written straight through.

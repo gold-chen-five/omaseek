@@ -13,7 +13,7 @@ import "chord.js" as Chord
 // A TextArea, not a TextField: a question can hold line breaks, which a
 // TextInput strips. It never wraps — a long line scrolls sideways inside the
 // frame Search.qml draws around it, as the single-line field did — so only a
-// Ctrl+J adds a row. The frame is the container's because the field scrolls.
+// Ctrl+J and o/O add rows. The frame is the container's because the field scrolls.
 TextArea {
   id: field
 
@@ -21,7 +21,7 @@ TextArea {
   property color accent: Color.accent
   property real horizontalPadding: Style.spacing.controlPaddingX
   property real verticalPadding: Style.spacing.inputPaddingY
-  property bool multiline: false            // AI mode: Ctrl+J breaks the line
+  property bool multiline: false            // AI mode: line-opening keys work
   readonly property var borderSpec: Border.controlSpec(activeFocus ? "focus" : (hovered ? "hover-cursor" : "normal"), foreground, accent)
   readonly property real lineHeight: contentHeight / Math.max(1, lineCount)
 
@@ -57,7 +57,7 @@ TextArea {
   // Insert-mode escape sequence (vim's `inoremap jk <Esc>`); empty turns it off.
   property var escapeSequences: []
   property int escapeTimeout: 200
-  readonly property string lineBreak: "\n"      // what Ctrl+J inserts, in AI mode
+  readonly property string lineBreak: "\n"      // what line-opening commands insert
   property string escapePending: ""          // sequence keys typed so far
 
   // Parsed chords, checked first so rebinding search moves it off Enter.
@@ -77,7 +77,7 @@ TextArea {
 
   function setMode (next) {
     if (next === "normal" && mode === "insert") {
-      cursorPosition = Math.max(0, cursorPosition - 1)   // vim steps left on Esc
+      cursorPosition = Motions.insertExit(text, cursorPosition)
     }
     if (next !== "visual") {
       if (mode === "visual" && visualLinewise) cursorPosition = visualCursor
@@ -123,6 +123,18 @@ TextArea {
     else if (down && mode !== "visual") field.steppedDown()
   }
 
+  function openLine (below) {
+    if (!multiline || mode !== "normal" || pendingOperator !== "") {
+      clearPending()
+      return
+    }
+    const bounds = Motions.lineBounds(text, cursorPosition)
+    const at = below ? bounds.end : bounds.start
+    insert(at, lineBreak)
+    cursorPosition = below ? at + lineBreak.length : at
+    setMode("insert")
+  }
+
   function clampCursor () {
     if (mode === "insert") return
     cursorPosition = Motions.clampToLine(text, cursorPosition)
@@ -155,6 +167,8 @@ TextArea {
 
   function operateLines (operator, count) {
     const range = Motions.lineRange(text, cursorPosition, count)
+    // Neovim's nostartofline default keeps this column after linewise d.
+    const column = cursorPosition - range.start
     let from = range.start
     let to = range.end
     // cc keeps the final separator so the replacement stays on its own line.
@@ -165,6 +179,10 @@ TextArea {
       // Deleting the final line also removes the separator before it.
       if (operator === "d" && to === text.length && from > 0 && (to === from || text[to - 1] !== "\n")) from--
       remove(from, to)
+    }
+    if (operator === "d") {
+      cursorPosition = Motions.positionAtColumn(text, Math.min(range.start, text.length), column)
+      return
     }
     cursorPosition = Math.min(range.start, text.length)
     if (operator === "c") setMode("insert")
@@ -417,6 +435,8 @@ TextArea {
       cursorPosition = Math.min(text.length, pos + 1)
       setMode("insert")
       return
+    case "o": openLine(true); return
+    case "O": openLine(false); return
     case "I": cursorPosition = Motions.firstNonBlank(text); setMode("insert"); return
     case "A": cursorPosition = text.length; setMode("insert"); return
     case "V":

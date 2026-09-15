@@ -88,10 +88,19 @@ export function flipFind (command) {
   return { f: 'F', F: 'f', t: 'T', T: 't' }[command] ?? command
 }
 
-/** Normal mode keeps the cursor on a character, never past the last one. */
+/** Normal mode stays on a character, or at the sole position of an empty line. */
 export function clampToLine (text, pos) {
-  if (text.length === 0) return 0
-  return Math.max(0, Math.min(pos, text.length - 1))
+  const at = Math.max(0, Math.min(pos, text.length))
+  const bounds = lineBounds(text, at)
+  if (bounds.start === bounds.end) return bounds.start
+  return Math.max(bounds.start, Math.min(at, bounds.end - 1))
+}
+
+/** Vim steps left on leaving insert mode, but never onto the previous line. */
+export function insertExit (text, pos) {
+  const at = Math.max(0, Math.min(pos, text.length))
+  if (at === 0) return 0
+  return '\r\n\u2028\u2029'.indexOf(text[at - 1]) === -1 ? at - 1 : at
 }
 
 /** Applies a motion `count` times, e.g. `3w`. */
@@ -127,6 +136,15 @@ export function lineBounds (text, pos) {
   const start = pos <= 0 ? 0 : text.lastIndexOf('\n', pos - 1) + 1
   const nl = text.indexOf('\n', pos)
   return { start, end: nl === -1 ? text.length : nl }
+}
+
+/** A logical column on the line holding pos, clamped to its last character. */
+export function positionAtColumn (text, pos, column) {
+  const at = Math.max(0, Math.min(pos, text.length))
+  const bounds = lineBounds(text, at)
+  const length = bounds.end - bounds.start
+  if (length === 0) return bounds.start
+  return bounds.start + Math.min(Math.max(0, column), length - 1)
 }
 
 /**

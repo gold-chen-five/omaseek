@@ -44,12 +44,12 @@ Item {
 
   // keepLoaded keeps the search and the conversation; reopen where they were.
   function open (payloadJson) {
+    const fieldMode = input.mode
     config.reload()
     opened = true
     view = States.VIEW.SEARCH                  // never reopen into settings or setup
     if (ai.agents === null) ai.probeAgents()   // once: which agents this machine has
-    // Normal when there is something below to step into, insert otherwise.
-    focusSearch(hasBody() ? "normal" : "insert")
+    focusSearch(fieldMode)                     // first launch inherits the field's insert default
   }
 
   function close () {
@@ -66,9 +66,10 @@ Item {
   }
 
   function toggleMode () {
+    const fieldMode = input.mode
     panelMode = panelMode === States.PANEL.SEARCH ? States.PANEL.AI : States.PANEL.SEARCH
     view = States.VIEW.SEARCH
-    focusSearch("insert")
+    focusSearch(fieldMode)
   }
 
   function dismiss () {
@@ -250,7 +251,7 @@ Item {
           // The field's frame, drawn here rather than by the field: the field
           // scrolls inside it, and a frame it drew itself would scroll too. One
           // line tall at rest — the single-line field's height — and a row taller
-          // for each Ctrl+J, up to six.
+          // for each line added with Ctrl+J or o/O, up to six.
           BorderSurface {
             id: fieldFrame
 

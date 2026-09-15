@@ -14,7 +14,7 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 | Search / ask | `search_key` | `enter` | field: runs the query or asks the question |
 | New session | `new_session_key` | `ctrl+c` | field and answer: forget the conversation and start one |
 | Settings | `settings_key` | `ctrl+s` | anywhere: open or close settings (`ctrl+,` always works too) |
-| Switch search / ask | `switch_mode_key` | `tab` | anywhere (`shift+tab` always works too) |
+| Switch search / ask | `switch_mode_key` | `tab` | anywhere, without changing Vim mode (`shift+tab` always works too) |
 | Open | `open_key` | `enter` | results: open the result and dismiss · answer: the link under the cursor or in the selection |
 | Hand off to agent | `handoff_key` | `ga` | results: the selected result · answer: the selection, else the reply under the cursor with its question |
 | Hand off everything | `handoff_all_key` | `gA` | results: every result on the page · answer: the whole conversation |
@@ -42,7 +42,7 @@ empty value restores the default.
 |---|---|
 | `super+d` | summon or dismiss (Hyprland, not the panel — `omarchy-shell shell toggle omaseek`) |
 | `ctrl+s` (Settings), `ctrl+,` | open or close settings |
-| `tab` (Switch search / ask), `shift+tab` | switch between searching and asking |
+| `tab` (Switch search / ask), `shift+tab` | switch between searching and asking without changing Vim mode |
 | `esc` | leave one step: cancel a pending/active find, normal mode from insert, the field from a list, the panel from the field |
 
 ## The field
@@ -61,7 +61,7 @@ Insert mode:
 Normal mode uses vim editing: `h l w W b B e 0 ^ $`, `f F t T{char}`;
 after a find, `f`/`F` keep walking that character forward/backward, and `;`/`,`
 also repeat/reverse. All matches on the line are highlighted; the current one
-uses the accent colour. `i a I A`, `r{char}`, `x`, `d c y` with a motion or doubled (`dd cc yy`), `v`,
+uses the accent colour. `i a I A`, `o O` (open a line below/above in AI mode), `r{char}`, `x`, `d c y` with a motion or doubled (`dd cc yy`), `v`,
 counts (`3w`, `2dw`), and text objects (`diw`, `ci"`, `da(`). `p` `P` put
 the system clipboard after or before the cursor — every yank in the panel,
 field or answer, lands there — and in visual mode replace the selection.
@@ -69,7 +69,8 @@ field or answer, lands there — and in visual mode replace the selection.
 extend the selection; counts work (`2j`). `y` copies, `d` deletes, and `c`
 changes the selected lines. `Esc` or `V` leaves line selection.
 
-`yy` copies the current line, `dd` deletes it, and `cc` changes it; counts
+`yy` copies the current line, `dd` deletes it and keeps the cursor column on
+the line that replaces it (clamped when shorter), and `cc` changes it; counts
 operate on consecutive lines (`2yy`, `2dd`). In multiline questions, other
 text motions retain their existing behavior. `j` or `down` steps into what is below. Deliberately absent: `.` repeat, macros, marks,
 named registers.

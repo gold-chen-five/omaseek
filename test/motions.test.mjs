@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {
   charClass, wordForward, wordBackward, wordEnd,
   firstNonBlank, find, findInLine, findMatchPosition, matchingCharsInLine,
-  flipFind, clampToLine, repeat, BLANK, WORD, PUNCT
+  flipFind, clampToLine, insertExit, repeat, BLANK, WORD, PUNCT
 } from '../src/lib/motions.mjs'
 
 test('charClass separates blanks, word characters and punctuation', () => {
@@ -91,10 +91,20 @@ test(', flips the direction of the last find', () => {
   assert.equal(flipFind('T'), 't')
 })
 
-test('normal mode clamps the cursor onto a character', () => {
+test('normal mode clamps within a logical line', () => {
   assert.equal(clampToLine('abc', 3), 2, 'never past the last character')
   assert.equal(clampToLine('abc', -1), 0)
   assert.equal(clampToLine('', 5), 0, 'empty line sits at 0')
+  assert.equal(clampToLine('abc\n', 4), 4, 'an empty final line stays reachable')
+  assert.equal(clampToLine('a\n\nb', 2), 2, 'an empty middle line stays reachable')
+  assert.equal(clampToLine('abc\ndef', 3), 2, 'a line break clamps to the preceding character')
+})
+
+test('leaving insert mode steps left without crossing a line break', () => {
+  assert.equal(insertExit('first\nsecond', 6), 6, 'first character of the second line')
+  assert.equal(insertExit('first\nsecond', 8), 7, 'inside the second line')
+  assert.equal(insertExit('first', 3), 2)
+  assert.equal(insertExit('first', 0), 0)
 })
 
 test('counts repeat a motion', () => {

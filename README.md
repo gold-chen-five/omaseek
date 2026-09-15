@@ -7,7 +7,7 @@ A web search and AI panel for [Omarchy](https://omarchy.org) 4, driven with vim 
 | key | does |
 |---|---|
 | `super+d` | summon or dismiss |
-| `tab` | search ⇄ ask |
+| `tab` | search ⇄ ask, keeping the current Vim mode |
 | `enter` | search and focus the first result, or ask |
 | `j` `k` | through the results |
 | `enter` on a result | open it in the browser |

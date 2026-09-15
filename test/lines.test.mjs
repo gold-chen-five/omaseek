@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { lineDown, lineUp, lineBounds, lineRange, findInLine } from '../src/lib/motions.mjs'
+import { lineDown, lineUp, lineBounds, lineRange, positionAtColumn, findInLine } from '../src/lib/motions.mjs'
 
 const text = 'first line\nab\nthird line'   // lines start at 0, 11, 14
 
@@ -35,6 +35,13 @@ test('lineBounds is the line holding the position, without its break', () => {
   assert.deepEqual(lineBounds(text, 10), { start: 0, end: 10 })   // on the break itself
   assert.deepEqual(lineBounds(text, 12), { start: 11, end: 13 })
   assert.deepEqual(lineBounds(text, 20), { start: 14, end: 24 })
+})
+
+test('positionAtColumn preserves a logical column and clamps short lines', () => {
+  assert.equal(positionAtColumn('one\n  two', 4, 3), 7)
+  assert.equal(positionAtColumn('one\nxy', 4, 8), 5)
+  assert.equal(positionAtColumn('one\n', 4, 8), 4, 'an empty line stays at its sole position')
+  assert.equal(positionAtColumn('one', 0, -1), 0)
 })
 
 test('findInLine stays on its line', () => {
