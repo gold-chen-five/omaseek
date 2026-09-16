@@ -62,12 +62,14 @@ writes `~/.config/omaseek/config.json`.
 ## Install
 
 ```bash
-git clone https://github.com/gold-chen-five/omaseek.git ~/.config/omarchy/plugins/omaseek
+git clone git@github.com:gold-chen-five/omaseek.git ~/.config/omarchy/plugins/omaseek
 ~/.config/omarchy/plugins/omaseek/bin/install
 ```
 
-To upgrade, pull and run the installer again — it restarts `omarchy-shell`,
-because a panel that is already loaded keeps its old code until then:
+Already cloned — to upgrade, or to redo an install — pull and run the installer
+again instead; cloning a second time fails because the folder exists. It
+restarts `omarchy-shell`, because a panel that is already loaded keeps its old
+code until then:
 
 ```bash
 git -C ~/.config/omarchy/plugins/omaseek pull
