@@ -13,6 +13,9 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 | Leave insert with | `escape_sequence` | `jk` | typed within vim's timeoutlen, leaves insert |
 | Search / ask | `search_key` | `enter` | field: runs the query or asks the question |
 | New session | `new_session_key` | `ctrl+c` | field and answer: forget the conversation and start one |
+| Next session | `next_session_key` | `ctrl+n` | ask: the next saved conversation, newest first, wrapping |
+| Close session | `close_session_key` | `ctrl+x` | ask: forget this conversation and show the one below it |
+| Delete all sessions | `clear_sessions_key` | `ctrl+shift+x` | ask: forget every saved conversation, on the second press |
 | Settings | `settings_key` | `ctrl+s` | anywhere: open or close settings (`ctrl+,` always works too) |
 | Switch search / ask | `switch_mode_key` | `tab` | anywhere, without changing Vim mode (`shift+tab` always works too) |
 | Open | `open_key` | `enter` | results: open the result and dismiss · answer: the link under the cursor or in the selection |
@@ -26,9 +29,34 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 A hand-off opens the agent (Settings → Ask → Hand off to) with the text
 pasted into its input and not sent: edit it, then submit it yourself.
 
+The last ten AI conversations are kept, newest first, in
+`~/.local/share/omaseek/sessions.json`. Every turn is saved as it happens, so
+they survive a shell restart; `ctrl+n` walks them from the field or the answer
+(from a conversation that has not been asked yet, it lands on the newest),
+`ctrl+x` forgets the one on screen and shows the one below it, and `ctrl+c`
+leaves it in the ring and starts an empty one. The eleventh conversation drops
+the oldest. A strip of numbered squares under the status line shows them —
+`1` is the newest, the one on screen is filled, hovering names it, and clicking
+one opens it; the last square, `+`, starts a new conversation and is filled
+while the live one has nothing saved of it yet. The status line says the same in
+words — `session 2/3`.
+
+**A question keeps being answered after you leave it.** `ctrl+c` while the agent
+is thinking opens a new conversation and lets the old one finish: its square
+keeps a pulsing dot until the reply lands, and the reply lands in *that*
+conversation, so `ctrl+n` back to it shows the finished answer. You can ask in
+the new conversation straight away — each question has its own agent process.
+`ctrl+x` is the one key that does cancel: closing a conversation stops the
+question nobody will read, and `ctrl+shift+x` forgets every saved conversation
+at once — it cannot be undone, so the status line asks for a second press and
+any other session key calls it off. A question you leave that was never sent anywhere —
+no answer, nothing running — is dropped rather than left as an empty square.
+
 A binding is written the way a person says it: a named key (`enter`, `esc`,
 `tab`, `space`, an arrow, `home`, `end`), one character — case matters, `G`
-is not `g` — or `ctrl+` a key. Keys for the results and the answer may also
+is not `g` — or `ctrl+` a key, optionally with `shift+` after it
+(`ctrl+shift+x`). Shift on its own is not a modifier here: `X` already spells
+it. Keys for the results and the answer may also
 be two keys in turn: `gx`, `gA`, or `g x`. Search, new session, settings and
 switch are caught before the field types anything, so they must be a named
 key or a ctrl chord. The page refuses a key that is none of these, or that
@@ -55,6 +83,8 @@ Insert mode:
 | `ctrl+w` | delete the word before the cursor |
 | `ctrl+u` | delete to the start of the line |
 | `ctrl+j` | a line break in a question — AI mode; the bar grows a row, up to six |
+| `ctrl+c` `ctrl+n` `ctrl+x` | AI mode: a new conversation, the next saved one, forget this one |
+| `ctrl+shift+x` | AI mode: forget every saved conversation (twice) |
 | `down` `up` | a line down or up within a question of several lines; down from the last, into the results or the transcript |
 | `enter` (Search / ask) | search and focus the first result when it arrives; asking leaves the field in normal mode |
 
@@ -126,7 +156,10 @@ follow the layout when the panel width changes and are excluded from copied text
 | `enter` (Open) | open the link under the cursor or in the selection |
 | `ga` (Hand off to agent) | the selection; else the reply under the cursor and the question it answers, as the agent wrote them — an editable draft |
 | `gA` (Hand off everything) | the whole conversation, failures left out, as an editable draft |
-| `ctrl+c` (New session) | start a new conversation |
+| `ctrl+c` (New session) | start a new conversation, keeping this one in the ring |
+| `ctrl+n` (Next session) | the next saved conversation, wrapping |
+| `ctrl+x` (Close session) | forget this conversation and show the one below it |
+| `ctrl+shift+x` (Delete all sessions) | forget every saved conversation, on a second press |
 | `gi` (Back to the field) | back to the field, normal mode |
 | `/` | back to the field, normal mode |
 | `i` | back to the field, insert before the cursor, as in vim |
@@ -166,3 +199,4 @@ selected row visible. Values are written as they change; there is no save.
 - `src/components/chord.js` — Qt key events → chord strings
 - `src/components/VimTextField.qml` — the field's mode machine and everything vim
 - `src/components/ResultList.qml`, `AnswerView.qml`, `SettingsPage.qml`, `SetupPrompt.qml` — each view's own dispatch
+- `src/lib/sessions.mjs` — the ring of saved conversations the session keys walk

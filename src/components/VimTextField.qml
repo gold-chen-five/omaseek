@@ -63,6 +63,9 @@ TextArea {
   // Parsed chords, checked first so rebinding search moves it off Enter.
   property string searchChord: "Return"
   property string newSessionChord: "C-c"
+  property string nextSessionChord: "C-n"
+  property string closeSessionChord: "C-x"
+  property string clearSessionsChord: "C-S-x"
   property string settingsChord: "C-s"
   property string switchChord: "Tab"
 
@@ -72,6 +75,9 @@ TextArea {
   signal requestedSettings()                // Ctrl+S (or Ctrl+,) in any mode
   signal tabbed()                           // Tab in any mode: the panel switches search <-> ai
   signal newSessionRequested()              // the new-session chord: start over
+  signal nextSessionRequested()             // the next saved conversation
+  signal closeSessionRequested()            // forget this conversation
+  signal clearSessionsRequested()           // forget all of them
 
   readonly property bool normalish: mode !== "insert"
 
@@ -597,6 +603,24 @@ TextArea {
 
     if (chord !== "" && chord === field.newSessionChord) {
       field.newSessionRequested()
+      event.accepted = true
+      return
+    }
+
+    if (chord !== "" && chord === field.nextSessionChord) {
+      field.nextSessionRequested()
+      event.accepted = true
+      return
+    }
+
+    if (chord !== "" && chord === field.clearSessionsChord) {
+      field.clearSessionsRequested()
+      event.accepted = true
+      return
+    }
+
+    if (chord !== "" && chord === field.closeSessionChord) {
+      field.closeSessionRequested()
       event.accepted = true
       return
     }

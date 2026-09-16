@@ -25,10 +25,16 @@ Item {
   property string focusArea: States.FOCUS.FIELD  // who has the keyboard
   property string setupReason: ""              // what the backend said when the instance was down
 
-  readonly property var settingsRows: SettingsLib.settingsRows(config.settings, engine.state, ai.agents)
+  readonly property var settingsRows: SettingsLib.settingsRows(config.settings, engine.state, ai.agents, ai.models)
+  readonly property string chatModel: SettingsLib.selectedModel(config.settings, ai.agents, ai.models)
 
   readonly property string searchChord: Keybinds.parseChord(config.settings.searchKey) || "Return"
   readonly property string newSessionChord: Keybinds.parseChord(config.settings.newSessionKey) || "C-c"
+  readonly property string nextSessionChord: Keybinds.parseChord(config.settings.nextSessionKey) || "C-n"
+  readonly property string closeSessionChord: Keybinds.parseChord(config.settings.closeSessionKey) || "C-x"
+  readonly property string clearSessionsChord: Keybinds.parseChord(config.settings.clearSessionsKey) || "C-S-x"
+  readonly property string clearSessionsKeyText: config.settings.clearSessionsKey || "ctrl+shift+x"
+  property bool clearArmed: false              // the first press; the second forgets them
   readonly property string settingsChord: Keybinds.parseChord(config.settings.settingsKey) || "C-s"
   readonly property string switchChord: Keybinds.parseChord(config.settings.switchModeKey) || "Tab"
 
@@ -57,12 +63,66 @@ Item {
     session.cancel()
   }
 
-  // Only AI mode has a session to end; a search is simply replaced.
+  // Only AI mode has a session to end; a search is simply replaced. The one
+  // left behind stays in the ring, a Ctrl+N away.
   function newChat () {
     if (panelMode !== States.PANEL.AI) return
+    disarmClear()
     ai.reset()
     input.clear()
     focusSearch("insert")
+  }
+
+  // The saved conversations: Ctrl+N walks them, Ctrl+X forgets one. Both leave
+  // a half-typed question alone, and land in the transcript when there is one.
+  function nextChat () {
+    if (panelMode !== States.PANEL.AI) return
+    disarmClear()
+    if (ai.nextSession()) showChat()
+  }
+
+  function closeChat () {
+    if (panelMode !== States.PANEL.AI) return
+    disarmClear()
+    if (ai.closeSession()) showChat()
+  }
+
+  // A square on the session strip, clicked.
+  function pickChat (index) {
+    disarmClear()
+    if (ai.openSession(index)) showChat()
+  }
+
+  // Forgetting every conversation cannot be undone and there is no dialog in
+  // this panel, so the key asks once: the status line says what the second
+  // press will do, and anything else called off.
+  function clearChats () {
+    if (panelMode !== States.PANEL.AI || ai.sessionCount === 0) return
+    if (!clearArmed) {
+      clearArmed = true
+      clearWindow.restart()
+      return
+    }
+    disarmClear()
+    ai.clearSessions()
+    input.clear()
+    focusSearch("insert")
+  }
+
+  function disarmClear () {
+    clearArmed = false
+    clearWindow.stop()
+  }
+
+  Timer {
+    id: clearWindow
+    interval: 4000
+    onTriggered: root.clearArmed = false
+  }
+
+  function showChat () {
+    if (ai.history.length === 0) focusSearch("insert")
+    else focusResults()
   }
 
   function toggleMode () {
@@ -193,6 +253,7 @@ Item {
     id: ai
     askPath: Qt.resolvedUrl("../bin/ask").toString().replace(/^file:\/\//, "")
     chatAgent: config.settings.chatAgent
+    chatModel: root.chatModel
     launcher: config.settings.launcher
 
     onLaunching: root.dismiss()                // the terminal takes the screen
@@ -235,6 +296,13 @@ Item {
       MouseArea { anchors.fill: parent; onClicked: {} }
 
       Column {
+        id: content
+
+        // The view below fills what the field, the strip and the status line
+        // leave; the strip is only there in AI mode, and takes a gap with it.
+        readonly property real viewHeight: Math.max(0, height - fieldRow.height - statusLine.height
+          - Style.spacing.md * 2 - (sessionTabs.visible ? sessionTabs.height + Style.spacing.md : 0))
+
         anchors.fill: parent
         anchors.topMargin: card.contentTopInset
         anchors.rightMargin: card.contentRightInset
@@ -294,6 +362,9 @@ Item {
                 escapeTimeout: config.keymap.timeoutMs
                 searchChord: root.searchChord
                 newSessionChord: root.newSessionChord
+                nextSessionChord: root.nextSessionChord
+                closeSessionChord: root.closeSessionChord
+                clearSessionsChord: root.clearSessionsChord
                 settingsChord: root.settingsChord
                 switchChord: root.switchChord
 
@@ -303,6 +374,9 @@ Item {
                 onRequestedSettings: root.openSettings()
                 onTabbed: root.toggleMode()
                 onNewSessionRequested: root.newChat()
+                onNextSessionRequested: root.nextChat()
+                onCloseSessionRequested: root.closeChat()
+                onClearSessionsRequested: root.clearChats()
 
                 // The frame scrolls to keep the cursor in view as it passes an edge.
                 onCursorRectangleChanged: {
@@ -387,21 +461,42 @@ Item {
             view: root.view, panelMode: root.panelMode, focusArea: root.focusArea,
             mode: input.mode, selecting: answerView.selecting
           })
-          detail: SearchLib.statusText({
-            view: root.view,
-            panelMode: root.panelMode,
-            status: root.panelMode === States.PANEL.AI ? ai.status : session.status,
-            count: session.results.count,
-            query: session.lastQuery,
-            page: session.pageIndex + 1,
-            hasNext: session.hasNext,
-            loadingPage: session.loadingPage,
-            errorMessage: root.panelMode === States.PANEL.AI ? ai.errorMessage : session.errorMessage,
-            backend: session.backend,
-            agent: ai.agentName,
-            selecting: answerView.selecting,
-            link: answerView.cursorLink
-          })
+          // The destructive key takes the line over while it waits to be sure.
+          detail: root.clearArmed
+            ? SearchLib.confirmClearText(root.clearSessionsKeyText, ai.sessionCount)
+            : SearchLib.statusText({
+              view: root.view,
+              panelMode: root.panelMode,
+              status: root.panelMode === States.PANEL.AI ? ai.status : session.status,
+              count: session.results.count,
+              query: session.lastQuery,
+              page: session.pageIndex + 1,
+              hasNext: session.hasNext,
+              loadingPage: session.loadingPage,
+              errorMessage: root.panelMode === States.PANEL.AI ? ai.errorMessage : session.errorMessage,
+              backend: session.backend,
+              agent: ai.agentName,
+              selecting: answerView.selecting,
+              link: answerView.cursorLink,
+              session: ai.sessionLabel
+            })
+        }
+
+        SessionTabs {
+          id: sessionTabs
+
+          visible: root.view === States.VIEW.SEARCH && root.panelMode === States.PANEL.AI
+            && ai.sessionCount > 0
+          width: parent.width
+          sessions: ai.sessions
+          pending: ai.pendingIds
+          current: ai.sessionIndex
+          foreground: root.foreground
+          accent: root.accent
+          fontFamily: root.fontFamily
+
+          onPicked: index => root.pickChat(index)
+          onStarted: root.newChat()
         }
 
         SetupPrompt {
@@ -423,8 +518,8 @@ Item {
 
           visible: root.view === States.VIEW.SETTINGS
           width: parent.width
-          height: Math.max(0, parent.height - fieldRow.height - statusLine.height - Style.spacing.md * 2)
-          rows: root.settingsRows
+          height: content.viewHeight
+          incomingRows: root.settingsRows
           settingsChord: root.settingsChord
           foreground: root.foreground
           accent: root.accent
@@ -443,7 +538,7 @@ Item {
 
           visible: root.view === States.VIEW.SEARCH && root.panelMode === States.PANEL.AI
           width: parent.width
-          height: parent.height - fieldRow.height - statusLine.height - Style.spacing.md * 2
+          height: content.viewHeight
           turns: ai.history
           thinking: ai.status === "thinking"
           agentName: ai.agentName
@@ -460,6 +555,9 @@ Item {
           onSettingsRequested: root.openSettings()
           onTabbed: root.toggleMode()
           onNewSessionRequested: root.newChat()
+          onNextSessionRequested: root.nextChat()
+          onCloseSessionRequested: root.closeChat()
+          onClearSessionsRequested: root.clearChats()
           onPutRequested: (text, after) => {
             root.focusSearch("normal")
             input.put(after, text)
@@ -474,7 +572,7 @@ Item {
 
           visible: root.view === States.VIEW.SEARCH && root.panelMode === States.PANEL.SEARCH
           width: parent.width
-          height: parent.height - fieldRow.height - statusLine.height - Style.spacing.md * 2
+          height: content.viewHeight
           model: session.results
           foreground: root.foreground
           accent: root.accent

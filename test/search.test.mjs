@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { describeError, normalizeRow, mergeResults, statusText, modeLabel } from '../src/lib/search.mjs'
+import { describeError, normalizeRow, mergeResults, statusText, modeLabel, confirmClearText } from '../src/lib/search.mjs'
 import { VIEW, PANEL, FOCUS } from '../src/lib/states.mjs'
 
 test('the backend message wins, because it names the port or the setting to fix', () => {
@@ -110,7 +110,7 @@ test('the settings and setup views name their keys instead of search state', () 
 test('AI mode names the agent while it thinks and its keys once it has answered', () => {
   assert.equal(statusText({ panelMode: PANEL.AI, status: 'thinking', agent: 'claude' }), 'asking claude…')
   assert.match(statusText({ panelMode: PANEL.AI, status: 'ok' }), /v select/)
-  assert.match(statusText({ panelMode: PANEL.AI, status: 'ok', selecting: true }), /hands the selection/)
+  assert.match(statusText({ panelMode: PANEL.AI, status: 'ok', selecting: true }), /enter hands off/)
   assert.equal(statusText({ panelMode: PANEL.AI, status: 'error', errorMessage: 'nope' }), 'nope')
   assert.match(statusText({ panelMode: PANEL.AI, status: 'idle' }), /tab search/)
   assert.match(statusText({ panelMode: PANEL.AI, view: VIEW.SETTINGS, status: 'ok' }), /esc back/, 'the settings view wins')
@@ -122,9 +122,9 @@ test('AI mode names the agent while it thinks and its keys once it has answered'
 
 test('on a link, the answer hint says gx and where it goes', () => {
   assert.match(statusText({ panelMode: PANEL.AI, status: 'ok', link: 'https://www.rust-lang.org/learn' }), /^gx opens rust-lang\.org · /)
-  assert.match(statusText({ panelMode: PANEL.AI, status: 'ok', link: 'https://x.io', selecting: true }), /^gx opens x\.io · y yanks/)
-  assert.match(statusText({ panelMode: PANEL.AI, status: 'ok', selecting: true }), /hands the selection/)
-  assert.match(statusText({ panelMode: PANEL.AI, status: 'ok' }), /^v select · yy yanks the reply · p pastes into the ask/)
+  assert.match(statusText({ panelMode: PANEL.AI, status: 'ok', link: 'https://x.io', selecting: true }), /^gx opens x\.io · y yank/)
+  assert.match(statusText({ panelMode: PANEL.AI, status: 'ok', selecting: true }), /enter hands off/)
+  assert.match(statusText({ panelMode: PANEL.AI, status: 'ok' }), /^v select · yy yank · enter hands off/)
 })
 
 
@@ -135,4 +135,36 @@ test('agent context carries selected URLs or all current-page results', async ()
   assert.equal(handoffText('query', rows, 1), 'Search: query\n\nTwo\nhttps://two.test\nsecond')
   assert.match(handoffText('query', rows), /one.test[\s\S]*two.test/)
   assert.equal(handoffText('query', []), '')
+})
+
+test('the AI line says where in the ring the conversation is, before the keys', () => {
+  assert.match(statusText({ panelMode: PANEL.AI, status: 'ok', session: 'session 2/3' }),
+    /^session 2\/3 · v select/)
+  assert.match(statusText({ panelMode: PANEL.AI, status: 'ok', session: 'session 2/3' }),
+    /ctrl\+n next/, 'walking the ring must be discoverable')
+  assert.equal(statusText({ panelMode: PANEL.AI, status: 'thinking', agent: 'claude', session: '3 saved' }),
+    '3 saved · asking claude…')
+  assert.match(statusText({ panelMode: PANEL.AI, status: 'idle', session: '3 saved' }), /^3 saved · enter asks/)
+})
+
+// It elides from the right, so anything past the width teaches nothing. The
+// panel is 820 wide at caption size; 70 characters is the room that leaves.
+test('no AI status line is long enough to elide', () => {
+  const lines = [
+    statusText({ panelMode: PANEL.AI, status: 'ok', session: 'session 10/10' }),
+    statusText({ panelMode: PANEL.AI, status: 'ok', selecting: true }),
+    statusText({ panelMode: PANEL.AI, status: 'ok', selecting: true, link: 'https://doc.rust-lang.org/book/ch15.html' }),
+    statusText({ panelMode: PANEL.AI, status: 'ok', link: 'https://doc.rust-lang.org/book/ch15.html' }),
+    statusText({ panelMode: PANEL.AI, status: 'idle', session: '10 saved' }),
+    statusText({ panelMode: PANEL.AI, status: 'thinking', agent: 'cursor-agent', session: 'session 10/10' })
+  ]
+  for (const line of lines) assert.ok(line.length <= 70, `${line.length}: ${line}`)
+})
+
+test('the destructive key names itself and what it will forget', () => {
+  assert.equal(confirmClearText('ctrl+shift+x', 3), 'ctrl+shift+x again to forget all 3 conversations · anything else cancels')
+  assert.match(confirmClearText('ctrl+shift+x', 1), /the saved conversation ·/)
+  // Rebound, it must say the key that is actually bound.
+  assert.match(confirmClearText('ctrl+alt+k', 2), /^ctrl\+alt\+k again/)
+  assert.ok(confirmClearText('ctrl+shift+x', 10).length <= 74)
 })

@@ -184,3 +184,28 @@ test('a binding is checked against the others as they are now, not the defaults'
   assert.equal(bindingProblem('handoff', 'gx', binds), '', 'gx was freed')
   assert.match(bindingProblem('handoff', 'go', binds), /Open link/)
 })
+
+test('the answer pane walks and closes sessions through its own table', () => {
+  const keys = readerKeys('answer', DEFAULTS)
+  assert.equal(resolve(keys, '', 'C-n').command, 'nextSession')
+  assert.equal(resolve(keys, '', 'C-x').command, 'closeSession')
+  // Rebinding moves it there too, and the old chord goes back to nothing.
+  const moved = readerKeys('answer', { ...DEFAULTS, nextSessionKey: 'ctrl+o' })
+  assert.equal(resolve(moved, '', 'C-o').command, 'nextSession')
+  assert.equal(resolve(moved, '', 'C-n').command, '')
+})
+
+test('the session keys are refused where they would collide', () => {
+  assert.match(bindingProblem('nextSession', 'ctrl+x', DEFAULTS), /Close session/)
+  assert.match(bindingProblem('closeSession', 'ctrl+u', DEFAULTS), /delete to the line start|half a screen/)
+  assert.equal(bindingProblem('nextSession', 'ctrl+n', DEFAULTS), '', 'its own key is not a clash')
+})
+
+test('ctrl+shift+x forgets the lot, without standing on ctrl+x', () => {
+  const keys = readerKeys('answer', DEFAULTS)
+  assert.equal(resolve(keys, '', 'C-S-x').command, 'clearSessions')
+  assert.equal(resolve(keys, '', 'C-x').command, 'closeSession', 'the plainer chord is untouched')
+  assert.match(bindingProblem('clearSessions', 'ctrl+x', DEFAULTS), /Close session/)
+  assert.equal(bindingProblem('clearSessions', 'ctrl+shift+x', DEFAULTS), '')
+  assert.equal(bindingProblem('closeSession', 'ctrl+shift+c', DEFAULTS), '', 'shift makes a chord of its own')
+})

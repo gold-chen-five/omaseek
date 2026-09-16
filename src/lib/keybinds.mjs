@@ -29,6 +29,12 @@ export const ACTIONS = [
     label: 'Search / ask', hint: 'field: runs the query or asks the question' },
   { id: 'newSession', config: 'new_session_key', default: 'ctrl+c', scope: 'panel',
     label: 'New session', hint: 'field and answer: forget the conversation and start one' },
+  { id: 'nextSession', config: 'next_session_key', default: 'ctrl+n', scope: 'panel', command: 'nextSession',
+    label: 'Next session', hint: 'ask: the next saved conversation, wrapping' },
+  { id: 'closeSession', config: 'close_session_key', default: 'ctrl+x', scope: 'panel', command: 'closeSession',
+    label: 'Close session', hint: 'ask: forget this conversation, show the next' },
+  { id: 'clearSessions', config: 'clear_sessions_key', default: 'ctrl+shift+x', scope: 'panel', command: 'clearSessions',
+    label: 'Delete all sessions', hint: 'ask: forget every saved conversation — press it twice' },
   { id: 'settings', config: 'settings_key', default: 'ctrl+s', scope: 'panel', command: 'settings',
     label: 'Settings', hint: 'anywhere: open or close this page (ctrl+, always works too)' },
   { id: 'switchMode', config: 'switch_mode_key', default: 'tab', scope: 'panel', command: 'toggleMode',
@@ -68,27 +74,45 @@ export function appliesTo (action, pane) {
   return !action.panes || action.panes.indexOf(pane) !== -1
 }
 
-// One key: a named key (any case), ctrl+ a key, or one character as typed.
+// One key: a named key (any case), ctrl+ (and optionally shift+) a key, or one
+// character as typed. Shift without ctrl is refused: on its own it is how a
+// capital is typed, and `X` already spells that.
 function parseKey (token) {
   const text = String(token == null ? '' : token).trim()
   if (!text) return null
   const plus = text.indexOf('+')
   if (plus > 0 && plus < text.length - 1) {
     const modifier = text.slice(0, plus).trim().toLowerCase()
-    if (modifier !== 'ctrl' && modifier !== 'control') return null   // only ctrl, for now
-    const key = parseKey(text.slice(plus + 1))
+    const rest = text.slice(plus + 1)
+    if (modifier === 'shift') {
+      const key = parseKey(rest)
+      // Only as ctrl+shift+…, which the branch below assembles.
+      return key !== null && key.indexOf('C-') !== 0 && key !== ' ' ? 'S-' + spellKey(key) : null
+    }
+    if (modifier !== 'ctrl' && modifier !== 'control') return null   // ctrl and shift, for now
+    const key = parseKey(rest)
     if (key === null || key === ' ' || key.indexOf('C-') === 0) return null
     // Ctrl+letter is spelled lowercase by chord.js, whatever shift says.
-    return 'C-' + (key.length === 1 ? key.toLowerCase() : key)
+    return 'C-' + (key.indexOf('S-') === 0 ? 'S-' + spellKey(key.slice(2)) : spellKey(key))
   }
   const named = NAMED[text.toLowerCase()]
   if (named) return named
   return text.length === 1 ? text : null
 }
 
+function spellKey (key) {
+  return key.length === 1 ? key.toLowerCase() : key
+}
+
+// 'S-x' is the half-built shift chord the ctrl branch consumes; on its own it is
+// not a key anyone can press.
+function whole (key) {
+  return key !== null && key.indexOf('S-') === 0 ? null : key
+}
+
 /** "ctrl+c" -> "C-c", "enter" -> "Return", "G" -> "G". Null when it is not one key. */
 export function parseChord (raw) {
-  return parseKey(raw)
+  return whole(parseKey(raw))
 }
 
 /**
@@ -98,13 +122,13 @@ export function parseChord (raw) {
 export function parseSequence (raw) {
   const text = String(raw == null ? '' : raw).trim()
   if (!text) return null
-  const single = parseKey(text)
+  const single = whole(parseKey(text))
   if (single !== null) return single
   const tokens = /\s/.test(text) ? text.split(/\s+/) : (text.length === 2 ? [text[0], text[1]] : [])
   if (tokens.length !== 2) return null
   const keys = []
   for (let i = 0; i < tokens.length; i++) {
-    const key = parseKey(tokens[i])
+    const key = whole(parseKey(tokens[i]))
     if (key === null || key === ' ') return null    // a space would read as the separator
     keys.push(key)
   }
@@ -122,9 +146,11 @@ export function chordText (sequence) {
     return keys.join(letters ? '' : ' ')
   }
   const ctrl = raw.indexOf('C-') === 0 && raw.length > 2
-  const key = ctrl ? raw.slice(2) : raw
+  let key = ctrl ? raw.slice(2) : raw
+  const shift = ctrl && key.indexOf('S-') === 0 && key.length > 2
+  if (shift) key = key.slice(2)
   const spelled = SPELLED[key] || key
-  return ctrl ? 'ctrl+' + spelled : spelled
+  return ctrl ? 'ctrl+' + (shift ? 'shift+' : '') + spelled : spelled
 }
 
 /**
@@ -133,10 +159,10 @@ export function chordText (sequence) {
  */
 export function parseBinding (action, raw) {
   if (action.scope === 'reader') return parseSequence(raw)
-  const chord = parseKey(raw)
+  const chord = whole(parseKey(raw))
   if (chord === null) return null
   const named = SPELLED[chord] !== undefined && chord !== ' '
-  return chord.indexOf('C-') === 0 || named ? chord : null
+  return chord.indexOf('C-') === 0 || named ? chord : null   // 'C-S-x' counts
 }
 
 /** The stored text a binding round-trips to, or '' when it will not parse. */

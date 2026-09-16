@@ -14,6 +14,17 @@ Item {
     escapeTimeout: 1000
   }
 
+  property int nextSessions: 0
+  property int closedSessions: 0
+  property int clearedSessions: 0
+
+  Connections {
+    target: field
+    function onNextSessionRequested () { nextSessions++ }
+    function onCloseSessionRequested () { closedSessions++ }
+    function onClearSessionsRequested () { clearedSessions++ }
+  }
+
   TestCase {
     name: "VimTextField"
     when: windowShown
@@ -34,6 +45,42 @@ Item {
       field.setMode("insert")
       field.forceActiveFocus()
       tryCompare(field, "activeFocus", true)
+    }
+
+    // The session keys are caught before the field types anything, in any mode.
+    function test_the_session_chords_are_taken_from_both_modes() {
+      nextSessions = 0
+      closedSessions = 0
+      typeText("half a question")
+
+      keyClick(Qt.Key_N, Qt.ControlModifier)
+      keyClick(Qt.Key_X, Qt.ControlModifier)
+      compare(field.text, "half a question", "neither chord may reach the text")
+      compare(nextSessions, 1)
+      compare(closedSessions, 1)
+
+      field.setMode("normal")
+      keyClick(Qt.Key_N, Qt.ControlModifier)
+      keyClick(Qt.Key_X, Qt.ControlModifier)
+      compare(nextSessions, 2)
+      compare(closedSessions, 2)
+      compare(field.text, "half a question")
+    }
+
+    // Shift makes a chord of its own: forgetting everything must not be one
+    // slip away from forgetting one.
+    function test_shift_separates_forget_all_from_forget_one() {
+      closedSessions = 0
+      clearedSessions = 0
+
+      keyClick(Qt.Key_X, Qt.ControlModifier)
+      compare(closedSessions, 1)
+      compare(clearedSessions, 0)
+
+      keyClick(Qt.Key_X, Qt.ControlModifier | Qt.ShiftModifier)
+      compare(clearedSessions, 1)
+      compare(closedSessions, 1, "ctrl+shift+x is not also ctrl+x")
+      compare(field.text, "", "and neither reaches the text")
     }
 
     function test_jk_keeps_an_empty_new_line_reachable() {

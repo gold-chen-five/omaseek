@@ -115,6 +115,9 @@ FocusScope {
   signal settingsRequested()
   signal tabbed()
   signal newSessionRequested()                 // the new-session chord, or the button
+  signal nextSessionRequested()                // the next saved conversation
+  signal closeSessionRequested()               // forget this conversation
+  signal clearSessionsRequested()              // forget all of them
   signal putRequested(string text, bool after) // p and P: the selection, or "" for the clipboard
 
   onActiveFocusChanged: {
@@ -629,6 +632,9 @@ FocusScope {
     switch (command) {
     case "settings":     settingsRequested(); break
     case "toggleMode":   tabbed(); break
+    case "nextSession":  nextSessionRequested(); break
+    case "closeSession": closeSessionRequested(); break
+    case "clearSessions": clearSessionsRequested(); break
     case "handOff":      handOff(); break
     case "handOffPage":  handOffAll(); break
     case "accept":       openLink(); break

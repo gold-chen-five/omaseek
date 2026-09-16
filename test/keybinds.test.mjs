@@ -66,3 +66,17 @@ test('every action has a config key, a label and a hint, and ids are unique', ()
     assert.notEqual(parseBinding(action, action.default), null, `${action.id} default must parse`)
   }
 })
+
+test('shift is a modifier only alongside ctrl', () => {
+  assert.equal(parseChord('ctrl+shift+x'), 'C-S-x')
+  assert.equal(chordText('C-S-x'), 'ctrl+shift+x', 'and it round-trips as it is written')
+  assert.equal(parseChord('CTRL+SHIFT+X'), 'C-S-x', 'however it is capitalised')
+  assert.equal(parseChord('ctrl+shift+enter'), 'C-S-Return')
+  assert.notEqual(parseChord('ctrl+shift+x'), parseChord('ctrl+x'), 'the two are different keys')
+
+  // On its own shift is how a capital is typed, and X already spells that.
+  assert.equal(parseChord('shift+x'), null)
+  assert.equal(parseChord('shift+enter'), null)
+  assert.equal(parseSequence('shift+x'), null)
+  assert.equal(normalizeBinding(actionById('clearSessions'), 'shift+x'), '')
+})

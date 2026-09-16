@@ -30,14 +30,17 @@ function of (event) {
   if (isModifier(event.key)) return ""
 
   if ((event.modifiers & Qt.ControlModifier) !== 0) {
+    // Shift is only ever part of a ctrl chord: on its own it is how a capital
+    // is typed, and the letter already says so.
+    const prefix = (event.modifiers & Qt.ShiftModifier) !== 0 ? "C-S-" : "C-"
     // Ctrl+letter arrives with a control character as its text, so the chord
     // is spelled from the key itself. Qt.Key_A is the codepoint of "A".
     if (event.key >= Qt.Key_A && event.key <= Qt.Key_Z) {
-      return "C-" + String.fromCharCode(event.key).toLowerCase()
+      return prefix + String.fromCharCode(event.key).toLowerCase()
     }
-    if (event.key === Qt.Key_Comma) return "C-,"
+    if (event.key === Qt.Key_Comma) return prefix + ","
     const withCtrl = names()[event.key]
-    if (withCtrl) return "C-" + withCtrl
+    if (withCtrl) return prefix + withCtrl
     return ""
   }
 

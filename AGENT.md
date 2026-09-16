@@ -61,6 +61,7 @@ merging and config parsing are all under test without a compositor.
 - `src/lib/keys.mjs` — chord → command name for the reading panes, the `gg`/`gv` prefix machine, and the clash check for a rebound key
 - `src/lib/states.mjs` — the panel's `VIEW`, `PANEL` and `FOCUS` values; never write them as bare strings
 - `src/lib/urls.mjs` — the bare URL under the cursor for `gx`, and which links may open (http/https only)
+- `src/lib/sessions.mjs` — the ring of ten saved conversations: recording, walking, forgetting, and its file
 
 `VimTextField.qml` is therefore only a mode machine and key dispatch — if you
 add a motion or an object, the logic goes in `src/lib` with tests and the QML
@@ -141,6 +142,46 @@ The payload goes in as `--json '<object>'`, not stdin. Launchers: `terminal`
 (`omarchy-launch-tui`), `tmux` (new window in the *Work* session), `herdr`
 (`herdr tab create` → `herdr pane run`).
 
+**The last ten conversations are kept**, newest first, and `ctrl+n` walks them
+while `ctrl+x` forgets one; `ctrl+c` leaves the current one in the ring rather
+than losing it. `sessions.mjs` holds the rules and `SessionStore.qml` the file,
+which — unlike `ConfigStore` — is read **once and never watched**: the panel's
+place in the ring is an index into that list, so a re-read behind its back would
+move the conversation under the cursor. The read is asynchronous, so
+`remember()` waits for `store.ready`; recording before the file lands would
+write a lone conversation into a ring about to be replaced by the saved ten. A
+conversation being answered into keeps its place rather than jumping to the
+front, so walking the ring stays predictable. The strip is the same three
+actions with a mouse: a square is `openSession(index)`, `+` is `newChat()`.
+`ctrl+shift+x` forgets the lot; since nothing here can be undone and the panel
+has no dialog, it arms on the first press and the status line says what the
+second one will do (`clearArmed` in `Search.qml`, `confirmClearText` in
+`search.mjs`), with every other session key calling it off. Shift became a
+modifier for that binding: `chord.js` spells a ctrl chord with shift `C-S-x`,
+and `keybinds.mjs` parses `ctrl+shift+x` — shift alone is refused, because on
+its own it is how a capital is typed and `X` already spells that.
+
+**A turn outlives the conversation being on screen.** `ctrl+c` while the agent
+is thinking starts a new conversation and leaves the old turn running, so
+`AiSession` keeps **one `Process` per question** (`turnComponent`, created with
+`createObject`) tagged with `sessionId`, and `deliver()` routes the answer home:
+to `history` when that conversation is still in front of the reader, otherwise
+straight into its ring entry by id (`indexOfSession`), which is why a
+conversation's `id` is assigned once — by `remember()`, passed into `record()` —
+and never reassigned. A single shared process would have been killed by the next
+question. `pendingIds` is what the strip's dot and `show()`'s `thinking` status
+read.
+
+Two traps around this: stopping a `Process` still ends its stream, and the
+collector reports the nothing it read as an unreadable answer — that is the
+`⚠ Could not read the agent's output` that ctrl+c used to leave in the *new*
+conversation — so `cancelTurn()` disowns the turn (`forget()`) before stopping
+it and `deliver()` ignores a stream nobody waits for. And the sign-in hand-off
+takes the screen, so a background failure only records its error; only the
+conversation in front of the reader opens a terminal. `dropUnanswered()` still
+takes out a conversation left with a question that has no answer *and* nothing
+running, so an abandoned empty question does not keep a square.
+
 Handoffs open an editable draft, never an initial submitted prompt. `bin/agent-draft`
 runs the interactive CLI in a PTY, waits for bracketed-paste mode and a short startup delay
 (independent of repaints, since Codex animates continuously), then sends only a bracketed paste (no Enter). Terminal control characters
@@ -181,8 +222,16 @@ between search and AI with Tab; only an explicit mode-changing action changes it
   never refetches), the `ListModel` the list paints, and the `Process` that
   runs the backend. Raises `engineDown`, `pageShown`.
 - `AiSession.qml` — the transcript, the agent list from `bin/ask --agents`,
-  `ask()`, `launch()`. `AnswerView.qml` reads the transcript with vim keys
-  driven by the TextEdit's own layout (`positionAt`/`positionToRectangle`).
+  `ask()`, `launch()`, and the ring of saved conversations (`nextSession()`,
+  `closeSession()`, `sessionIndex`). `AnswerView.qml` reads the transcript with
+  vim keys driven by the TextEdit's own layout (`positionAt`/`positionToRectangle`).
+- `SessionStore.qml` — the last ten conversations in
+  `~/.local/share/omaseek/sessions.json`, written whole on every turn.
+- `SessionTabs.qml` — the numbered squares under the status line, one per saved
+  conversation plus a `+`, with a pulsing dot on any whose answer is still
+  coming; it raises `picked(index)` and `started()` and knows nothing else. It takes its room from the view below through
+  `content.viewHeight`, which is why the two panes and the settings page share
+  one height rather than each subtracting the rows above.
 
 Each view owns its own keys (`ResultList`, `AnswerView`, `SettingsPage`,
 `SetupPrompt`, `VimTextField`) and raises intent as signals — `escaped`, `settingsRequested`,

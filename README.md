@@ -14,12 +14,22 @@ A web search and AI panel for [Omarchy](https://omarchy.org) 4, driven with vim 
 | `h` `l` | previous and next page |
 | `v` `V` then `y` | select in an answer, and yank |
 | `enter` on a selection | hand it to the agent in a terminal |
-| `ctrl+c` | new session |
+| `ctrl+c` | new session, keeping this one |
+| `ctrl+n` `ctrl+x` | the next saved session, or forget this one |
+| `ctrl+shift+x` | forget every saved session (press twice) |
 | `ctrl+s` | settings |
 | `esc` | back, then out |
 
 The field is vim on one line — motions, operators, counts, text objects
 (`diw`, `ci"`, `da(`). `jk` leaves insert.
+
+The last ten conversations are kept in `~/.local/share/omaseek/sessions.json`
+and survive a shell restart. A strip of numbered squares under the status line
+shows them, `1` the newest and the open one filled: click one to switch, or
+walk them with `ctrl+n`. `ctrl+x` forgets the one on screen, and the `+` square
+(or `ctrl+c`) starts another. `ctrl+c` while the agent is still thinking leaves
+that question running — its square keeps a dot until the answer lands in it —
+so you can start something else and come back to a finished reply.
 
 [**KEYS.md**](KEYS.md) has every binding. `ctrl+s` opens settings, which
 writes `~/.config/omaseek/config.json`.
@@ -60,6 +70,26 @@ Searching needs a SearXNG instance you run yourself — `./bin/searxng-up`
 creates one on port 8888, and the panel offers to start it when it is down.
 Asking uses an agent CLI you already have (`claude`, `codex`, `gemini`,
 `hermes`, …); there is no API key.
+
+## Switch AI models
+
+Open **Ctrl+S → Ask**, choose your **Agent**, then open the **Model** dropdown
+with **Enter**. Use **j/k** or **↑/↓** to choose and **Enter** to save, exactly
+like the Agent dropdown. Choose **default** to use the CLI's own model choice.
+
+OpenCode, Cursor and Copilot supply their model lists through their CLIs; Codex
+uses its local model catalogue. Omaseek does not carry its own model list: when
+an agent cannot report one, or lookup fails, the dropdown contains only
+**default**. Model access depends on the agent's configured provider and account.
+
+The choice is remembered separately for each agent, including the resolved
+agent when **Agent** is `default`. It applies to the next question in the current
+conversation and to terminal/tmux/herdr hand-offs. A reply already running
+finishes with its original model.
+
+These choices live under `chat_models` in `~/.config/omaseek/config.json`.
+For a one-off backend call, pass `"model"` in the `./bin/ask --json` payload;
+an empty string uses the CLI default.
 
 ## License
 

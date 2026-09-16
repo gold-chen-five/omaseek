@@ -9,7 +9,8 @@ import "chord.js" as Chord
 FocusScope {
   id: page
 
-  property var rows: []
+  property alias incomingRows: rowState.source
+  readonly property var rows: rowState.rows
   property int cursor: 0
   property int editingIndex: -1              // which text row is being typed into
   property int dropdownIndex: -1             // which choice row has its list open
@@ -42,6 +43,10 @@ FocusScope {
     Qt.callLater(ensureCursorVisible)
   }
   onRowsChanged: Qt.callLater(ensureCursorVisible)
+  SettingsRows {
+    id: rowState
+    held: page.dropdownIndex !== -1 || page.editingIndex !== -1
+  }
 
   function ensureCursorVisible () {
     const row = rowRepeater.itemAt(cursor)
@@ -359,6 +364,7 @@ FocusScope {
               onPopupOpenChanged: {
                 if (popupOpen) {
                   settingRow.owner.cursor = settingRow.index   // a click lands the cursor too
+                  settingRow.owner.dropdownIndex = settingRow.index
                 } else {
                   settingRow.owner.dropdownIndex = -1
                   settingRow.owner.forceActiveFocus()

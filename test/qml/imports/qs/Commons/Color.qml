@@ -6,5 +6,6 @@ QtObject {
   property color accent: "white"
   readonly property QtObject menu: QtObject {
     property color selectedText: "white"
+    property color text: "white"
   }
 }

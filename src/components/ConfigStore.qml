@@ -22,10 +22,7 @@ Item {
 
   // A change is written straight through — there is no save button to forget.
   function change (key, value) {
-    // Every setting, so a key added to the settings lib needs nothing here.
-    const next = {}
-    for (const name in settings) next[name] = settings[name]
-    next[key] = value
+    const next = SettingsLib.changeSetting(settings, key, value)
 
     const text = SettingsLib.writeSettings(next, source)
     apply(text)                                // reflect it now; the watcher confirms

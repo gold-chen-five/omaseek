@@ -63,11 +63,11 @@ export function mergeResults (existing = [], incoming = []) {
 export function statusText ({
   view = VIEW.SEARCH, panelMode = PANEL.SEARCH, status, count = 0, query = '', page = 1,
   hasNext = false, loadingPage = false, errorMessage = '', backend = '',
-  agent = '', selecting = false, link = ''
+  agent = '', selecting = false, link = '', session = ''
 } = {}) {
   if (view === VIEW.SETTINGS) return 'j/k rows · h/l change · enter opens · saved as you go · esc back'
   if (view === VIEW.SETUP) return 'h/l choose · enter confirm · esc not now'
-  if (panelMode === PANEL.AI) return askStatusText({ status, errorMessage, agent, selecting, link })
+  if (panelMode === PANEL.AI) return askStatusText({ status, errorMessage, agent, selecting, link, session })
 
   switch (status) {
     case 'loading':
@@ -86,21 +86,35 @@ export function statusText ({
   }
 }
 
-/** The AI half's status line. */
-function askStatusText ({ status, errorMessage, agent, selecting, link }) {
+/**
+ * The AI half's status line. Where the reader is in the ring leads, when there
+ * is one. Kept short on purpose: the strip shows the conversations and KEYS.md
+ * has the rest, so a line that elides teaches nothing.
+ */
+function askStatusText ({ status, errorMessage, agent, selecting, link, session }) {
+  const where = session ? session + ' · ' : ''
   switch (status) {
     case 'thinking':
-      return agent ? `asking ${agent}…` : 'asking…'
+      return where + (agent ? `asking ${agent}…` : 'asking…')
     case 'error':
       return errorMessage
     case 'ok':
-      if (selecting && link) return `gx opens ${hostOf(link)} · y yanks · p puts it in the ask · esc drops it`
-      if (selecting) return 'enter hands the selection to the agent · y yanks · p puts it in the ask · esc drops it'
-      if (link) return `gx opens ${hostOf(link)} · v select · yy yanks the reply · enter hands off`
-      return 'v select · yy yanks the reply · p pastes into the ask · enter hands off · i asks more · ctrl+c new session'
+      if (selecting && link) return `gx opens ${hostOf(link)} · y yank · p to ask · esc drops`
+      if (selecting) return 'enter hands off · y yank · p to ask · esc drops'
+      if (link) return `gx opens ${hostOf(link)} · v select · yy yank`
+      return where + 'v select · yy yank · enter hands off · ctrl+n next'
     default:
-      return 'enter asks · tab search · ctrl+s settings'
+      return where + 'enter asks · tab search · ctrl+s settings'
   }
+}
+
+/**
+ * The line a destructive key shows while it waits for its second press. The key
+ * is rebindable, so it names itself.
+ */
+export function confirmClearText (keyText, count) {
+  const what = count === 1 ? 'the saved conversation' : `all ${count} conversations`
+  return `${keyText} again to forget ${what} · anything else cancels`
 }
 
 /** Left-hand side of the status strip: the view, or the vim mode inside it. */

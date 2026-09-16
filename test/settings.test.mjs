@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {
   readSettings, writeSettings, settingsRows, cycle, normalizeSequence, ENGINE_STATES,
   LAUNCHER_CHOICES, DEFAULT_AGENT,
-  PAGE_SIZE_CHOICES, DEFAULTS, checkRow, FIXED_KEYS
+  PAGE_SIZE_CHOICES, DEFAULTS, checkRow, FIXED_KEYS, changeSetting, selectedModel
 } from '../src/lib/settings.mjs'
 import { ACTIONS, settingKey } from '../src/lib/keybinds.mjs'
 import { DEFAULT_TIMEOUT_MS } from '../src/lib/keymap.mjs'
@@ -144,6 +144,62 @@ test('the chat agent and launcher read, default and round-trip', () => {
   const out = JSON.parse(writeSettings({ ...DEFAULTS, chatAgent: 'codex', launcher: 'tmux' }, ''))
   assert.equal(out.chat_agent, 'codex')
   assert.equal(out.launcher, 'tmux')
+})
+
+test('model edits follow the resolved agent and preserve other agents through saving', () => {
+  const agents = { agents: [{ id: 'codex' }, { id: 'opencode' }], default: 'codex' }
+  const source = '{"chat_models":{"codex":"model-one","opencode":"provider/model"},"extra":42}'
+  const original = readSettings(source)
+  let settings = changeSetting(original, 'chatModel:codex', ' model-two ')
+  assert.equal(original.chatModels.codex, 'model-one', 'edits do not mutate live settings')
+  settings = changeSetting(settings, 'chatAgent', 'opencode')
+  const catalog = { agent: 'opencode', models: ['provider/model'] }
+  const modelRow = settingsRows(settings, 'running', agents, catalog).find(r => r.label === 'Model')
+  assert.equal(modelRow.value, 'provider/model')
+  const saved = writeSettings(settings, source)
+  assert.deepEqual(readSettings(saved).chatModels, { codex: 'model-two', opencode: 'provider/model' })
+  assert.equal(JSON.parse(saved).extra, 42)
+  settings = changeSetting(settings, modelRow.key, 'default')
+  assert.deepEqual(readSettings(writeSettings(settings, saved)).chatModels, { codex: 'model-two' })
+})
+
+test('invalid model config falls back per agent and an unresolved agent offers default', () => {
+  for (const value of [null, [], 'sonnet', 42]) {
+    assert.deepEqual(readSettings(JSON.stringify({ chat_models: value })).chatModels, {})
+  }
+  assert.deepEqual(readSettings('{"chat_models":{"claude":42,"codex":" model ","gemini":"bad\\u0000id"}}').chatModels, { codex: 'model' })
+  const waiting = settingsRows(readSettings('')).find(r => r.label === 'Model')
+  assert.equal(waiting.control, 'dropdown')
+  assert.deepEqual(waiting.options, ['default'])
+  assert.deepEqual(changeSetting(readSettings(''), waiting.key, 'default').chatModels, {})
+})
+
+test('model and agent share the dropdown control; discovery follows the selected agent', () => {
+  const agents = { agents: [{ id: 'claude' }, { id: 'opencode' }], default: 'claude' }
+  let settings = readSettings('{"chat_models":{"opencode":"custom/saved"}}')
+  const catalog = { agent: 'opencode', models: ['provider/one', 'provider/two', 'provider/one', null, ''] }
+  let rows = settingsRows(settings, 'running', agents, catalog)
+  let model = rows.find(r => r.label === 'Model')
+  const agent = rows.find(r => r.key === 'chatAgent')
+  assert.equal(model.type, agent.type)
+  assert.equal(model.control, agent.control)
+  assert.deepEqual(model.options, ['default'])
+  assert.equal(model.value, 'default', 'saved values are not offered without discovery')
+  assert.equal(selectedModel(settings, agents, catalog), '')
+  assert.ok(!model.options.includes('provider/one'), 'an old discovery cannot leak across agents')
+  settings = changeSetting(settings, 'chatAgent', 'opencode')
+  rows = settingsRows(settings, 'running', agents, catalog)
+  model = rows.find(r => r.label === 'Model')
+  assert.deepEqual(model.options, ['default', 'provider/one', 'provider/two'])
+  assert.equal(model.value, 'default', 'an unreported saved model cannot be selected')
+  assert.equal(selectedModel(settings, agents, catalog), '')
+  const includingSaved = { agent: 'opencode', models: ['provider/one', 'custom/saved'] }
+  model = settingsRows(settings, 'running', agents, includingSaved).find(r => r.label === 'Model')
+  assert.equal(model.value, 'custom/saved')
+  assert.equal(selectedModel(settings, agents, includingSaved), 'custom/saved')
+  const chosen = cycle(model, 1)
+  assert.equal(chosen, 'default')
+  assert.deepEqual(changeSetting(settings, model.key, chosen).chatModels, {})
 })
 
 test('the agent row offers default plus whatever is installed', () => {

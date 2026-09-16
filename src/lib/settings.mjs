@@ -21,6 +21,7 @@ export const DEFAULTS = {
   resultsPerPage: 10,
   lineNumbers: LINE_NUMBER_CHOICES[0],
   chatAgent: DEFAULT_AGENT,
+  chatModels: {},
   launcher: LAUNCHER_CHOICES[0]
 }
 for (let i = 0; i < ACTIONS.length; i++) DEFAULTS[settingKey(ACTIONS[i])] = ACTIONS[i].default
@@ -61,6 +62,7 @@ export function readSettings (source) {
     resultsPerPage: oneOf(config.resultsPerPage ?? config.results_per_page, PAGE_SIZE_CHOICES, DEFAULTS.resultsPerPage),
     lineNumbers: oneOf(config.line_numbers, LINE_NUMBER_CHOICES, DEFAULTS.lineNumbers),
     chatAgent: agentId(config.chat_agent),
+    chatModels: readModels(config.chat_models),
     launcher: oneOf(config.launcher, LAUNCHER_CHOICES, DEFAULTS.launcher),
     sequences: keymap.sequences
   }
@@ -81,6 +83,59 @@ function agentId (value) {
   return id === '' ? DEFAULT_AGENT : id
 }
 
+function modelId (value) {
+  if (typeof value !== 'string') return ''
+  const text = value.trim()
+  return /[\x00-\x1f\x7f]/.test(text) ? '' : text
+}
+
+function readModels (value) {
+  const models = {}
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return models
+  for (const id of Object.keys(value)) {
+    const model = modelId(value[id])
+    if (model && id !== '__proto__') models[id] = model
+  }
+  return models
+}
+
+function modelSelection (settings, agent, catalog) {
+  const options = ['default']
+  const discovered = catalog && catalog.agent === agent && Array.isArray(catalog.models) ? catalog.models : []
+  for (const choice of discovered) {
+    const id = modelId(choice)
+    if (id && options.indexOf(id) === -1) options.push(id)
+  }
+  const saved = readModels(settings.chatModels)[agent] || ''
+  return { options: options, value: options.indexOf(saved) !== -1 ? saved : 'default' }
+}
+
+/** The model the panel may pass to the CLI; empty deliberately means its default. */
+export function selectedModel (settings, agents = null, catalog = null) {
+  const known = agents && Array.isArray(agents.agents) ? agents.agents : []
+  const agentIds = known.map(agent => agent.id)
+  const defaultId = agents && typeof agents.default === 'string' ? agents.default : ''
+  const requested = agentId(settings.chatAgent)
+  const agent = requested !== DEFAULT_AGENT && agentIds.indexOf(requested) !== -1 ? requested : defaultId
+  const selected = modelSelection(settings, agent, catalog).value
+  return selected === 'default' ? '' : selected
+}
+
+/** A model row targets the resolved agent, even when Agent is set to default. */
+export function changeSetting (settings, key, value) {
+  const next = Object.assign({}, settings)
+  if (key.indexOf('chatModel:') === 0) {
+    const id = key.slice('chatModel:'.length)
+    next.chatModels = readModels(settings.chatModels)
+    if (id && id !== '__proto__') {
+      const model = value === 'default' ? '' : modelId(value)
+      if (model) next.chatModels[id] = model
+      else delete next.chatModels[id]
+    }
+  } else next[key] = value
+  return next
+}
+
 /** Settings -> JSON, preserving keys this module does not own. */
 export function writeSettings (settings, source) {
   const config = parse(source)
@@ -89,6 +144,7 @@ export function writeSettings (settings, source) {
   config.results_per_page = oneOf(settings.resultsPerPage, PAGE_SIZE_CHOICES, DEFAULTS.resultsPerPage)
   config.line_numbers = oneOf(settings.lineNumbers, LINE_NUMBER_CHOICES, DEFAULTS.lineNumbers)
   config.chat_agent = agentId(settings.chatAgent)
+  config.chat_models = readModels(settings.chatModels)
   config.launcher = oneOf(settings.launcher, LAUNCHER_CHOICES, DEFAULTS.launcher)
   for (let i = 0; i < ACTIONS.length; i++) {
     const action = ACTIONS[i]
@@ -105,7 +161,7 @@ export const ENGINE_STATES = ['unknown', 'running', 'stopped']
  * The settings page rows, in order. `engine` is the SearXNG switch: whether the
  * instance answers, not a stored setting.
  */
-export function settingsRows (settings, engine = 'unknown', agents = null) {
+export function settingsRows (settings, engine = 'unknown', agents = null, catalog = null) {
   const state = ENGINE_STATES.indexOf(engine) === -1 ? 'unknown' : engine
   const running = state === 'running'
   const known = agents && Array.isArray(agents.agents) ? agents.agents : []
@@ -114,6 +170,8 @@ export function settingsRows (settings, engine = 'unknown', agents = null) {
   const chatAgent = settings.chatAgent === DEFAULT_AGENT || agentIds.indexOf(settings.chatAgent) !== -1
     ? settings.chatAgent
     : DEFAULT_AGENT
+  const modelAgent = chatAgent !== DEFAULT_AGENT ? chatAgent : defaultId
+  const model = modelSelection(settings, modelAgent, catalog)
   const rows = [
     { type: 'section', label: 'Search' },
     {
@@ -147,6 +205,17 @@ export function settingsRows (settings, engine = 'unknown', agents = null) {
         : `default is ${defaultId} — omarchy default agent is unset, so the first installed stands in`,
       options: [DEFAULT_AGENT].concat(agentIds),
       value: chatAgent
+    },
+    {
+      key: 'chatModel:' + modelAgent,
+      type: 'choice',
+      control: 'dropdown',
+      label: 'Model',
+      hint: modelAgent ? `${modelAgent} — default uses the CLI's choice; applies next turn and to hand-offs`
+        + (catalog && catalog.agent === modelAgent && catalog.message ? ` · ${catalog.message}` : '')
+        : 'choose an installed agent first',
+      options: model.options,
+      value: model.value
     },
     {
       key: 'launcher',
