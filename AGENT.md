@@ -188,9 +188,11 @@ runs the interactive CLI in a PTY, waits for bracketed-paste mode and a short st
 are removed from the draft. The same wrapper works in terminal, tmux and herdr;
 a private temporary prompt file is deleted when the wrapper reads it. Do not
 restore prompt arguments that auto-submit. Both reading panes hand off with the
-same keys: `ga` the selected result, or the selection / the reply under the
-cursor with its question; `gA` the whole page or conversation, built from the
-turns (`transcript.mjs`), never the rendered text with its placeholder dots.
+same keys: `ga` the selected result's bare URL — the draft is editable, so a
+title and snippet in front of it only get in the way of the question being typed
+around it — or the selection / the reply under the cursor with its question;
+`gA` every URL on the page one per line, or the whole conversation, built from
+the turns (`transcript.mjs`), never the rendered text with its placeholder dots.
 Every panel key is one entry in `ACTIONS` (`src/lib/keybinds.mjs`): its
 default, where it is read, and its Settings → Keys row. `bindingProblem` in
 `keys.mjs` refuses a key another action or a fixed vim key already holds —

@@ -19,8 +19,8 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 | Settings | `settings_key` | `ctrl+s` | anywhere: open or close settings (`ctrl+,` always works too) |
 | Switch search / ask | `switch_mode_key` | `tab` | anywhere, without changing Vim mode (`shift+tab` always works too) |
 | Open | `open_key` | `enter` | results: open the result and dismiss · answer: the link under the cursor or in the selection |
-| Hand off to agent | `handoff_key` | `ga` | results: the selected result · answer: the selection, else the reply under the cursor with its question |
-| Hand off everything | `handoff_all_key` | `gA` | results: every result on the page · answer: the whole conversation |
+| Hand off to agent | `handoff_key` | `ga` | results: the selected result's URL, alone · answer: the selection, else the reply under the cursor with its question |
+| Hand off everything | `handoff_all_key` | `gA` | results: every URL on the page · answer: the whole conversation |
 | Open link | `open_link_key` | `gx` | answer: the URL under the cursor or in the selection |
 | Next page | `next_page_key` | `l` | results (`right` always works too) |
 | Previous page | `previous_page_key` | `h` | results (`left` always works too) |
@@ -120,8 +120,8 @@ relative to the current row: `2j` moves down two results, `2k` moves up two.
 | `l` (Next page), `right` | next page |
 | `h` (Previous page), `left` | previous page |
 | `enter` (Open) | open in the browser and dismiss |
-| `ga` (Hand off to agent) | the selected result, as an editable draft in the agent |
-| `gA` (Hand off everything) | every result on the current page, as an editable draft |
+| `ga` (Hand off to agent) | the selected result's URL on its own, as an editable draft in the agent |
+| `gA` (Hand off everything) | every URL on the current page, one per line, as an editable draft |
 | `gi` (Back to the field) | back to the field, normal mode |
 | `/` | back to the field, normal mode |
 | `i` | back to the field, insert before the cursor, as in vim |

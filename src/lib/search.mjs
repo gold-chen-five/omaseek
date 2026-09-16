@@ -128,11 +128,17 @@ export function modeLabel ({ view = VIEW.SEARCH, panelMode = PANEL.SEARCH, focus
   return focusArea === FOCUS.RESULTS ? 'RESULTS' : String(mode).toUpperCase()
 }
 
-/** Context for an editable agent draft; selected row or the current page. */
-export function handoffText (query, rows, index = -1) {
+/**
+ * URLs for an editable agent draft: the selected result, or every result on the
+ * page one per line. The draft is editable, so the reader types the question
+ * around the links; a title and a snippet in front of them only get in the way.
+ */
+export function handoffText (rows, index = -1) {
   const selected = index >= 0 ? rows.slice(index, index + 1) : rows
-  if (!selected.length) return ''
-  return 'Search: ' + query + '\n\n' + selected.map(row =>
-    [row.title, row.url, row.snippet].filter(Boolean).join('\n')
-  ).join('\n\n')
+  const urls = []
+  for (let i = 0; i < selected.length; i++) {
+    const row = selected[i]
+    if (row && row.url) urls.push(row.url)
+  }
+  return urls.join('\n')
 }

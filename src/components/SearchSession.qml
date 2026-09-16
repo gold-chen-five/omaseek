@@ -53,7 +53,7 @@ Item {
   }
 
   function handoffText (index) {
-    return SearchLib.handoffText(lastQuery, currentPage ? currentPage.rows : [], index)
+    return SearchLib.handoffText(currentPage ? currentPage.rows : [], index)
   }
 
   function reset () {

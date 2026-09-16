@@ -128,13 +128,15 @@ test('on a link, the answer hint says gx and where it goes', () => {
 })
 
 
-test('agent context carries selected URLs or all current-page results', async () => {
+test('a hand-off is the selected result’s URL, or every URL on the page', async () => {
   const { handoffText } = await import('../src/lib/search.mjs')
   const rows = [{ title: 'One', url: 'https://one.test', snippet: 'first' },
                 { title: 'Two', url: 'https://two.test', snippet: 'second' }]
-  assert.equal(handoffText('query', rows, 1), 'Search: query\n\nTwo\nhttps://two.test\nsecond')
-  assert.match(handoffText('query', rows), /one.test[\s\S]*two.test/)
-  assert.equal(handoffText('query', []), '')
+  assert.equal(handoffText(rows, 1), 'https://two.test')
+  assert.equal(handoffText(rows), 'https://one.test\nhttps://two.test')
+  assert.equal(handoffText([]), '')
+  assert.equal(handoffText(rows, 5), '')
+  assert.equal(handoffText([{ title: 'No link', url: '' }], 0), '')
 })
 
 test('the AI line says where in the ring the conversation is, before the keys', () => {
