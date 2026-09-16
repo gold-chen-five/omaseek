@@ -365,7 +365,8 @@ FocusScope {
               }
 
               // While open, the list has the keys; closing it hands them back to the page.
-              Dropdown {
+              // Ours rather than qs.Ui's: its list stays on screen (SettingsDropdown.qml).
+              SettingsDropdown {
                 id: picker
 
                 readonly property bool asked: settingRow.index === page.dropdownIndex
@@ -374,7 +375,6 @@ FocusScope {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 width: page.chipColumn > 0 ? page.chipColumn : Style.space(200)
-                showLabel: false
                 options: picker.visible ? settingRow.modelData.options.map(String) : []
                 value: String(settingRow.modelData.value)
                 hasCursor: settingRow.hasCursor

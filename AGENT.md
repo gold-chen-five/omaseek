@@ -63,6 +63,7 @@ merging and config parsing are all under test without a compositor.
 - `src/lib/states.mjs` — the panel's `VIEW`, `PANEL` and `FOCUS` values; never write them as bare strings
 - `src/lib/urls.mjs` — the bare URL under the cursor for `gx`, and which links may open (http/https only)
 - `src/lib/sessions.mjs` — the ring of ten saved conversations: recording, walking, forgetting, and its file
+- `src/lib/popup.mjs` — where a settings dropdown's list opens so it stays on screen: below, above, or shrunk to scroll
 
 `VimTextField.qml` is therefore only a mode machine and key dispatch — if you
 add a motion or an object, the logic goes in `src/lib` with tests and the QML
@@ -286,6 +287,10 @@ between search and AI with Tab; only an explicit mode-changing action changes it
   `~/.local/share/omaseek/sessions.json`, written whole on every turn.
 - `HistoryStore.qml` — the last twenty-five queries, the same shape and read
   once for the same reason.
+- `SettingsDropdown.qml` — Omarchy's qs.Ui `Dropdown`, copied because its list
+  always opened below at eight rows with no window bound and ran off the screen
+  for a row low on the page; this one places the list with `popup.mjs`. Keep
+  its look in step with the original under `/usr/share/omarchy/shell/Ui`.
 - `SessionTabs.qml` — the numbered squares under the status line, one per saved
   conversation plus a `+`, with a pulsing dot on any whose answer is still
   coming; it raises `picked(index)` and `started()` and knows nothing else. It takes its room from the view below through
