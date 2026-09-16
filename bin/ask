@@ -27,11 +27,13 @@ agent with no streaming spelling simply emits that one line.
     {"ok": false, "error": "auth"|"config", "login": true, "fix": "login"|"setup", "message": "…"}
 """
 
+import ctypes
 import json
 import os
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -410,6 +412,19 @@ def chat_env(agent):
     return env
 
 
+def die_with_parent():
+    """In the agent's child, before exec: take SIGTERM when this script dies.
+
+    The panel stops an answer by stopping this process, and a stopped answer
+    must not keep an agent CLI running — and billing — in the background. The
+    kernel delivers it however this script ends, SIGKILL included, which no
+    handler here could promise."""
+    try:
+        ctypes.CDLL(None, use_errno=True).prctl(1, signal.SIGTERM)   # PR_SET_PDEATHSIG
+    except (OSError, AttributeError):
+        pass
+
+
 def run_chat_outcome(agent, prompt):
     """One whole answer, as a payload. Never exits, so --stream can wrap it."""
     os.makedirs(WORK_DIR, exist_ok=True)
@@ -423,6 +438,7 @@ def run_chat_outcome(agent, prompt):
             command, cwd=WORK_DIR, env=chat_env(agent),
             # Closed stdin: given the panel's, `codex exec` waits on it and never answers.
             stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=TIMEOUT,
+            preexec_fn=die_with_parent,
         )
     except FileNotFoundError:
         return {"ok": False, "error": "agent", "message": f"{agent['id']} is not installed"}
@@ -493,7 +509,7 @@ def stream_chat(agent, prompt):
         process = subprocess.Popen(
             list(agent["stream"]) + [prompt], cwd=WORK_DIR, env=chat_env(agent),
             stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            text=True,
+            text=True, preexec_fn=die_with_parent,
         )
     except FileNotFoundError:
         return {"ok": False, "error": "agent", "message": f"{agent['id']} is not installed"}

@@ -84,13 +84,30 @@ Exa fallback were removed deliberately, so do not reintroduce scraping,
 browser-UA spoofing, or a third-party search API without being asked.
 
 It always prints one JSON object — `{ok: true, results, next, backend}` or
-`{ok: false, error, message}` — and exits 0 even on a handled failure. Errors
+`{ok: false, error, message}` — and exits 0 even on a handled failure. Each row
+carries `engines` (`"brave, bing"`), which `ResultRow` shows after the domain; a
+string, because a ListModel turns an array role into a nested model. Errors
 are typed (`network`/`http`/`usage`), and a failure carries `setup: true` for
 the one case a person can fix from the panel: the instance is not running.
 `Search.qml` turns that into the SetupPrompt view, which explains Docker and
 asks, rather than showing an error the user cannot act on. A 403 is *not*
 marked `setup` — SearXNG ships `formats: [html]`, so the JSON API is off until
 `settings.yml` enables it, and the error message names that fix.
+
+**A failed page is not the end.** `grow_session` used to clear `next` when a
+fetch failed, so a timeout on page 3 read as `· end` and could never be retried.
+It now keeps the continuation, saves the buffer, and `emit_page` fails the whole
+page with `retry: true` — a short page would be cached by the panel as final.
+`SearchSession` keeps the page's `next`, sets `pageError`, and the status line
+says `page failed · l retries`; the same `--next` payload resumes. The first page
+is the exception: rows to read beat an error.
+
+`bin/search --test` is the Settings → Test SearXNG row: one real query with the
+configured engines and language, reported as its time, rows per engine and
+SearXNG's `unresponsive_engines` (Google answers `Suspended: CAPTCHA` locally).
+`Engine.test` holds the answer; it runs in-process rather than in a terminal,
+and changing an engine or the language clears it, since it described the old
+ones.
 
 Updates are deliberate rather than tied to opening the panel. Settings launches
 `bin/searxng-up --update` in a terminal: it pulls before touching the current
@@ -103,7 +120,7 @@ exactly the page — an earlier lookahead row cost a whole extra request wheneve
 a SearXNG page came back exactly `PAGE_SIZE` long, doubling latency on a
 keypress. Everything else is SearXNG waiting on upstream engines — and it
 waits for every engine in the category, so `searxng_engines` in config.json
-(hand-edited, passed through as `engines=`) is the big lever: naming the ones
+(Settings → one switch per engine, passed through as `engines=`) is the big lever: naming the ones
 that answer took a query from ~1.1 s to ~0.3 s locally. `outgoing.request_timeout`
 in its `settings.yml` is the backstop.
 
@@ -116,6 +133,11 @@ error, or nothing at all, and `wikipedia`/`wikidata` return *no rows by
 construction* — they answer in `infoboxes`, which `parse()` does not read.
 SearXNG ignores an engine name its instance lacks, so the list is safe to ship;
 an explicit `[]` is the escape hatch that hands the choice back to SearXNG.
+The settings page switches only brave, bing and google (`ENGINE_CHOICES`), and
+shows any other name found in the list as a switch too, so a hand-typed engine
+survives a toggle. `searxng_language` is sent as `language=`; `default` is
+written as an absent key. Both are part of the buffer's cache key, or switching
+language would serve page 2 from the old language's buffer.
 
 Pages are sliced from a session buffer under `~/.cache/omaseek/` rather
 than served straight from SearXNG, because a SearXNG page is however many
@@ -187,7 +209,21 @@ it and `deliver()` ignores a stream nobody waits for. And the sign-in hand-off
 takes the screen, so a background failure only records its error; only the
 conversation in front of the reader opens a terminal. `dropUnanswered()` still
 takes out a conversation left with a question that has no answer *and* nothing
-running, so an abandoned empty question does not keep a square.
+running, so an abandoned empty question does not keep a square — unless it ends
+in a stop, which was a decision to come back and retry.
+
+**Stop and retry** (`ctrl+q`, `ctrl+shift+r`; shift because `ctrl+r` is the
+field's redo). `AiSession.stop()` cancels the live turn and appends
+`Sessions.stoppedTurn(partial)`: the words streamed so far as an assistant turn
+marked `stopped: true`, or an error turn when nothing had arrived. `stopped`
+is the one extra field `asTurns` keeps. A stopped reply is shown with `■ stopped`
+under it and never travels in a prompt (`promptTurns`). `retry()` cuts
+everything after `Sessions.retryPoint(history)` — the last question, when only
+failures, stops or nothing follow it (a turn a shell restart lost) — and asks it
+again. Stopping kills `bin/ask`, so the agent CLI it started is spawned with
+`PR_SET_PDEATHSIG` (`die_with_parent`): the kernel ends it however `bin/ask`
+dies, SIGKILL included, and a stopped answer does not keep an agent running and
+billing in the background.
 
 Handoffs open an editable draft, never an initial submitted prompt. `bin/agent-draft`
 runs the interactive CLI in a PTY, waits for bracketed-paste mode and a short startup delay
@@ -292,7 +328,8 @@ maps action id → parsed chord, and the field and the answer both take it as
 
 Settings live in `~/.config/omaseek/config.json`, shared by the panel and
 `bin/search` — **the option lists are declared once in `src/lib/settings.mjs`**
-and mirrored in `bin/search` (`PAGE_SIZE_CHOICES`); change both. `searxng_url`
+and mirrored in `bin/search` (`PAGE_SIZE_CHOICES`, `DEFAULT_ENGINES`,
+`LANGUAGE_PATTERN`); change both. `searxng_url`
 is read by `bin/search` and never written by the panel, so `writeSettings` must
 keep preserving keys it does not own.
 Writes go through `writeSettings`, which preserves keys it does not own so the

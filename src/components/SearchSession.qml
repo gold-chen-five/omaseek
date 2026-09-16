@@ -15,6 +15,9 @@ Item {
   property var pages: []
   property int pageIndex: 0
   property bool loadingPage: false
+  // Why the page after this one failed to load. Its continuation is kept, so
+  // `l` asks again; "" when nothing failed.
+  property string pageError: ""
 
   readonly property var currentPage: pages.length > 0 ? pages[pageIndex] : null
   readonly property bool hasNext: currentPage ? (pageIndex + 1 < pages.length || currentPage.next !== null) : false
@@ -42,6 +45,7 @@ Item {
       return
     }
     if (!currentPage || !currentPage.next) return
+    pageError = ""
     loadingPage = true
     searchProcess.start([backendPath, "--next", JSON.stringify(currentPage.next)])
   }
@@ -81,11 +85,13 @@ Item {
     pages = []
     pageIndex = 0
     loadingPage = false
+    pageError = ""
   }
 
   function showPage (index) {
     if (index < 0 || index >= pages.length) return
     pageIndex = index
+    pageError = ""
     resultsModel.clear()
     for (const row of pages[index].rows) resultsModel.append(row)
     pageShown()
@@ -108,8 +114,9 @@ Item {
         return
       }
       if (wasPaging) {
-        closeCurrentPage()
-        errorMessage = message
+        // The rows past here were never fetched, so this is not the end: the
+        // continuation stays and `l` retries it.
+        failPage(message)
         return
       }
       resultsModel.clear()
@@ -147,8 +154,18 @@ Item {
     if (stillWaiting) showPage(pages.length - 1)
   }
 
+  // Said only on the last page: stepped back with h, the reader's `l` means the
+  // cached page in front, and the next one to fetch can fail again later.
+  function failPage (message) {
+    if (pageIndex === pages.length - 1) pageError = message
+  }
+
   function fail (message) {
-    loadingPage = false
+    if (loadingPage) {
+      loadingPage = false
+      failPage(message)                        // the page on screen is still good
+      return
+    }
     status = "error"
     errorMessage = message
   }

@@ -18,7 +18,7 @@ Item {
   property string chatModel: ""                 // validated discovery result; empty is CLI default
   property string launcher: "terminal"
 
-  property string status: "idle"               // idle | thinking | ok | error
+  property string status: "idle"               // idle | thinking | ok | error | stopped
   property string errorMessage: ""
   property string agent: ""                    // who answered last, by id
   property var history: []                     // [{ role: 'user'|'assistant'|'error', text }]
@@ -35,6 +35,8 @@ Item {
   readonly property int sessionCount: sessions.length
   readonly property string sessionLabel: Sessions.sessionLabel(sessionIndex, sessionCount)
   function isPending (id) { return id !== "" && pendingIds.indexOf(id) !== -1 }
+  // A failed, stopped or interrupted last question, and nothing running for it.
+  readonly property bool canRetry: !isPending(liveId) && Sessions.retryPoint(history) !== -1
   property var models: null                    // { agent, models, message } for the selected CLI
   readonly property string modelAgent: chatAgent !== "default" ? chatAgent
     : agents && agents.default ? agents.default : ""
@@ -74,6 +76,7 @@ Item {
   function dropUnanswered () {
     if (sessionIndex < 0 || Sessions.isAnswered(history)) return -1
     if (isPending(liveId)) return -1            // its answer is still on its way
+    if (Sessions.endsStopped(history)) return -1  // stopped on purpose, to come back and retry
     const at = sessionIndex
     const step = Sessions.removeSession(store.sessions, at)
     store.save(step.sessions)
@@ -133,9 +136,17 @@ Item {
     sessionIndex = index
     liveId = entry.id
     agent = entry.agent || ""
-    // Coming back to a conversation still being answered picks the wait up again.
-    status = isPending(liveId) ? "thinking" : (history.length > 0 ? "ok" : "idle")
+    // Coming back to a conversation still being answered picks the wait up
+    // again; one that ended badly says so, with its retry.
     errorMessage = ""
+    const last = history.length > 0 ? history[history.length - 1] : null
+    if (isPending(liveId)) status = "thinking"
+    else if (!last || last.role === "user") status = "idle"
+    else if (last.stopped === true) status = "stopped"
+    else if (last.role === "error") {
+      status = "error"
+      errorMessage = last.text
+    } else status = "ok"
   }
 
   // Only this conversation is barred from asking twice at once; another may ask
@@ -143,10 +154,37 @@ Item {
   function ask (question) {
     if (status === "thinking") return
     errorMessage = ""
-    const payload = { question: question, history: answeredTurns(), agent: chatAgent, model: chatModel }
+    const payload = { question: question, history: Sessions.promptTurns(history), agent: chatAgent, model: chatModel }
     history = [...history, { role: "user", text: question }]   // remember() gives it its id
     status = "thinking"
     startTurn(liveId, payload)
+  }
+
+  // Stop the reply being written for the conversation on screen. The question
+  // stays, and the words so far with it, marked stopped so a retry can take
+  // them back out; nothing else in the conversation changes.
+  function stop () {
+    if (!isPending(liveId)) return false
+    const partial = streamBuffers[liveId] || ""
+    cancelTurn(liveId)
+    history = [...history, Sessions.stoppedTurn(partial)]
+    status = "stopped"
+    errorMessage = ""
+    return true
+  }
+
+  // Ask the last question again: after a failure, a stop, or a turn the shell
+  // lost. What it left behind goes, so the new answer takes its place.
+  function retry () {
+    if (!canRetry) return false
+    const at = Sessions.retryPoint(history)
+    const question = history[at].text
+    restoring = true                            // ask() records the conversation once
+    history = history.slice(0, at)
+    restoring = false
+    status = "idle"
+    ask(question)
+    return true
   }
 
   function startTurn (id, payload) {
@@ -259,22 +297,6 @@ Item {
                                  entry.turns.concat([{ role: role, text: text }]),
                                  agentId || entry.agent, Date.now())
     store.save(step.sessions)
-  }
-
-  // Answered questions and their answers; failures stay on screen only. Not named
-  // `answered`: a function sharing a signal's name fails the whole component.
-  function answeredTurns () {
-    const kept = []
-    for (let i = 0; i < history.length; i++) {
-      const turn = history[i]
-      if (turn.role === "user") {
-        const next = history[i + 1]
-        if (next && next.role === "assistant") kept.push(turn)
-      } else if (turn.role === "assistant") {
-        kept.push(turn)
-      }
-    }
-    return kept
   }
 
   function launch (text) {

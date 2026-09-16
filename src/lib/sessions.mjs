@@ -20,7 +20,9 @@ function asTurns (value) {
     const turn = value[i]
     if (!turn || typeof turn !== 'object') continue
     if (ROLES.indexOf(turn.role) === -1) continue
-    turns.push({ role: turn.role, text: asText(turn.text) })
+    const kept = { role: turn.role, text: asText(turn.text) }
+    if (turn.stopped === true) kept.stopped = true   // the reader stopped it; see retryPoint
+    turns.push(kept)
   }
   return turns
 }
@@ -107,6 +109,62 @@ export function isAnswered (turns) {
   const list = turns || []
   for (let i = 0; i < list.length; i++) if (list[i].role === 'assistant') return true
   return false
+}
+
+/**
+ * A stopped turn: the reply so far, marked, or an error turn saying nothing had
+ * arrived. Partial words are kept on screen — they may be all the reader
+ * needed — but never travel in a prompt as if they were an answer.
+ */
+export function stoppedTurn (partial) {
+  const text = asText(partial).trim()
+  return text
+    ? { role: 'assistant', text: text, stopped: true }
+    : { role: 'error', text: 'Stopped before the agent answered', stopped: true }
+}
+
+/** Whether the conversation ends with a turn the reader stopped. */
+export function endsStopped (turns) {
+  const list = turns || []
+  const last = list[list.length - 1]
+  return !!last && last.stopped === true
+}
+
+/**
+ * Where a retry starts: the last question, when everything after it is a
+ * failure or a stopped reply — or nothing at all, which is a turn that was
+ * interrupted (the shell restarted under it). -1 when the last question was
+ * answered, so there is nothing to retry.
+ */
+export function retryPoint (turns) {
+  const list = turns || []
+  for (let i = list.length - 1; i >= 0; i--) {
+    const turn = list[i]
+    if (turn.role === 'user') return i
+    if (turn.role === 'error') continue
+    if (turn.role === 'assistant' && turn.stopped === true) continue
+    return -1
+  }
+  return -1
+}
+
+/**
+ * The turns a prompt carries: answered questions and their answers. Failures
+ * and stopped replies stay on screen only, with the question they left open.
+ */
+export function promptTurns (turns) {
+  const list = turns || []
+  const kept = []
+  for (let i = 0; i < list.length; i++) {
+    const turn = list[i]
+    if (turn.role === 'user') {
+      const next = list[i + 1]
+      if (next && next.role === 'assistant' && next.stopped !== true) kept.push({ role: 'user', text: turn.text })
+    } else if (turn.role === 'assistant' && turn.stopped !== true) {
+      kept.push({ role: 'assistant', text: turn.text })
+    }
+  }
+  return kept
 }
 
 /** The ring without conversation `index`, and which one takes its place (-1 when none is left). */

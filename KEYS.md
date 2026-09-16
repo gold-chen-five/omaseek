@@ -16,6 +16,8 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 | Next session | `next_session_key` | `ctrl+n` | ask: the next saved conversation, newest first, wrapping |
 | Close session | `close_session_key` | `ctrl+x` | ask: forget this conversation and show the one below it |
 | Delete all sessions | `clear_sessions_key` | `ctrl+shift+x` | ask: forget every saved conversation, on the second press |
+| Stop answer | `stop_answer_key` | `ctrl+q` | ask: stop the reply being written, keeping the conversation and the words so far |
+| Retry answer | `retry_answer_key` | `ctrl+shift+r` | ask: ask the last question again after a failure, a stop, or an interruption |
 | Settings | `settings_key` | `ctrl+s` | anywhere: open or close settings (`ctrl+,` always works too) |
 | Switch search / ask | `switch_mode_key` | `tab` | anywhere, without changing Vim mode (`shift+tab` always works too) |
 | Open | `open_key` | `enter` | results: open the result and dismiss · answer: the link under the cursor or in the selection |
@@ -62,7 +64,17 @@ is thinking opens a new conversation and lets the old one finish: its square
 keeps a pulsing dot until the reply lands, and the reply lands in *that*
 conversation, so `ctrl+n` back to it shows the finished answer. You can ask in
 the new conversation straight away — each question has its own agent process.
-`ctrl+x` is the one key that does cancel: closing a conversation stops the
+To stop an answer without leaving it, press `ctrl+q`: the words written so far
+stay on screen under a `■ stopped` mark (or `⚠ Stopped before the agent
+answered`), the conversation stays in the ring, and the agent process is ended.
+`ctrl+shift+r` then asks the same question again, replacing the stopped reply —
+and it does the same after a failure, or for a question whose answer a shell
+restart lost. A stopped reply is never sent back to the agent as if it were an
+answer. The `chat` button reads `stop` while a reply is coming and `retry`, with
+an empty field, when there is one to retry. Retry is `ctrl+shift+r` because
+`ctrl+r` is redo in the field.
+
+`ctrl+x` is the one key that does cancel and forget: closing a conversation stops the
 question nobody will read, and `ctrl+shift+x` forgets every saved conversation
 at once — it cannot be undone, so the status line asks for a second press and
 any other session key calls it off. A question you leave that was never sent anywhere —
@@ -101,6 +113,7 @@ Insert mode:
 | `ctrl+j` | a line break in a question — AI mode; the bar grows a row, up to six |
 | `ctrl+c` `ctrl+n` `ctrl+x` | AI mode: a new conversation, the next saved one, forget this one |
 | `ctrl+shift+x` | AI mode: forget every saved conversation (twice) |
+| `ctrl+q` `ctrl+shift+r` | AI mode: stop the reply being written; ask the last question again |
 | `down` `up` | ask: a line down or up within a question of several lines; down from the last, into the transcript |
 | `up` `down` | search: the field is one line, so they walk the queries searched before — `up` an older one, `down` back toward what you had typed, then into the results |
 | `enter` (Search / ask) | search and focus the first result when it arrives; asking leaves the field in normal mode |
@@ -141,7 +154,7 @@ relative to the current row: `2j` moves down two results, `2k` moves up two.
 | `j` `k`, `down` `up` | move the cursor; a count repeats the move (`2j`, `10k`) |
 | `ctrl+d` `ctrl+u` | half a screen |
 | `gg` `G` | first, last |
-| `l` (Next page), `right` | next page |
+| `l` (Next page), `right` | next page; after `page failed` on the status line, it retries that page |
 | `h` (Previous page), `left` | previous page |
 | `enter` (Open) | open in the browser and dismiss |
 | `ga` (Hand off to agent) | the selected result's URL on its own, as an editable draft in the agent |
@@ -191,6 +204,8 @@ follow the layout when the panel width changes and are excluded from copied text
 | `ctrl+n` (Next session) | the next saved conversation, wrapping |
 | `ctrl+x` (Close session) | forget this conversation and show the one below it |
 | `ctrl+shift+x` (Delete all sessions) | forget every saved conversation, on a second press |
+| `ctrl+q` (Stop answer) | stop the reply being written, keeping what arrived |
+| `ctrl+shift+r` (Retry answer) | ask the last question again after a failure or a stop |
 | `/` `?` | search the transcript forwards or backwards |
 | `*` `#` | search for the word under the cursor, forwards or backwards — whole words only |
 | `n` `N` | the next match and the one before — a motion, so counts and yanks work: `3n`, `y2n` |
@@ -238,8 +253,8 @@ search.
 | key | does |
 |---|---|
 | `j` `k` | move between rows, stepping over section headings and the fixed-key list |
-| `h` `l` | change the value under the cursor; on the SearXNG switch, off and on |
-| `enter`, `i` | open a typed row for editing, flip the SearXNG switch, or open a dropdown |
+| `h` `l` | change the value under the cursor; on a switch (SearXNG, each engine), off and on |
+| `enter`, `i` | open a typed row for editing, flip a switch, press a button (Update, Test), or open a dropdown |
 | `gg` `G` | first, last row |
 | `enter` while editing | commit — a refused key says why under its label until the cursor moves |
 | `esc` while editing | cancel |

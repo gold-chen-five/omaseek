@@ -148,6 +148,8 @@ export function renderTranscript (turns, {
         link: link,
         lead: lead
       }))
+      // A reply the reader stopped keeps its words, and says it is not whole.
+      if (turn.stopped === true) parts.push(`<p><span style="color:${glyph}">■ stopped</span></p>`)
     }
   }
   // The reply being waited for, built exactly as a finished one is so the

@@ -2,7 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   MAX_SESSIONS, readSessions, writeSessions, record, removeSession, stepSession,
-  sessionTitle, sessionLabel, isAnswered, indexOfSession, newId
+  sessionTitle, sessionLabel, isAnswered, indexOfSession, newId,
+  stoppedTurn, endsStopped, retryPoint, promptTurns
 } from '../src/lib/sessions.mjs'
 
 const turns = question => [{ role: 'user', text: question }, { role: 'assistant', text: 'because.' }]
@@ -140,4 +141,39 @@ test('a conversation is found by id, wherever the ring has moved it', () => {
   assert.equal(indexOfSession(sessions, 'gone'), -1)
   assert.equal(indexOfSession(sessions, ''), -1, 'a conversation with no id is not the first one')
   assert.equal(indexOfSession(null, 'x'), -1)
+})
+
+test('stopping keeps the words so far as a marked reply, or says nothing had arrived', () => {
+  assert.deepEqual(stoppedTurn('  half an answer '), { role: 'assistant', text: 'half an answer', stopped: true })
+  const empty = stoppedTurn('')
+  assert.equal(empty.role, 'error')
+  assert.equal(empty.stopped, true)
+  assert.equal(endsStopped([{ role: 'user', text: 'q' }, empty]), true)
+  assert.equal(endsStopped([{ role: 'user', text: 'q' }, { role: 'error', text: 'boom' }]), false, 'a failure was not a decision')
+})
+
+test('the stopped mark survives the file, and nothing else rides along', () => {
+  const turns = [{ role: 'user', text: 'q' }, { role: 'assistant', text: 'so far', stopped: true, junk: 1 }]
+  const back = readSessions(writeSessions(record([], -1, turns, 'claude', 1).sessions))[0].turns
+  assert.deepEqual(back, [{ role: 'user', text: 'q' }, { role: 'assistant', text: 'so far', stopped: true }])
+})
+
+test('a retry starts at the last question when only failures or a stop follow it', () => {
+  const q = text => ({ role: 'user', text })
+  const a = text => ({ role: 'assistant', text })
+  assert.equal(retryPoint([q('1'), a('one'), q('2'), { role: 'error', text: 'quota' }]), 2)
+  assert.equal(retryPoint([q('1'), a('one'), q('2'), stoppedTurn('half')]), 2)
+  assert.equal(retryPoint([q('1'), stoppedTurn(''), { role: 'error', text: 'again' }]), 0)
+  assert.equal(retryPoint([q('1'), a('one'), q('2')]), 2, 'a question the shell lost mid-answer')
+  assert.equal(retryPoint([q('1'), a('one')]), -1, 'answered: nothing to retry')
+  assert.equal(retryPoint([]), -1)
+})
+
+test('a prompt carries answered turns only, never a stopped half-reply', () => {
+  const turns = [
+    { role: 'user', text: '1' }, { role: 'assistant', text: 'one' },
+    { role: 'user', text: '2' }, { role: 'assistant', text: 'tw', stopped: true },
+    { role: 'user', text: '3' }, { role: 'error', text: 'boom' }
+  ]
+  assert.deepEqual(promptTurns(turns), [{ role: 'user', text: '1' }, { role: 'assistant', text: 'one' }])
 })

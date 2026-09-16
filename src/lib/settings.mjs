@@ -11,6 +11,22 @@ export const LINE_NUMBER_CHOICES = ['relative', 'absolute', 'hide']
 
 export const PAGE_SIZE_CHOICES = [5, 10, 15, 20]
 
+// The SearXNG engines the page switches, mirrored as DEFAULT_ENGINES in
+// bin/search. Measured to answer, and fast; the rest mostly answer with a
+// CAPTCHA or nothing. A name typed into searxng_engines by hand is kept.
+export const ENGINE_CHOICES = ['brave', 'bing', 'google']
+export const DEFAULT_ENGINES = ENGINE_CHOICES.slice(0)
+
+// SearXNG's language/region codes. 'default' sends none, leaving the instance's
+// own default; 'auto' asks SearXNG to guess from the query. Mirrored as the
+// LANGUAGE pattern in bin/search, which accepts any well-formed code.
+export const LANGUAGE_CHOICES = [
+  'default', 'auto', 'all', 'en', 'en-US', 'en-GB', 'de', 'de-DE', 'fr', 'fr-FR',
+  'es', 'es-ES', 'it-IT', 'nl-NL', 'pt-BR', 'pl-PL', 'sv-SE', 'ru-RU', 'ja-JP',
+  'ko-KR', 'zh-CN', 'zh-TW'
+]
+const LANGUAGE_PATTERN = /^(default|auto|all|[a-z]{2,3}(-[A-Z]{2})?)$/
+
 // Where a hand-off opens the agent. Agents are discovered at runtime
 // (bin/ask --agents), so they are not declared here.
 export const LAUNCHER_CHOICES = ['terminal', 'tmux', 'herdr']
@@ -24,7 +40,9 @@ export const DEFAULTS = {
   chatAgent: DEFAULT_AGENT,
   chatModels: {},
   launcher: LAUNCHER_CHOICES[0],
-  stream: true
+  stream: true,
+  searxngEngines: DEFAULT_ENGINES,
+  searxngLanguage: LANGUAGE_CHOICES[0]
 }
 for (let i = 0; i < ACTIONS.length; i++) DEFAULTS[settingKey(ACTIONS[i])] = ACTIONS[i].default
 
@@ -59,6 +77,8 @@ export function readSettings (source) {
     // On unless it was deliberately turned off: an agent that cannot stream
     // falls back on its own, so this is only for turning the behaviour off.
     stream: config.stream !== false,
+    searxngEngines: readEngines(config.searxng_engines),
+    searxngLanguage: readLanguage(config.searxng_language),
     sequences: keymap.sequences
   }
   // An unparseable key falls back to its default.
@@ -71,6 +91,32 @@ export function readSettings (source) {
     settings[settingKey(action)] = normalizeBinding(action, raw) || action.default
   }
   return settings
+}
+
+// As bin/search reads it: absent or malformed is the defaults, and an explicit
+// [] is kept, since it deliberately hands the choice back to SearXNG.
+function readEngines (value) {
+  if (!Array.isArray(value)) return DEFAULT_ENGINES.slice(0)
+  const names = []
+  for (let i = 0; i < value.length; i++) {
+    const name = typeof value[i] === 'string' ? value[i].trim() : ''
+    if (name && names.indexOf(name) === -1) names.push(name)
+  }
+  return names
+}
+
+function readLanguage (value) {
+  const code = typeof value === 'string' ? value.trim() : ''
+  return LANGUAGE_PATTERN.test(code) ? code : LANGUAGE_CHOICES[0]
+}
+
+/** One engine switched on or off; every other name, hand-typed ones too, keeps its place. */
+export function toggleEngine (settings, name, on) {
+  const names = readEngines(settings.searxngEngines)
+  const at = names.indexOf(name)
+  if (on && at === -1) names.push(name)
+  if (!on && at !== -1) names.splice(at, 1)
+  return names
 }
 
 // Any non-empty id is kept; bin/ask falls back when it isn't installed.
@@ -156,6 +202,10 @@ export function writeSettings (settings, source) {
   config.chat_models = readModels(settings.chatModels)
   config.launcher = oneOf(settings.launcher, LAUNCHER_CHOICES, DEFAULTS.launcher)
   config.stream = settings.stream !== false
+  config.searxng_engines = readEngines(settings.searxngEngines)
+  const language = readLanguage(settings.searxngLanguage)
+  if (language === LANGUAGE_CHOICES[0]) delete config.searxng_language   // absent is the instance's default
+  else config.searxng_language = language
   for (let i = 0; i < ACTIONS.length; i++) {
     const action = ACTIONS[i]
     config[action.config] = normalizeBinding(action, settings[settingKey(action)]) || action.default
@@ -168,10 +218,28 @@ export function writeSettings (settings, source) {
 export const ENGINE_STATES = ['unknown', 'running', 'stopped']
 
 /**
- * The settings page rows, in order. `engine` is the SearXNG switch: whether the
- * instance answers, not a stored setting.
+ * What the endpoint test found, from `bin/search --test`, as the Test row's
+ * hint: how long a real query took and which engine gave what.
  */
-export function settingsRows (settings, engine = 'unknown', agents = null, catalog = null) {
+export function endpointTestText (test) {
+  if (!test) return ''
+  if (test.running) return 'asking SearXNG a real query…'
+  if (!test.ok) return test.message || 'SearXNG did not answer'
+  const parts = [`answered in ${test.ms} ms`]
+  const counts = test.engines || {}
+  for (const name in counts) parts.push(`${name} ${counts[name]}`)
+  const silent = test.unresponsive || []
+  for (let i = 0; i < silent.length; i++) parts.push(`${silent[i].engine}: ${silent[i].reason}`)
+  if (Object.keys(counts).length === 0 && silent.length === 0) parts.push('no rows')
+  return parts.join(' · ')
+}
+
+/**
+ * The settings page rows, in order. `engine` is the SearXNG switch: whether the
+ * instance answers, not a stored setting. `test` is the last endpoint test, or
+ * null before one ran.
+ */
+export function settingsRows (settings, engine = 'unknown', agents = null, catalog = null, test = null) {
   const state = ENGINE_STATES.indexOf(engine) === -1 ? 'unknown' : engine
   const running = state === 'running'
   const { known, ids, defaultId } = agentChoices(agents)
@@ -202,13 +270,57 @@ export function settingsRows (settings, engine = 'unknown', agents = null, catal
       button: 'Update'
     },
     {
+      key: 'engineTest',
+      type: 'action',
+      label: 'Test SearXNG',
+      hint: test ? endpointTestText(test)
+        : 'run one real query with these engines and language; see who answers',
+      action: 'test',
+      button: 'Test',
+      busy: !!(test && test.running)
+    }
+  ]
+  const engines = readEngines(settings.searxngEngines)
+  const choices = ENGINE_CHOICES.slice(0)
+  for (let i = 0; i < engines.length; i++) if (choices.indexOf(engines[i]) === -1) choices.push(engines[i])
+  for (let i = 0; i < choices.length; i++) {
+    const name = choices[i]
+    const on = engines.indexOf(name) !== -1
+    rows.push({
+      key: 'searxngEngine:' + name,
+      type: 'toggle',
+      label: name.charAt(0).toUpperCase() + name.slice(1),
+      hint: engines.length === 0
+        ? 'none chosen — SearXNG asks every engine it has enabled, which is slow'
+        : ENGINE_CHOICES.indexOf(name) === -1 ? 'added by hand in config.json — switching it off removes it'
+        : on ? 'asked on every search' : 'not asked',
+      action: on ? 'off' : 'on',
+      value: on
+    })
+  }
+  const language = readLanguage(settings.searxngLanguage)
+  rows.push(
+    {
+      key: 'searxngLanguage',
+      type: 'choice',
+      control: 'dropdown',
+      label: 'Language / region',
+      hint: language === 'default' ? 'the instance’s own default'
+        : language === 'auto' ? 'SearXNG guesses from the query'
+        : language === 'all' ? 'every language' : 'results in ' + language + ' first',
+      options: LANGUAGE_CHOICES.indexOf(language) === -1 ? LANGUAGE_CHOICES.concat([language]) : LANGUAGE_CHOICES,
+      value: language
+    },
+    {
       key: 'resultsPerPage',
       type: 'choice',
       label: 'Results per page',
       hint: 'every page shows this many, however many SearXNG returns',
       options: PAGE_SIZE_CHOICES,
       value: settings.resultsPerPage
-    },
+    }
+  )
+  rows.push(
     { type: 'section', label: 'Ask' },
     {
       key: 'chatAgent',
@@ -270,7 +382,7 @@ export function settingsRows (settings, engine = 'unknown', agents = null, catal
       placeholder: 'off',
       value: settings.escapeSequence
     }
-  ]
+  )
   for (let i = 0; i < ACTIONS.length; i++) {
     const action = ACTIONS[i]
     rows.push({

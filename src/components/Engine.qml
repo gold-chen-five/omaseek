@@ -7,6 +7,8 @@ Item {
 
   // What the last probe or search saw: unknown | running | stopped.
   property string state: "unknown"
+  // The last endpoint test, as bin/search --test answered it; null before one ran.
+  property var test: null
 
   readonly property string backendPath: Qt.resolvedUrl("../../bin/search").toString().replace(/^file:\/\//, "")
   readonly property string scriptPath: Qt.resolvedUrl("../../bin/searxng-up").toString().replace(/^file:\/\//, "")
@@ -17,6 +19,13 @@ Item {
   function probe () {
     state = "unknown"
     statusProcess.start([engine.backendPath, "--status"])
+  }
+
+  // A real query with the configured engines and language. Not in a terminal:
+  // it needs nothing from the reader and its answer belongs on the page.
+  function runTest () {
+    test = { running: true }
+    testProcess.start([engine.backendPath, "--test"])
   }
 
   function start () { run("") }
@@ -31,6 +40,16 @@ Item {
       "xdg-terminal-exec", "bash", "-c",
       engine.scriptPath + flag + "; echo; read -n1 -r -p 'press any key to close'"
     ])
+  }
+
+  JsonProcess {
+    id: testProcess
+
+    onParsed: payload => {
+      engine.test = payload
+      engine.state = payload.ok ? "running" : payload.setup === true ? "stopped" : engine.state
+    }
+    onUnreadable: engine.test = ({ ok: false, message: "could not read the test's output" })
   }
 
   JsonProcess {

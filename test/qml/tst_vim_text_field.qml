@@ -17,12 +17,16 @@ Item {
   property int nextSessions: 0
   property int closedSessions: 0
   property int clearedSessions: 0
+  property int stops: 0
+  property int retries: 0
 
   Connections {
     target: field
     function onNextSessionRequested () { nextSessions++ }
     function onCloseSessionRequested () { closedSessions++ }
     function onClearSessionsRequested () { clearedSessions++ }
+    function onStopRequested () { stops++ }
+    function onRetryRequested () { retries++ }
   }
 
   TestCase {
@@ -65,6 +69,30 @@ Item {
       compare(nextSessions, 2)
       compare(closedSessions, 2)
       compare(field.text, "half a question")
+    }
+
+    // Stop and retry reach the panel from either mode; retry wears shift so
+    // that normal mode's ctrl+r is still redo.
+    function test_stop_and_retry_are_panel_chords_and_redo_survives() {
+      stops = 0
+      retries = 0
+      typeText("abc")
+      keyClick(Qt.Key_Q, Qt.ControlModifier)
+      keyClick(Qt.Key_R, Qt.ControlModifier | Qt.ShiftModifier)
+      compare(field.text, "abc", "neither chord may reach the text")
+      compare(stops, 1)
+      compare(retries, 1)
+
+      field.setMode("normal")
+      keyClick(Qt.Key_X)
+      compare(field.text, "ab")
+      keyClick(Qt.Key_U)
+      compare(field.text, "abc")
+      keyClick(Qt.Key_R, Qt.ControlModifier)
+      compare(field.text, "ab", "plain ctrl+r is still redo")
+      compare(retries, 1)
+      keyClick(Qt.Key_Q, Qt.ControlModifier)
+      compare(stops, 2)
     }
 
     // Shift makes a chord of its own: forgetting everything must not be one

@@ -8,4 +8,5 @@ QT_QPA_PLATFORM=offscreen /usr/lib/qt6/bin/qmltestrunner \
   -import test/qml/imports
 python3 test/agent-draft.test.py
 python3 test/searxng-up.test.py
+python3 test/search.test.py
 exec node --test test/*.test.mjs

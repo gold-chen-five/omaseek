@@ -12,6 +12,7 @@ Rectangle {
   required property string snippet
   required property string display_url
   required property string icon
+  required property string engines             // which SearXNG engines found it
 
   property string lineNumbers: "relative"
   property int cursorIndex: 0
@@ -119,16 +120,39 @@ Rectangle {
       elide: Text.ElideRight
     }
 
-    Text {
+    // The domain, and after it the engines that found the result. The domain
+    // gives way first: the engines are short and the reason this line exists.
+    Item {
       width: parent.width
-      // StyledText, not PlainText: marked() escapes and marks in one pass.
-      textFormat: Text.StyledText
-      text: row.marked(row.display_url)
-      color: row.foreground
-      opacity: 0.55
-      font.family: row.fontFamily
-      font.pixelSize: Style.font.caption
-      elide: Text.ElideRight
+      height: domainText.implicitHeight
+
+      Text {
+        id: domainText
+
+        anchors.left: parent.left
+        width: Math.min(implicitWidth, parent.width - (engineText.visible ? engineText.implicitWidth : 0))
+        // StyledText, not PlainText: marked() escapes and marks in one pass.
+        textFormat: Text.StyledText
+        text: row.marked(row.display_url)
+        color: row.foreground
+        opacity: 0.55
+        font.family: row.fontFamily
+        font.pixelSize: Style.font.caption
+        elide: Text.ElideRight
+      }
+
+      Text {
+        id: engineText
+
+        visible: row.engines !== ""
+        anchors.left: domainText.right
+        textFormat: Text.PlainText
+        text: " · " + row.engines
+        color: row.foreground
+        opacity: 0.4
+        font.family: row.fontFamily
+        font.pixelSize: Style.font.caption
+      }
     }
 
     Text {

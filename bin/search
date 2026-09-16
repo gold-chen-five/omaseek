@@ -4,11 +4,17 @@
     ./bin/search "python asyncio" | jq
     ./bin/search --next '<the next payload>'      the following page
     ./bin/search --status                          is the instance up?
+    ./bin/search --test                            one real query: time, rows per engine
 
 Output is always one JSON object:
     {"ok": true,  "results": [...], "next": {...}|null, "backend": "searxng"}
     {"ok": false, "error": "network"|"http"|"usage", "message": "...", "setup": true}
     {"ok": true, "running": true|false, "url": "http://localhost:8888"}    (--status)
+    {"ok": true, "ms": 312, "engines": {"brave": 20}, "unresponsive": [...]}  (--test)
+
+A failed page past the first carries `retry: true`: the buffer kept its place
+and the same `--next` payload asks again, so the panel can offer a retry rather
+than calling it the end.
 
 `setup: true` marks the one failure the panel can fix: the instance is not
 running. One backend by design: nothing here scrapes or calls a third-party API.
@@ -17,7 +23,9 @@ running. One backend by design: nothing here scrapes or calls a third-party API.
 import hashlib
 import json
 import os
+import re
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -49,6 +57,11 @@ ENGINES = []            # set from searxng_engines / DEFAULT_ENGINES at startup
 # these is safe even where one is missing.
 DEFAULT_ENGINES = ("brave", "bing", "google")
 PAGE_SIZE_CHOICES = (5, 10, 15, 20)
+LANGUAGE = ""           # set from searxng_language; empty sends none
+# Mirrors settings.mjs: SearXNG's codes, 'auto' and 'all'. 'default' sends none.
+LANGUAGE_PATTERN = re.compile(r"^(auto|all|[a-z]{2,3}(-[A-Z]{2})?)$")
+# What --test asks: common enough that every engine has an answer.
+TEST_QUERY = "searxng"
 # Never burst: a single page turn may top the buffer up at most this many times.
 MAX_FETCHES_PER_PAGE = 3
 
@@ -115,11 +128,24 @@ def configured_page_size(config):
     return size if size in PAGE_SIZE_CHOICES else PAGE_SIZE
 
 
+def configured_language(config):
+    language = config.get("searxng_language")
+    if isinstance(language, str) and LANGUAGE_PATTERN.match(language.strip()):
+        return language.strip()
+    return ""
+
+
 def fetch(base, query, pageno):
     """One page from SearXNG. Real pagination — no hidden forms to echo back."""
+    return parse(fetch_payload(base, query, pageno))
+
+
+def fetch_payload(base, query, pageno):
     params = {"q": query, "format": "json", "pageno": pageno}
     if ENGINES:
         params["engines"] = ",".join(ENGINES)
+    if LANGUAGE:
+        params["language"] = LANGUAGE
     url = base + "/search?" + urllib.parse.urlencode(params)
     request = urllib.request.Request(url, headers={"Accept": "application/json"})
     try:
@@ -143,8 +169,9 @@ def fetch(base, query, pageno):
         raise SearchError("network", f"SearXNG timed out after {TIMEOUT}s")
     except ValueError:
         raise SearchError("http", "SearXNG returned an unreadable response")
-
-    return parse(payload)
+    if not isinstance(payload, dict):
+        raise SearchError("http", "SearXNG returned an unreadable response")
+    return payload
 
 
 def instance_running(base):
@@ -167,18 +194,47 @@ def parse(payload):
         netloc = urllib.parse.urlparse(url).netloc
         title = (item.get("title") or "").strip() or netloc
         snippet = " ".join((item.get("content") or "").split())
+        # Which engines found it: SearXNG merges a document several engines
+        # returned and lists them all; older instances name only one.
+        engines = [e for e in (item.get("engines") or [item.get("engine")]) if isinstance(e, str) and e]
         rows.append({
             "title": title,
             "url": url,
             "snippet": snippet[:300],
             "display_url": netloc,
             "icon": ICON_ENDPOINT + netloc + ".ico" if netloc else "",
+            "engines": ", ".join(dict.fromkeys(engines)),
         })
     return rows
 
 
+def test_endpoint(base):
+    """One real query as a search would send it: how long it took, how many
+    rows each engine gave, and which engines did not answer and why."""
+    started = time.monotonic()
+    try:
+        payload = fetch_payload(base, TEST_QUERY, 1)
+    except SearchError as refused:
+        fail(refused.kind, refused.message, setup=refused.setup)
+    ms = int((time.monotonic() - started) * 1000)
+    counts = {}
+    for row in parse(payload):
+        for engine in row["engines"].split(", "):
+            if engine:
+                counts[engine] = counts.get(engine, 0) + 1
+    unresponsive = []
+    for entry in payload.get("unresponsive_engines") or []:
+        if isinstance(entry, (list, tuple)) and len(entry) >= 2:
+            unresponsive.append({"engine": str(entry[0]), "reason": str(entry[1])})
+    emit({"ok": True, "url": base, "ms": ms, "engines": counts, "unresponsive": unresponsive,
+          "asked": ENGINES, "language": LANGUAGE})
+
+
 def session_path(query):
-    digest = hashlib.sha256(query.encode("utf-8")).hexdigest()[:16]
+    # Engines and language are part of the key: switching either in settings
+    # must not serve page 2 from a buffer filled under the old ones.
+    key = "\0".join([query, ",".join(ENGINES), LANGUAGE])
+    digest = hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
     return os.path.join(CACHE_DIR, f"session-{digest}.json")
 
 
@@ -234,16 +290,17 @@ def start_session(query, base):
 
 
 def grow_session(session, target):
-    """Top the buffer up to `target` rows, within the burst limit."""
+    """Top the buffer up to `target` rows, within the burst limit. A failed
+    fetch keeps `next`, so the same page can be asked for again, and is
+    returned for the caller to report; None when every fetch answered."""
     fetches = 0
     while len(session["rows"]) < target and session["next"] and fetches < MAX_FETCHES_PER_PAGE:
         fetches += 1
         pageno = int(session["next"].get("pageno") or 2)
         try:
             rows = fetch(session["url"], session["query"], pageno)
-        except SearchError:
-            session["next"] = None       # stop offering more; keep what we have
-            break
+        except SearchError as refused:
+            return refused               # the continuation stays: a retry resumes here
         added = absorb(session, rows)
         session["next"] = {"pageno": pageno + 1} if rows else None
         if added == 0:
@@ -251,16 +308,26 @@ def grow_session(session, target):
             # rather than spending the remaining budget.
             session["next"] = None
             break
-    return session
+    return None
 
 
 def emit_page(session, offset):
     # Exactly one page: a lookahead row cost a whole extra request.
-    grow_session(session, offset + PAGE_SIZE)
+    refused = grow_session(session, offset + PAGE_SIZE)
     save_session(session)
 
     rows = session["rows"]
     page = rows[offset:offset + PAGE_SIZE]
+    if refused is not None and len(page) < PAGE_SIZE and (offset > 0 or not page):
+        # Not "the end": the rows past here were never fetched. A short page
+        # would be cached by the panel as final, so the whole page fails. The
+        # first page is the exception — something to read beats an error, and
+        # `next` is still offered.
+        payload = {"ok": False, "error": refused.kind, "message": refused.message, "retry": True}
+        if refused.setup:
+            payload["setup"] = True
+        emit(payload)
+        return
     has_more = len(rows) > offset + PAGE_SIZE or session["next"] is not None
     following = {"query": session["query"], "s": offset + PAGE_SIZE} if has_more else None
 
@@ -274,16 +341,21 @@ def emit_page(session, offset):
 
 
 def main():
-    global PAGE_SIZE, ENGINES
+    global PAGE_SIZE, ENGINES, LANGUAGE
     config = read_config()
     base = configured_url(config)
     PAGE_SIZE = configured_page_size(config)
     ENGINES = configured_engines(config)
+    LANGUAGE = configured_language(config)
 
     argv = sys.argv[1:]
 
     if argv and argv[0] == "--status":
         emit({"ok": True, "running": instance_running(base), "url": base})
+        return
+
+    if argv and argv[0] == "--test":
+        test_endpoint(base)
         return
 
     if argv and argv[0] == "--next":

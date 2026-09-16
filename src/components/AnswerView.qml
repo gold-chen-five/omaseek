@@ -157,6 +157,8 @@ FocusScope {
   signal nextSessionRequested()                // the next saved conversation
   signal closeSessionRequested()               // forget this conversation
   signal clearSessionsRequested()              // forget all of them
+  signal stopRequested()                       // stop the reply being written
+  signal retryRequested()                      // ask the last question again
   signal putRequested(string text, bool after) // p and P: the selection, or "" for the clipboard
 
   onActiveFocusChanged: {
@@ -715,6 +717,8 @@ FocusScope {
     case "nextSession":  nextSessionRequested(); break
     case "closeSession": closeSessionRequested(); break
     case "clearSessions": clearSessionsRequested(); break
+    case "stopAnswer":   stopRequested(); break
+    case "retryAnswer":  retryRequested(); break
     case "handOff":      handOff(); break
     case "handOffPage":  handOffAll(); break
     case "accept":       openLink(); break

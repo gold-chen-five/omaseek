@@ -85,3 +85,10 @@ test('the reply being written takes the waiting placeholder’s place', async ()
   // Not waiting: a stream left over from an earlier turn renders nothing.
   assert.doesNotMatch(renderTranscript(turns, { pending: false, pendingText: 'stale' }), /stale/)
 })
+
+test('a stopped reply keeps its words and says it is not whole', () => {
+  const html = renderTranscript([{ role: 'user', text: 'q' }, { role: 'assistant', text: 'half', stopped: true }], { glyph: '#888' })
+  assert.match(html, /half/)
+  assert.match(html, /■ stopped/)
+  assert.doesNotMatch(renderTranscript([{ role: 'assistant', text: 'whole' }]), /stopped/)
+})

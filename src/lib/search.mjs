@@ -13,13 +13,16 @@ export function describeError ({ error, message } = {}) {
 }
 
 /** Backend row -> the exact shape the ListModel delegate expects. */
-export function normalizeRow ({ title, url, snippet, display_url: displayUrl, icon } = {}) {
+export function normalizeRow ({ title, url, snippet, display_url: displayUrl, icon, engines } = {}) {
   return {
     title: title ?? '',
     url: url ?? '',
     snippet: snippet ?? '',
     display_url: displayUrl ?? '',
-    icon: icon ?? ''
+    icon: icon ?? '',
+    // Which SearXNG engines found it, "brave, bing". A string, not a list: a
+    // ListModel turns an array role into a nested model. Old buffers have none.
+    engines: typeof engines === 'string' ? engines : ''
   }
 }
 
@@ -63,11 +66,13 @@ export function mergeResults (existing = [], incoming = []) {
 export function statusText ({
   view = VIEW.SEARCH, panelMode = PANEL.SEARCH, status, count = 0, query = '', page = 1,
   hasNext = false, loadingPage = false, errorMessage = '', backend = '',
-  agent = '', selecting = false, link = '', session = ''
+  pageError = '', nextPageKey = 'l',
+  agent = '', selecting = false, link = '', session = '',
+  stopKey = 'ctrl+q', retryKey = 'ctrl+shift+r', canRetry = false
 } = {}) {
   if (view === VIEW.SETTINGS) return 'j/k rows · h/l change · enter opens · saved as you go · esc back'
   if (view === VIEW.SETUP) return 'h/l choose · enter confirm · esc not now'
-  if (panelMode === PANEL.AI) return askStatusText({ status, errorMessage, agent, selecting, link, session })
+  if (panelMode === PANEL.AI) return askStatusText({ status, errorMessage, agent, selecting, link, session, stopKey, retryKey, canRetry })
 
   switch (status) {
     case 'loading':
@@ -78,6 +83,8 @@ export function statusText ({
       return `No results for “${query}”`
     case 'ok':
       if (loadingPage) return `page ${page + 1} · loading…`
+      // A failed page is not the end: its continuation is kept for a retry.
+      if (pageError) return `page ${page} · ${count} results · page failed · ${nextPageKey || 'l'} retries`
       if (errorMessage) return errorMessage
       return `page ${page} · ${count} results${hasNext ? '' : ' · end'} · h/l pages`
     default:
@@ -91,19 +98,24 @@ export function statusText ({
  * is one. Kept short on purpose: the strip shows the conversations and KEYS.md
  * has the rest, so a line that elides teaches nothing.
  */
-function askStatusText ({ status, errorMessage, agent, selecting, link, session }) {
+function askStatusText ({ status, errorMessage, agent, selecting, link, session, stopKey, retryKey, canRetry }) {
   const where = session ? session + ' · ' : ''
+  const retry = canRetry && retryKey ? ` · ${retryKey} retries` : ''
   switch (status) {
     case 'thinking':
-      return where + (agent ? `asking ${agent}…` : 'asking…')
+      return where + (agent ? `asking ${agent}…` : 'asking…') + (stopKey ? ` · ${stopKey} stops` : '')
     case 'error':
-      return errorMessage
+      return errorMessage + retry
+    case 'stopped':
+      return where + 'stopped' + retry
     case 'ok':
       if (selecting && link) return `gx opens ${hostOf(link)} · y yank · p to ask · esc drops`
       if (selecting) return 'enter hands off · y yank · p to ask · esc drops'
       if (link) return `gx opens ${hostOf(link)} · v select · yy yank`
       return where + 'v select · yy yank · enter hands off · ctrl+n next'
     default:
+      // An interrupted question — the shell restarted under it — still retries.
+      if (canRetry) return where + 'not answered' + retry
       return where + 'enter asks · tab search · ctrl+s settings'
   }
 }

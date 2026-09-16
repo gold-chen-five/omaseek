@@ -26,7 +26,7 @@ Item {
   property string focusArea: States.FOCUS.FIELD  // who has the keyboard
   property string setupReason: ""              // what the backend said when the instance was down
 
-  readonly property var settingsRows: SettingsLib.settingsRows(config.settings, engine.state, ai.agents, ai.models)
+  readonly property var settingsRows: SettingsLib.settingsRows(config.settings, engine.state, ai.agents, ai.models, engine.test)
   readonly property string chatModel: SettingsLib.selectedModel(config.settings, ai.agents, ai.models)
 
   // Every panel key, parsed, by action id; each falls back to its default.
@@ -113,6 +113,20 @@ Item {
     focusSearch("insert")
   }
 
+  // Stop the reply being written, keeping the conversation; retry the last
+  // question once it failed, was stopped, or was lost to a restart.
+  function stopAnswer () {
+    if (panelMode !== States.PANEL.AI) return
+    disarmClear()
+    ai.stop()
+  }
+
+  function retryAnswer () {
+    if (panelMode !== States.PANEL.AI) return
+    disarmClear()
+    if (ai.retry()) focusSearch("normal")
+  }
+
   function disarmClear () {
     clearArmed = false
     clearWindow.stop()
@@ -190,6 +204,16 @@ Item {
     }
     if (key === "engineUpdate" && action === "update") {
       engine.updateImage()
+      return
+    }
+    if (key === "engineTest" && action === "test") {
+      engine.runTest()
+      return
+    }
+    if (key.indexOf("searxngEngine:") === 0) {
+      const name = key.slice("searxngEngine:".length)
+      config.change("searxngEngines", SettingsLib.toggleEngine(config.settings, name, action === "on"))
+      engine.test = null                       // it described the engines as they were
       return
     }
     if (key !== "engine") return
@@ -465,6 +489,8 @@ Item {
                 onNextSessionRequested: root.nextChat()
                 onCloseSessionRequested: root.closeChat()
                 onClearSessionsRequested: root.clearChats()
+                onStopRequested: root.stopAnswer()
+                onRetryRequested: root.retryAnswer()
 
                 // The frame scrolls to keep the cursor in view as it passes an edge.
                 onCursorRectangleChanged: {
@@ -510,16 +536,22 @@ Item {
               height: parent.height
               spacing: Style.spacing.sm
 
+              // While a reply is being written the button stops it, and after a
+              // failure or a stop it asks again — the keys, with a mouse.
               Button {
                 height: askActions.height
-                text: "chat"
+                text: ai.status === "thinking" ? "stop" : ai.canRetry && input.text.trim() === "" ? "retry" : "chat"
                 active: true
                 foreground: root.foreground
                 accent: root.accent
                 fontFamily: root.fontFamily
                 fontSize: Style.font.body
 
-                onClicked: root.runSearch()
+                onClicked: {
+                  if (ai.status === "thinking") root.stopAnswer()
+                  else if (ai.canRetry && input.text.trim() === "") root.retryAnswer()
+                  else root.runSearch()
+                }
               }
 
               Button {
@@ -560,12 +592,17 @@ Item {
               page: session.pageIndex + 1,
               hasNext: session.hasNext,
               loadingPage: session.loadingPage,
+              pageError: session.pageError,
+              nextPageKey: config.settings.nextPageKey,
               errorMessage: root.panelMode === States.PANEL.AI ? ai.errorMessage : session.errorMessage,
               backend: session.backend,
               agent: ai.agentName,
               selecting: answerView.selecting,
               link: answerView.cursorLink,
-              session: ai.sessionLabel
+              session: ai.sessionLabel,
+              stopKey: config.settings.stopAnswerKey,
+              retryKey: config.settings.retryAnswerKey,
+              canRetry: ai.canRetry
             })
         }
 
@@ -603,7 +640,10 @@ Item {
           incomingRows: root.settingsRows
           settingsChord: root.chords.settings
 
-          onChanged: (key, value) => config.change(key, value)
+          onChanged: (key, value) => {
+            config.change(key, value)
+            if (key === "searxngLanguage") engine.test = null
+          }
           onActivated: (key, action) => root.runSettingAction(key, action)
           onClosed: root.closeSettings()
           onEditingFinished: Qt.callLater(() => settingsPage.forceActiveFocus())
@@ -637,6 +677,8 @@ Item {
           onNextSessionRequested: root.nextChat()
           onCloseSessionRequested: root.closeChat()
           onClearSessionsRequested: root.clearChats()
+          onStopRequested: root.stopAnswer()
+          onRetryRequested: root.retryAnswer()
           onPutRequested: (text, after) => {
             root.focusSearch("normal")
             input.put(after, text)

@@ -76,7 +76,7 @@ const FIELD_FIXED = {
 const LABELS = {
   settings: 'settings', toggleMode: 'switch search / ask', cancel: 'esc',
   nextSession: 'the next session', closeSession: 'close the session',
-  clearSessions: 'delete all sessions',
+  clearSessions: 'delete all sessions', stopAnswer: 'stop the answer', retryAnswer: 'retry the answer',
   halfPageDown: 'half a screen down', halfPageUp: 'half a screen up',
   down: 'move down', up: 'move up', right: 'move right', left: 'move left',
   top: 'go to the top', bottom: 'go to the bottom',

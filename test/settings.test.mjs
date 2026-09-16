@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import {
   readSettings, writeSettings, settingsRows, cycle, normalizeSequence, ENGINE_STATES,
   LAUNCHER_CHOICES, DEFAULT_AGENT,
-  PAGE_SIZE_CHOICES, DEFAULTS, checkRow, FIXED_KEYS, changeSetting, selectedModel
+  PAGE_SIZE_CHOICES, DEFAULTS, checkRow, FIXED_KEYS, changeSetting, selectedModel,
+  ENGINE_CHOICES, DEFAULT_ENGINES, LANGUAGE_CHOICES, toggleEngine, endpointTestText
 } from '../src/lib/settings.mjs'
 import { ACTIONS, settingKey } from '../src/lib/keybinds.mjs'
 import { DEFAULT_TIMEOUT_MS } from '../src/lib/keymap.mjs'
@@ -342,4 +343,63 @@ test('streaming is on unless it was deliberately turned off', async () => {
   assert.equal(row.value, true)
   assert.equal(row.action, 'off', 'the action says what flipping it does')
   assert.equal(settingsRows({ ...settings, stream: false }).find(r => r.key === 'stream').action, 'on')
+})
+
+test('engines read as bin/search reads them: absent is the defaults, an explicit [] is kept', () => {
+  assert.deepEqual(readSettings('').searxngEngines, DEFAULT_ENGINES)
+  assert.deepEqual(readSettings('{"searxng_engines":"brave"}').searxngEngines, DEFAULT_ENGINES, 'malformed')
+  assert.deepEqual(readSettings('{"searxng_engines":[]}').searxngEngines, [])
+  assert.deepEqual(readSettings('{"searxng_engines":[" brave ","brave",3,"mojeek"]}').searxngEngines, ['brave', 'mojeek'])
+})
+
+test('each offered engine is a switch, and a hand-typed one is kept and shown', () => {
+  const settings = readSettings('{"searxng_engines":["bing","mojeek"]}')
+  const rows = settingsRows(settings, 'running').filter(r => String(r.key).indexOf('searxngEngine:') === 0)
+  assert.deepEqual(rows.map(r => r.key), ENGINE_CHOICES.map(n => 'searxngEngine:' + n).concat(['searxngEngine:mojeek']))
+  const bing = rows.find(r => r.key === 'searxngEngine:bing')
+  assert.equal(bing.type, 'toggle')
+  assert.equal(bing.value, true)
+  assert.equal(bing.action, 'off')
+  assert.equal(rows.find(r => r.key === 'searxngEngine:brave').action, 'on')
+  assert.match(rows.find(r => r.key === 'searxngEngine:mojeek').hint, /by hand/)
+})
+
+test('switching an engine keeps the other names, hand-typed ones included, and writes through', () => {
+  const settings = readSettings('{"searxng_engines":["mojeek","bing"]}')
+  assert.deepEqual(toggleEngine(settings, 'brave', true), ['mojeek', 'bing', 'brave'])
+  assert.deepEqual(toggleEngine(settings, 'bing', false), ['mojeek'])
+  assert.deepEqual(toggleEngine(settings, 'bing', true), ['mojeek', 'bing'], 'on twice is on')
+  const written = JSON.parse(writeSettings(changeSetting(settings, 'searxngEngines', ['google']), '{"searxng_url":"http://x:1"}'))
+  assert.deepEqual(written.searxng_engines, ['google'])
+  assert.equal(written.searxng_url, 'http://x:1', 'the address is still not the panel’s')
+})
+
+test('switching every engine off says what SearXNG does then', () => {
+  const rows = settingsRows(readSettings('{"searxng_engines":[]}'), 'running')
+  assert.match(rows.find(r => r.key === 'searxngEngine:brave').hint, /every engine/)
+})
+
+test('language is a dropdown; default sends nothing, and a hand-set code is kept', () => {
+  assert.equal(readSettings('').searxngLanguage, 'default')
+  assert.equal(readSettings('{"searxng_language":"de-DE"}').searxngLanguage, 'de-DE')
+  assert.equal(readSettings('{"searxng_language":"fi-FI"}').searxngLanguage, 'fi-FI', 'well-formed, just not listed')
+  assert.equal(readSettings('{"searxng_language":"german please"}').searxngLanguage, 'default')
+  const row = settingsRows(readSettings('{"searxng_language":"fi-FI"}')).find(r => r.key === 'searxngLanguage')
+  assert.equal(row.control, 'dropdown')
+  assert.ok(row.options.indexOf('fi-FI') !== -1, 'the saved value is offered, or the dropdown could not show it')
+  assert.equal(JSON.parse(writeSettings(readSettings(''), '{"searxng_language":"fr"}')).searxng_language, undefined,
+    'default is written as absent')
+  assert.equal(JSON.parse(writeSettings(changeSetting(readSettings(''), 'searxngLanguage', 'en-GB'), '')).searxng_language, 'en-GB')
+  for (const code of LANGUAGE_CHOICES) assert.equal(readSettings(JSON.stringify({ searxng_language: code })).searxngLanguage, code)
+})
+
+test('the endpoint test is an action row whose hint is what the test found', () => {
+  const row = test => settingsRows(readSettings(''), 'running', null, null, test).find(r => r.key === 'engineTest')
+  assert.equal(row(null).type, 'action')
+  assert.equal(row(null).action, 'test')
+  assert.equal(row({ running: true }).busy, true)
+  assert.equal(row({ ok: true, ms: 312, engines: { brave: 20, bing: 10 }, unresponsive: [{ engine: 'google', reason: 'Suspended: CAPTCHA' }] }).hint,
+    'answered in 312 ms · brave 20 · bing 10 · google: Suspended: CAPTCHA')
+  assert.equal(endpointTestText({ ok: false, message: 'SearXNG is not reachable' }), 'SearXNG is not reachable')
+  assert.equal(endpointTestText({ ok: true, ms: 5, engines: {}, unresponsive: [] }), 'answered in 5 ms · no rows')
 })

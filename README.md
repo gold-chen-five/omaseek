@@ -41,7 +41,16 @@ shows them, `1` the newest and the open one filled: click one to switch, or
 walk them with `ctrl+n`. `ctrl+x` forgets the one on screen, and the `+` square
 (or `ctrl+c`) starts another. `ctrl+c` while the agent is still thinking leaves
 that question running — its square keeps a dot until the answer lands in it —
-so you can start something else and come back to a finished reply.
+so you can start something else and come back to a finished reply. `ctrl+q`
+stops a reply instead, keeping the conversation and the words so far, and
+`ctrl+shift+r` asks the last question again after a stop or a failure — the
+`chat` button turns into `stop` and `retry` for the same.
+
+Each result names the SearXNG engines that found it. **Ctrl+S → Search** switches
+Brave, Bing and Google on and off, picks the language and region, and **Test**
+runs a real query to show how long it took and which engines answered. A next
+page that fails to load says `page failed · l retries` rather than pretending
+the results ended.
 
 Replies appear as they are written, where the agent's CLI streams them
 (Claude Code does; the others answer whole). **Ctrl+S → Ask** turns it off.

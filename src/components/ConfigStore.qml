@@ -3,7 +3,7 @@ import "../lib/settings.mjs" as SettingsLib
 import "../lib/keymap.mjs" as KeymapLib
 
 // ~/.config/omaseek/config.json. Writes only the keys the settings page owns;
-// everything else (searxng_url, searxng_engines) passes through untouched.
+// everything else (searxng_url above all) passes through untouched.
 Item {
   id: store
 

@@ -20,11 +20,11 @@ test('an unknown error falls back to the backend message, then a default', () =>
 
 test('rows are normalized to the delegate shape', () => {
   const row = normalizeRow({ title: 'T', url: 'https://x', display_url: 'x', icon: 'i' })
-  assert.deepEqual(row, { title: 'T', url: 'https://x', snippet: '', display_url: 'x', icon: 'i' })
+  assert.deepEqual(row, { title: 'T', url: 'https://x', snippet: '', display_url: 'x', icon: 'i', engines: '' })
 })
 
 test('a missing row yields empty strings, never undefined', () => {
-  assert.deepEqual(normalizeRow(), { title: '', url: '', snippet: '', display_url: '', icon: '' })
+  assert.deepEqual(normalizeRow(), { title: '', url: '', snippet: '', display_url: '', icon: '', engines: '' })
 })
 
 test('merging a page drops rows already on screen', () => {
@@ -108,7 +108,7 @@ test('the settings and setup views name their keys instead of search state', () 
 })
 
 test('AI mode names the agent while it thinks and its keys once it has answered', () => {
-  assert.equal(statusText({ panelMode: PANEL.AI, status: 'thinking', agent: 'claude' }), 'asking claude…')
+  assert.equal(statusText({ panelMode: PANEL.AI, status: 'thinking', agent: 'claude' }), 'asking claude… · ctrl+q stops')
   assert.match(statusText({ panelMode: PANEL.AI, status: 'ok' }), /v select/)
   assert.match(statusText({ panelMode: PANEL.AI, status: 'ok', selecting: true }), /enter hands off/)
   assert.equal(statusText({ panelMode: PANEL.AI, status: 'error', errorMessage: 'nope' }), 'nope')
@@ -145,7 +145,7 @@ test('the AI line says where in the ring the conversation is, before the keys', 
   assert.match(statusText({ panelMode: PANEL.AI, status: 'ok', session: 'session 2/3' }),
     /ctrl\+n next/, 'walking the ring must be discoverable')
   assert.equal(statusText({ panelMode: PANEL.AI, status: 'thinking', agent: 'claude', session: '3 saved' }),
-    '3 saved · asking claude…')
+    '3 saved · asking claude… · ctrl+q stops')
   assert.match(statusText({ panelMode: PANEL.AI, status: 'idle', session: '3 saved' }), /^3 saved · enter asks/)
 })
 
@@ -186,4 +186,30 @@ test('y yanks a result’s URL, Y the title above it', async () => {
   assert.equal(yankNotice(false), 'yanked the URL')
   assert.equal(yankNotice(true), 'yanked the title and URL')
   assert.ok(yankNotice(true).length <= 70)
+})
+
+test('rows keep the engines that found them, and old buffers without them read as none', () => {
+  assert.equal(normalizeRow({ url: 'https://x', engines: 'brave, bing' }).engines, 'brave, bing')
+  assert.equal(normalizeRow({ url: 'https://x', engines: ['brave'] }).engines, '', 'a list would become a nested ListModel')
+  assert.equal(mergeResults([], [{ url: 'https://x', title: 't', engines: 'google' }])[0].engines, 'google')
+})
+
+test('a failed next page is not the end: it says so and names the key that retries', () => {
+  const failed = statusText({ status: 'ok', count: 10, page: 1, hasNext: true, pageError: 'SearXNG timed out after 8s' })
+  assert.equal(failed, 'page 1 · 10 results · page failed · l retries')
+  assert.doesNotMatch(failed, /end/)
+  assert.match(statusText({ status: 'ok', count: 10, page: 2, hasNext: true, pageError: 'x', nextPageKey: 'L' }), /L retries$/,
+    'the next-page key is rebindable')
+  assert.equal(statusText({ status: 'ok', count: 10, page: 2, hasNext: true, pageError: 'x', loadingPage: true }),
+    'page 3 · loading…', 'a retry in flight shows as loading')
+})
+
+test('the AI line offers stop while thinking and retry once a turn failed or stopped', () => {
+  assert.match(statusText({ panelMode: PANEL.AI, status: 'thinking', stopKey: 'ctrl+g' }), /ctrl\+g stops$/)
+  assert.equal(statusText({ panelMode: PANEL.AI, status: 'stopped', canRetry: true }), 'stopped · ctrl+shift+r retries')
+  assert.equal(statusText({ panelMode: PANEL.AI, status: 'error', errorMessage: 'boom', canRetry: true }),
+    'boom · ctrl+shift+r retries')
+  assert.equal(statusText({ panelMode: PANEL.AI, status: 'error', errorMessage: 'boom', canRetry: false }), 'boom')
+  assert.equal(statusText({ panelMode: PANEL.AI, status: 'idle', canRetry: true, session: 'session 1/2' }),
+    'session 1/2 · not answered · ctrl+shift+r retries', 'a question the shell lost can be asked again')
 })

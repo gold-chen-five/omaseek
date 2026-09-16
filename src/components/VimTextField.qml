@@ -78,6 +78,8 @@ TextArea {
   signal nextSessionRequested()             // the next saved conversation
   signal closeSessionRequested()            // forget this conversation
   signal clearSessionsRequested()           // forget all of them
+  signal stopRequested()                    // stop the reply being written
+  signal retryRequested()                   // ask the last question again
 
   readonly property bool normalish: mode !== "insert"
 
@@ -91,6 +93,8 @@ TextArea {
     if (chord === chords.nextSession) return "nextSession"
     if (chord === chords.clearSessions) return "clearSessions"
     if (chord === chords.closeSession) return "closeSession"
+    if (chord === chords.stopAnswer) return "stopAnswer"
+    if (chord === chords.retryAnswer) return "retryAnswer"
     if (chord === chords.search) return "submit"
     if (chord === chords.switchMode || chord === "Backtab") return "toggleMode"
     return ""
@@ -103,6 +107,8 @@ TextArea {
     case "nextSession":   nextSessionRequested(); break
     case "clearSessions": clearSessionsRequested(); break
     case "closeSession":  closeSessionRequested(); break
+    case "stopAnswer":    stopRequested(); break
+    case "retryAnswer":   retryRequested(); break
     // Both leave the field for good; a half-typed escape sequence goes with it.
     case "submit":        clearEscapePending(); submitted(); break
     case "toggleMode":    clearEscapePending(); tabbed(); break
