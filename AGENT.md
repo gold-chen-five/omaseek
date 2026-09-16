@@ -129,12 +129,18 @@ in its `settings.yml` is the backstop.
 installer never writes a config and an unnamed list means *every* enabled
 engine — the slow path. Measured locally: **brave** (20 rows, pages),
 **bing** (10 rows, fastest, but `paging: false`, so brave carries `h`/`l`) and
-**google** (10 rows, pages). Most of the rest answer with a CAPTCHA, a parsing
+**google** (10 rows, pages, but CAPTCHAs under load) and **google cse** —
+Google through its embeddable search box (`cse.google.com/cse/element/v1` with a
+borrowed `cx`, no key), which answered 20 rows in ~0.5 s on 2026-09-17 while
+plain google was suspended. It was dropped once before (2026-09-14) for
+quota-suspending fastest of all, so it is a redundancy for Google, not a
+backbone; brave still carries paging. Most of the rest answer with a CAPTCHA, a parsing
 error, or nothing at all, and `wikipedia`/`wikidata` return *no rows by
 construction* — they answer in `infoboxes`, which `parse()` does not read.
 SearXNG ignores an engine name its instance lacks, so the list is safe to ship;
 an explicit `[]` is the escape hatch that hands the choice back to SearXNG.
-The settings page switches only brave, bing and google (`ENGINE_CHOICES`), and
+The settings page switches only brave, bing, google and google cse
+(`ENGINE_CHOICES`; the last labelled "Google CSE"), and
 shows any other name found in the list as a switch too, so a hand-typed engine
 survives a toggle. `searxng_language` is sent as `language=`; `default` is
 written as an absent key. Both are part of the buffer's cache key, or switching

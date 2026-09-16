@@ -14,8 +14,10 @@ export const PAGE_SIZE_CHOICES = [5, 10, 15, 20]
 // The SearXNG engines the page switches, mirrored as DEFAULT_ENGINES in
 // bin/search. Measured to answer, and fast; the rest mostly answer with a
 // CAPTCHA or nothing. A name typed into searxng_engines by hand is kept.
-export const ENGINE_CHOICES = ['brave', 'bing', 'google']
+export const ENGINE_CHOICES = ['brave', 'bing', 'google', 'google cse']
 export const DEFAULT_ENGINES = ENGINE_CHOICES.slice(0)
+// How a switch is labelled where capitalising the SearXNG name reads wrong.
+const ENGINE_LABELS = { 'google cse': 'Google CSE' }
 
 // SearXNG's language/region codes. 'default' sends none, leaving the instance's
 // own default; 'auto' asks SearXNG to guess from the query. Mirrored as the
@@ -289,7 +291,7 @@ export function settingsRows (settings, engine = 'unknown', agents = null, catal
     rows.push({
       key: 'searxngEngine:' + name,
       type: 'toggle',
-      label: name.charAt(0).toUpperCase() + name.slice(1),
+      label: ENGINE_LABELS[name] || name.charAt(0).toUpperCase() + name.slice(1),
       hint: engines.length === 0
         ? 'none chosen — SearXNG asks every engine it has enabled, which is slow'
         : ENGINE_CHOICES.indexOf(name) === -1 ? 'added by hand in config.json — switching it off removes it'

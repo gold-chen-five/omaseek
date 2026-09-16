@@ -346,6 +346,7 @@ test('streaming is on unless it was deliberately turned off', async () => {
 })
 
 test('engines read as bin/search reads them: absent is the defaults, an explicit [] is kept', () => {
+  assert.deepEqual(DEFAULT_ENGINES, ['brave', 'bing', 'google', 'google cse'], 'mirrors DEFAULT_ENGINES in bin/search')
   assert.deepEqual(readSettings('').searxngEngines, DEFAULT_ENGINES)
   assert.deepEqual(readSettings('{"searxng_engines":"brave"}').searxngEngines, DEFAULT_ENGINES, 'malformed')
   assert.deepEqual(readSettings('{"searxng_engines":[]}').searxngEngines, [])
@@ -362,6 +363,8 @@ test('each offered engine is a switch, and a hand-typed one is kept and shown', 
   assert.equal(bing.action, 'off')
   assert.equal(rows.find(r => r.key === 'searxngEngine:brave').action, 'on')
   assert.match(rows.find(r => r.key === 'searxngEngine:mojeek').hint, /by hand/)
+  assert.equal(rows.find(r => r.key === 'searxngEngine:google cse').label, 'Google CSE')
+  assert.equal(rows.find(r => r.key === 'searxngEngine:mojeek').label, 'Mojeek')
 })
 
 test('switching an engine keeps the other names, hand-typed ones included, and writes through', () => {

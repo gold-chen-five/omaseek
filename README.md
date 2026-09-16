@@ -48,7 +48,7 @@ in normal mode stops a reply instead, keeping the conversation and the words so 
 `chat` button turns into `stop` and `retry` for the same.
 
 Each result names the SearXNG engines that found it. **Ctrl+S → Search** switches
-Brave, Bing and Google on and off, picks the language and region, and **Test**
+Brave, Bing, Google and Google CSE on and off, picks the language and region, and **Test**
 runs a real query to show how long it took and which engines answered. A next
 page that fails to load says `page failed · l retries` rather than pretending
 the results ended.
