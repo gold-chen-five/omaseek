@@ -24,6 +24,7 @@ TextArea {
   property real horizontalPadding: Style.spacing.controlPaddingX
   property real verticalPadding: Style.spacing.inputPaddingY
   property bool multiline: false            // AI mode: line-opening keys work
+  property bool stoppable: false            // a reply is being written: q and esc stop it
   readonly property var borderSpec: Border.controlSpec(activeFocus ? "focus" : (hovered ? "hover-cursor" : "normal"), foreground, accent)
   readonly property real lineHeight: contentHeight / Math.max(1, lineCount)
 
@@ -93,7 +94,6 @@ TextArea {
     if (chord === chords.nextSession) return "nextSession"
     if (chord === chords.clearSessions) return "clearSessions"
     if (chord === chords.closeSession) return "closeSession"
-    if (chord === chords.stopAnswer) return "stopAnswer"
     if (chord === chords.retryAnswer) return "retryAnswer"
     if (chord === chords.search) return "submit"
     if (chord === chords.switchMode || chord === "Backtab") return "toggleMode"
@@ -107,7 +107,6 @@ TextArea {
     case "nextSession":   nextSessionRequested(); break
     case "clearSessions": clearSessionsRequested(); break
     case "closeSession":  closeSessionRequested(); break
-    case "stopAnswer":    stopRequested(); break
     case "retryAnswer":   retryRequested(); break
     // Both leave the field for good; a half-typed escape sequence goes with it.
     case "submit":        clearEscapePending(); submitted(); break
@@ -655,6 +654,9 @@ TextArea {
     if (event.key === Qt.Key_Escape) {
       if (mode === "visual") setMode("normal")
       else if (pendingOperator || pendingCount > 0 || pendingFind || repeatFindReady || pendingReplace > 0 || pendingTextObject) clearPending()
+      // While a reply is being written, esc stops it rather than closing the
+      // panel; the one after that closes it.
+      else if (field.stoppable) field.stopRequested()
       else field.cancelled()
       event.accepted = true
       return
@@ -689,6 +691,14 @@ TextArea {
 
     if (pendingTextObject !== "") {
       handleTextObject(key)
+      return
+    }
+
+    // Vim's q records a macro, which this field deliberately lacks; here it
+    // stops the reply being written, and otherwise does nothing.
+    if (key === "q") {
+      clearPending()
+      if (field.stoppable) field.stopRequested()
       return
     }
 

@@ -68,7 +68,7 @@ export function statusText ({
   hasNext = false, loadingPage = false, errorMessage = '', backend = '',
   pageError = '', nextPageKey = 'l',
   agent = '', selecting = false, link = '', session = '',
-  stopKey = 'ctrl+q', retryKey = 'ctrl+shift+r', canRetry = false
+  stopKey = 'esc', retryKey = 'ctrl+shift+r', canRetry = false
 } = {}) {
   if (view === VIEW.SETTINGS) return 'j/k rows · h/l change · enter opens · saved as you go · esc back'
   if (view === VIEW.SETUP) return 'h/l choose · enter confirm · esc not now'

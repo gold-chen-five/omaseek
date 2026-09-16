@@ -58,7 +58,10 @@ const FIXED = {
     '#': 'searchWordBack',
     'g v': 'reselect',
     'y': 'yank',
-    'p': 'put', 'P': 'putBefore'
+    'p': 'put', 'P': 'putBefore',
+    // Stops the reply being written, as the field's q and esc do; macros are
+    // deliberately absent, so vim's q is free.
+    'q': 'stopAnswer'
   })
 }
 

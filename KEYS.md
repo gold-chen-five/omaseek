@@ -16,7 +16,6 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 | Next session | `next_session_key` | `ctrl+n` | ask: the next saved conversation, newest first, wrapping |
 | Close session | `close_session_key` | `ctrl+x` | ask: forget this conversation and show the one below it |
 | Delete all sessions | `clear_sessions_key` | `ctrl+shift+x` | ask: forget every saved conversation, on the second press |
-| Stop answer | `stop_answer_key` | `ctrl+q` | ask: stop the reply being written, keeping the conversation and the words so far |
 | Retry answer | `retry_answer_key` | `ctrl+shift+r` | ask: ask the last question again after a failure, a stop, or an interruption |
 | Settings | `settings_key` | `ctrl+s` | anywhere: open or close settings (`ctrl+,` always works too) |
 | Switch search / ask | `switch_mode_key` | `tab` | anywhere, without changing Vim mode (`shift+tab` always works too) |
@@ -64,7 +63,9 @@ is thinking opens a new conversation and lets the old one finish: its square
 keeps a pulsing dot until the reply lands, and the reply lands in *that*
 conversation, so `ctrl+n` back to it shows the finished answer. You can ask in
 the new conversation straight away — each question has its own agent process.
-To stop an answer without leaving it, press `ctrl+q`: the words written so far
+To stop an answer without leaving it, press `q` or `esc` in normal mode — in the
+answer, or in the field (asking leaves it in insert, so there it is `esc` twice,
+the first leaving insert). The words written so far
 stay on screen under a `■ stopped` mark (or `⚠ Stopped before the agent
 answered`), the conversation stays in the ring, and the agent process is ended.
 `ctrl+shift+r` then asks the same question again, replacing the stopped reply —
@@ -113,10 +114,14 @@ Insert mode:
 | `ctrl+j` | a line break in a question — AI mode; the bar grows a row, up to six |
 | `ctrl+c` `ctrl+n` `ctrl+x` | AI mode: a new conversation, the next saved one, forget this one |
 | `ctrl+shift+x` | AI mode: forget every saved conversation (twice) |
-| `ctrl+q` `ctrl+shift+r` | AI mode: stop the reply being written; ask the last question again |
+| `ctrl+shift+r` | AI mode: ask the last question again after a failure or a stop |
 | `down` `up` | ask: a line down or up within a question of several lines; down from the last, into the transcript |
 | `up` `down` | search: the field is one line, so they walk the queries searched before — `up` an older one, `down` back toward what you had typed, then into the results |
-| `enter` (Search / ask) | search and focus the first result when it arrives; asking leaves the field in normal mode |
+| `enter` (Search / ask) | search and focus the first result when it arrives; asking keeps the field in insert mode, ready for the next question |
+
+In AI mode, while a reply is being written, `q` or `esc` in normal mode stops it
+(`esc` closes the panel again once nothing is being written); `q` otherwise does
+nothing, since macros are absent.
 
 Normal mode uses vim editing: `h l w W b B e 0 ^ $`, `f F t T{char}`;
 after a find, `f`/`F` keep walking that character forward/backward, and `;`/`,`
@@ -204,7 +209,7 @@ follow the layout when the panel width changes and are excluded from copied text
 | `ctrl+n` (Next session) | the next saved conversation, wrapping |
 | `ctrl+x` (Close session) | forget this conversation and show the one below it |
 | `ctrl+shift+x` (Delete all sessions) | forget every saved conversation, on a second press |
-| `ctrl+q` (Stop answer) | stop the reply being written, keeping what arrived |
+| `q` | stop the reply being written, keeping what arrived |
 | `ctrl+shift+r` (Retry answer) | ask the last question again after a failure or a stop |
 | `/` `?` | search the transcript forwards or backwards |
 | `*` `#` | search for the word under the cursor, forwards or backwards — whole words only |

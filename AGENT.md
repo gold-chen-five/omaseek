@@ -212,8 +212,11 @@ takes out a conversation left with a question that has no answer *and* nothing
 running, so an abandoned empty question does not keep a square — unless it ends
 in a stop, which was a decision to come back and retry.
 
-**Stop and retry** (`ctrl+q`, `ctrl+shift+r`; shift because `ctrl+r` is the
-field's redo). `AiSession.stop()` cancels the live turn and appends
+**Stop and retry**. Stop is fixed, not an `ACTIONS` entry: `q` in the answer's
+table, and in the field's normal mode `q`, or `esc` while `stoppable` — where it
+would otherwise close the panel. A letter could never be a field/panel binding.
+Asking leaves the field in insert, so from there it is `esc` twice. Retry is
+`ctrl+shift+r`, shift because `ctrl+r` is the field's redo. `AiSession.stop()` cancels the live turn and appends
 `Sessions.stoppedTurn(partial)`: the words streamed so far as an assistant turn
 marked `stopped: true`, or an error turn when nothing had arrived. `stopped`
 is the one extra field `asTurns` keeps. A stopped reply is shown with `■ stopped`

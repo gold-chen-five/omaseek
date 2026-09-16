@@ -49,7 +49,12 @@ test('a modifier on its own leaves the pending sequence alone', () => {
 })
 
 test('an unbound key clears whatever was pending', () => {
-  assert.deepEqual(resolve(ANSWER_KEYS, '', 'q'), { command: '', pending: '' })
+  assert.deepEqual(resolve(ANSWER_KEYS, '', 'Q'), { command: '', pending: '' })
+})
+
+test('q stops the reply being written in the answer, and means nothing in the results', () => {
+  assert.equal(resolve(ANSWER_KEYS, '', 'q').command, 'stopAnswer')
+  assert.equal(resolve(LIST_KEYS, '', 'q').command, '')
 })
 
 // The list's own, each for a reason: h and l page where the answer moves by

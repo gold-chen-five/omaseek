@@ -108,7 +108,7 @@ test('the settings and setup views name their keys instead of search state', () 
 })
 
 test('AI mode names the agent while it thinks and its keys once it has answered', () => {
-  assert.equal(statusText({ panelMode: PANEL.AI, status: 'thinking', agent: 'claude' }), 'asking claude… · ctrl+q stops')
+  assert.equal(statusText({ panelMode: PANEL.AI, status: 'thinking', agent: 'claude' }), 'asking claude… · esc stops')
   assert.match(statusText({ panelMode: PANEL.AI, status: 'ok' }), /v select/)
   assert.match(statusText({ panelMode: PANEL.AI, status: 'ok', selecting: true }), /enter hands off/)
   assert.equal(statusText({ panelMode: PANEL.AI, status: 'error', errorMessage: 'nope' }), 'nope')
@@ -145,7 +145,7 @@ test('the AI line says where in the ring the conversation is, before the keys', 
   assert.match(statusText({ panelMode: PANEL.AI, status: 'ok', session: 'session 2/3' }),
     /ctrl\+n next/, 'walking the ring must be discoverable')
   assert.equal(statusText({ panelMode: PANEL.AI, status: 'thinking', agent: 'claude', session: '3 saved' }),
-    '3 saved · asking claude… · ctrl+q stops')
+    '3 saved · asking claude… · esc stops')
   assert.match(statusText({ panelMode: PANEL.AI, status: 'idle', session: '3 saved' }), /^3 saved · enter asks/)
 })
 
@@ -205,7 +205,7 @@ test('a failed next page is not the end: it says so and names the key that retri
 })
 
 test('the AI line offers stop while thinking and retry once a turn failed or stopped', () => {
-  assert.match(statusText({ panelMode: PANEL.AI, status: 'thinking', stopKey: 'ctrl+g' }), /ctrl\+g stops$/)
+  assert.match(statusText({ panelMode: PANEL.AI, status: 'thinking', stopKey: 'q' }), /· q stops$/)
   assert.equal(statusText({ panelMode: PANEL.AI, status: 'stopped', canRetry: true }), 'stopped · ctrl+shift+r retries')
   assert.equal(statusText({ panelMode: PANEL.AI, status: 'error', errorMessage: 'boom', canRetry: true }),
     'boom · ctrl+shift+r retries')

@@ -124,7 +124,7 @@ Item {
   function retryAnswer () {
     if (panelMode !== States.PANEL.AI) return
     disarmClear()
-    if (ai.retry()) focusSearch("normal")
+    if (ai.retry()) focusSearch("insert")      // as asking does
   }
 
   function disarmClear () {
@@ -229,7 +229,7 @@ Item {
     if (panelMode === States.PANEL.AI) {
       ai.ask(query.split(input.lineBreak).join("\n"))
       input.clear()                            // the question now lives in the transcript
-      focusSearch("normal")
+      focusSearch("insert")                    // ready for the next one; esc then q or esc stops this one
       return
     }
     const flat = query.split(input.lineBreak).join(" ")
@@ -464,6 +464,7 @@ Item {
                 width: Math.max(fieldScroll.width, implicitWidth)
                 height: Math.max(fieldScroll.height, implicitHeight)
                 multiline: root.panelMode === States.PANEL.AI
+                stoppable: root.panelMode === States.PANEL.AI && ai.status === "thinking"
                 foreground: root.foreground
                 accent: root.accent
                 font.family: root.fontFamily
@@ -600,7 +601,10 @@ Item {
               selecting: answerView.selecting,
               link: answerView.cursorLink,
               session: ai.sessionLabel,
-              stopKey: config.settings.stopAnswerKey,
+              // Which key stops depends on where the keyboard is: the answer's q,
+              // the field's esc — twice from insert, the first leaving it.
+              stopKey: root.focusArea === States.FOCUS.RESULTS ? "q"
+                : input.mode === "insert" ? "esc esc" : "esc",
               retryKey: config.settings.retryAnswerKey,
               canRetry: ai.canRetry
             })

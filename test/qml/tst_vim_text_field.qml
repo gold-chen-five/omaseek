@@ -19,6 +19,7 @@ Item {
   property int clearedSessions: 0
   property int stops: 0
   property int retries: 0
+  property int cancels: 0
 
   Connections {
     target: field
@@ -26,6 +27,7 @@ Item {
     function onCloseSessionRequested () { closedSessions++ }
     function onClearSessionsRequested () { clearedSessions++ }
     function onStopRequested () { stops++ }
+    function onCancelled () { cancels++ }
     function onRetryRequested () { retries++ }
   }
 
@@ -71,16 +73,13 @@ Item {
       compare(field.text, "half a question")
     }
 
-    // Stop and retry reach the panel from either mode; retry wears shift so
-    // that normal mode's ctrl+r is still redo.
-    function test_stop_and_retry_are_panel_chords_and_redo_survives() {
-      stops = 0
+    // Retry reaches the panel from either mode, and wears shift so that
+    // normal mode's ctrl+r is still redo.
+    function test_retry_is_a_panel_chord_and_redo_survives() {
       retries = 0
       typeText("abc")
-      keyClick(Qt.Key_Q, Qt.ControlModifier)
       keyClick(Qt.Key_R, Qt.ControlModifier | Qt.ShiftModifier)
-      compare(field.text, "abc", "neither chord may reach the text")
-      compare(stops, 1)
+      compare(field.text, "abc", "the chord may not reach the text")
       compare(retries, 1)
 
       field.setMode("normal")
@@ -91,8 +90,32 @@ Item {
       keyClick(Qt.Key_R, Qt.ControlModifier)
       compare(field.text, "ab", "plain ctrl+r is still redo")
       compare(retries, 1)
-      keyClick(Qt.Key_Q, Qt.ControlModifier)
+    }
+
+    // q and esc stop a reply in normal mode; insert types q, and esc there only
+    // leaves insert. With nothing being written, q does nothing and esc closes.
+    function test_q_and_esc_stop_a_reply_in_normal_mode() {
+      stops = 0
+      cancels = 0
+      field.stoppable = true
+      typeText("q")
+      compare(field.text, "q", "insert types q")
+      keyClick(Qt.Key_Escape)
+      compare(field.mode, "normal")
+      compare(stops, 0, "the first esc only leaves insert")
+      keyClick(Qt.Key_Q)
+      compare(stops, 1)
+      keyClick(Qt.Key_Escape)
       compare(stops, 2)
+      compare(cancels, 0, "esc stops rather than closing the panel")
+      compare(field.text, "q")
+
+      field.stoppable = false
+      keyClick(Qt.Key_Q)
+      compare(stops, 2, "nothing to stop")
+      compare(field.text, "q")
+      keyClick(Qt.Key_Escape)
+      compare(cancels, 1, "and esc closes as before")
     }
 
     // Shift makes a chord of its own: forgetting everything must not be one

@@ -41,8 +41,8 @@ shows them, `1` the newest and the open one filled: click one to switch, or
 walk them with `ctrl+n`. `ctrl+x` forgets the one on screen, and the `+` square
 (or `ctrl+c`) starts another. `ctrl+c` while the agent is still thinking leaves
 that question running — its square keeps a dot until the answer lands in it —
-so you can start something else and come back to a finished reply. `ctrl+q`
-stops a reply instead, keeping the conversation and the words so far, and
+so you can start something else and come back to a finished reply. `q` or `esc`
+in normal mode stops a reply instead, keeping the conversation and the words so far, and
 `ctrl+shift+r` asks the last question again after a stop or a failure — the
 `chat` button turns into `stop` and `retry` for the same.
 
