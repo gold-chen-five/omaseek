@@ -1,6 +1,4 @@
 import QtQuick
-import Quickshell
-import Quickshell.Io
 import "../lib/history.mjs" as HistoryLib
 
 // The queries searched before, ~/.local/share/omaseek/queries.json. The shape of
@@ -10,11 +8,8 @@ import "../lib/history.mjs" as HistoryLib
 Item {
   id: store
 
-  readonly property string path: (Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") + "/.local/share")) + "/omaseek/queries.json"
-  readonly property string dir: path.replace(/\/[^\/]*$/, "")
-
   property var queries: []
-  property bool ready: false                   // the file has been read; before that the ring is unknown
+  readonly property alias ready: file.ready
   property string waiting: ""                  // a query searched before the file landed
 
   // The read is asynchronous, so a query searched in the first moments of a
@@ -37,43 +32,13 @@ Item {
 
   function save (list) {
     queries = list
-    persist(HistoryLib.writeQueries(list))
+    file.write(HistoryLib.writeQueries(list))
   }
 
-  // setText fails silently when the directory is missing — the state a machine is
-  // in before its first search — so the write waits for mkdir.
-  function persist (text) {
-    writer.pending = text
-    writer.command = ["mkdir", "-p", store.dir]
-    writer.running = true
-  }
+  JsonFile {
+    id: file
 
-  FileView {
-    id: queryFile
-
-    path: store.path
-    preload: true
-    printErrors: false
-
-    onLoaded: {
-      store.queries = HistoryLib.readQueries(text())
-      store.ready = true
-    }
-    onLoadFailed: {
-      store.queries = []                       // absent or unreadable: nothing searched yet
-      store.ready = true
-    }
-  }
-
-  Process {
-    id: writer
-
-    property string pending: ""
-
-    onExited: {
-      if (!writer.pending) return
-      queryFile.setText(writer.pending)
-      writer.pending = ""
-    }
+    name: "omaseek/queries.json"
+    onLoaded: text => store.queries = HistoryLib.readQueries(text)
   }
 }

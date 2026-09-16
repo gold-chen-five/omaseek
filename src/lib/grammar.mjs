@@ -4,15 +4,11 @@
 // the only operator: the transcript is read-only.
 
 import { resolve } from './keys.mjs'
+import { sameFindKind } from './motions.mjs'
 
 export const IDLE = Object.freeze({ keys: '', count: 0, before: 0, operator: '', find: '', scope: '' })
 
 const FINDS = 'fFtT'
-
-function sameFindKind (a, b) {
-  return (a === 'f' || a === 'F') ? (b === 'f' || b === 'F')
-    : (a === 't' || a === 'T') && (b === 't' || b === 'T')
-}
 
 function amend (state, changes) {
   const out = {

@@ -6,14 +6,12 @@
 // the next-session key stays predictable while it is answered into; `updated`
 // records when it last moved, for anyone reading the file.
 
+import { asText, listUnder } from './json.mjs'
+
 export const MAX_SESSIONS = 10
 export const TITLE_LENGTH = 60
 
 const ROLES = ['user', 'assistant', 'error']
-
-function asText (value) {
-  return typeof value === 'string' ? value : ''
-}
 
 function asTurns (value) {
   const turns = []
@@ -47,15 +45,7 @@ export function newId (now) {
 
 /** File text -> the conversations it holds; anything unreadable is no conversations. */
 export function readSessions (source) {
-  let parsed = null
-  if (typeof source === 'string' && source.trim() !== '') {
-    try {
-      parsed = JSON.parse(source)
-    } catch (error) {
-      parsed = null
-    }
-  }
-  const list = parsed && Array.isArray(parsed.sessions) ? parsed.sessions : []
+  const list = listUnder(source, 'sessions')
   const sessions = []
   for (let i = 0; i < list.length && sessions.length < MAX_SESSIONS; i++) {
     const entry = list[i]

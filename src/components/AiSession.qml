@@ -281,17 +281,17 @@ Item {
     const prompt = String(text ?? "").trim()
     if (!prompt) return
     launching()
-    run(launchProcess, [session.askPath, "--launch", "--json",
-                        JSON.stringify({ prompt: prompt, agent: chatAgent, model: chatModel, launcher: launcher })])
+    launchProcess.start([session.askPath, "--launch", "--json",
+                         JSON.stringify({ prompt: prompt, agent: chatAgent, model: chatModel, launcher: launcher })])
   }
 
   // Sign-in and setup belong to the CLI: hand them to a terminal with the pending
   // question chained after. `fix` picks which command runs.
   function login (fix) {
     launching()
-    run(launchProcess, [session.askPath, "--login", "--json",
-                        JSON.stringify({ agent: chatAgent, model: chatModel, launcher: launcher,
-                                         fix: fix || "login", prompt: lastQuestion() })])
+    launchProcess.start([session.askPath, "--login", "--json",
+                         JSON.stringify({ agent: chatAgent, model: chatModel, launcher: launcher,
+                                          fix: fix || "login", prompt: lastQuestion() })])
   }
 
   function lastQuestion () {
@@ -302,7 +302,7 @@ Item {
   }
 
   function probeAgents () {
-    run(agentsProcess, [session.askPath, "--agents"])
+    agentsProcess.start([session.askPath, "--agents"])
   }
 
   function probeModels () {
@@ -312,7 +312,7 @@ Item {
     if (modelsProcess.running) return
     if (models && models.agent === modelAgent) return
     modelsProcess.requestedAgent = modelAgent
-    run(modelsProcess, [askPath, "--models", "--json", JSON.stringify({ agent: modelAgent })])
+    modelsProcess.start([askPath, "--models", "--json", JSON.stringify({ agent: modelAgent })])
   }
 
   // A new conversation. What was on screen stays in the ring — unless it was a
@@ -334,12 +334,6 @@ Item {
   // `agent` belongs to one conversation; clear it so the placeholder names who
   // answers next.
   onChatAgentChanged: agent = ""
-
-  function run (process, command) {
-    process.running = false
-    process.command = command
-    process.running = true
-  }
 
   function fail (message) {
     status = "error"
@@ -371,59 +365,38 @@ Item {
     }
   }
 
-  Process {
+  JsonProcess {
     id: launchProcess
 
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        try {
-          const payload = JSON.parse(String(text ?? "").trim())
-          if (!payload.ok) session.fail(payload.message ?? "Could not open the agent")
-        } catch (error) {
-          session.fail("Could not open the agent")
-        }
-      }
-    }
+    onParsed: payload => { if (!payload.ok) session.fail(payload.message ?? "Could not open the agent") }
+    onUnreadable: session.fail("Could not open the agent")
   }
 
-  Process {
+  JsonProcess {
     id: agentsProcess
 
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        try {
-          const payload = JSON.parse(String(text ?? "").trim())
-          if (payload.ok) {
-            session.agents = payload
-            session.probeModels()
-          }
-        } catch (error) {
-          session.agents = { agents: [], default: "", configured: false }
-        }
-      }
+    onParsed: payload => {
+      if (!payload.ok) return
+      session.agents = payload
+      session.probeModels()
     }
+    onUnreadable: session.agents = ({ agents: [], default: "", configured: false })
   }
 
-  Process {
+  // Discovery is serialised, so a slow answer for an agent nobody selected any
+  // more is dropped rather than overwriting a newer one.
+  JsonProcess {
     id: modelsProcess
+
     property string requestedAgent: ""
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        let result
-        try {
-          result = JSON.parse(String(text ?? "").trim())
-        } catch (error) {
-          result = { models: [], message: "could not read the model list" }
-        }
-        if (modelsProcess.requestedAgent === session.modelAgent) {
-          session.models = { agent: modelsProcess.requestedAgent,
-                             models: result.models || [], message: result.message || "" }
-        }
-      }
+
+    function keep (result) {
+      if (requestedAgent !== session.modelAgent) return
+      session.models = { agent: requestedAgent, models: result.models || [], message: result.message || "" }
     }
+
+    onParsed: payload => modelsProcess.keep(payload)
+    onUnreadable: modelsProcess.keep({ models: [], message: "could not read the model list" })
     onExited: Qt.callLater(session.probeModels)
   }
 }

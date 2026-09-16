@@ -51,13 +51,14 @@ QML.** The same file loads in both (`import "../lib/motions.mjs" as Motions` in
 QML, `import` in node), so cursor arithmetic, escape-sequence matching, page
 merging and config parsing are all under test without a compositor.
 
+- `src/lib/json.mjs` — reading one of our own hand-editable JSON files: nothing here throws, so an unreadable file is an empty one
 - `src/lib/motions.mjs` — cursor motions (`w b e f t 0 ^ $`), `(text, pos) -> pos`
 - `src/lib/textobjects.mjs` — `iw aw i" a(` … `(text, pos) -> {start, end}`
 - `src/lib/keymap.mjs` — the insert-mode escape sequence (`jk`) and its config
 - `src/lib/search.mjs` — result normalising, de-duplication, status/error strings
 - `src/lib/settings.mjs` — config text → settings, and the settings-page row list
 - `src/lib/markdown.mjs` — the agent's Markdown → the rich-text subset a TextEdit colours; the transcript layout
-- `src/lib/keybinds.mjs` — `ACTIONS`, every rebindable key; binding text ↔ chords (`gA` ↔ `g A`)
+- `src/lib/keybinds.mjs` — `ACTIONS`, every rebindable key; binding text ↔ chords (`gA` ↔ `g A`); `panelChords()` for the field's and the answer's table
 - `src/lib/keys.mjs` — chord → command name for the reading panes, the `gg`/`gv` prefix machine, and the clash check for a rebound key
 - `src/lib/states.mjs` — the panel's `VIEW`, `PANEL` and `FOCUS` values; never write them as bare strings
 - `src/lib/urls.mjs` — the bare URL under the cursor for `gx`, and which links may open (http/https only)
@@ -221,13 +222,22 @@ plugins keep state in a `Service.qml`:
 The field's Vim mode survives closing and reopening the panel, and switching
 between search and AI with Tab; only an explicit mode-changing action changes it.
 
-- `ConfigStore.qml` — the config file: `FileView` watch, `reload()`,
+- `JsonFile.qml` — one of our JSON files under an XDG base: read whole, written
+  whole, and the place the mkdir trap is settled — `setText` fails silently when
+  the directory is missing, the state a machine is in before its first write, so
+  every write waits for one. The three stores below differ only in where the
+  file lives, whether it is watched, and what the text means.
+- `JsonProcess.qml` — a `bin/` helper run for one answer. They all print one JSON
+  object and exit 0, so `parsed(payload)` and `unreadable(raw)` is the whole
+  protocol; `start(command)` stops first, because a running `Process` keeps its
+  old command until it does.
+- `ConfigStore.qml` — the config file: watched, `reload()`,
   `change(key, value)` written straight through.
 - `Engine.qml` — the SearXNG instance: `state` (`unknown`/`running`/`stopped`),
   `probe()` via `bin/search --status`, and start/stop/update via `bin/searxng-up`
   in a terminal. Paths come from `Qt.resolvedUrl` so the dev symlink works.
 - `SearchSession.qml` — the query, the page cache (`pages`/`pageIndex` — `h`
-  never refetches), the `ListModel` the list paints, and the `Process` that
+  never refetches), the `ListModel` the list paints, and the `JsonProcess` that
   runs the backend. Raises `engineDown`, `pageShown`.
 - `AiSession.qml` — the transcript, the agent list from `bin/ask --agents`,
   `ask()`, `launch()`, and the ring of saved conversations (`nextSession()`,
@@ -235,6 +245,8 @@ between search and AI with Tab; only an explicit mode-changing action changes it
   vim keys driven by the TextEdit's own layout (`positionAt`/`positionToRectangle`).
 - `SessionStore.qml` — the last ten conversations in
   `~/.local/share/omaseek/sessions.json`, written whole on every turn.
+- `HistoryStore.qml` — the last twenty-five queries, the same shape and read
+  once for the same reason.
 - `SessionTabs.qml` — the numbered squares under the status line, one per saved
   conversation plus a `+`, with a pulsing dot on any whose answer is still
   coming; it raises `picked(index)` and `started()` and knows nothing else. It takes its room from the view below through
@@ -254,9 +266,13 @@ name, and each pane switches on that name. `j`/`k`/`gg`/`G`/Enter therefore
 cannot drift apart between them, and the `g` prefix is written once. Qt's key
 enums become chord strings in `src/components/chord.js`, which is a plain
 (non-`.pragma library`) JS import precisely so it can see `Qt` — the `.mjs`
-next door cannot, because node loads it too. `VimTextField` keeps its own
-dispatch: counts, operators and pending finds make it a different machine, and
-flattening it into a table would hide that rather than simplify it.
+next door cannot, because node loads it too. `measure.js` is a plain import for
+the same reason: both panes light a character, and `positionToRectangle` gives a
+caret rather than a box, so the width is worth deriving once. What they draw
+over it is `MatchHighlight.qml`, shared by the field's `f`/`t` hits and the
+answer's `/` and `f`/`t` ones. `VimTextField` keeps its own key dispatch:
+counts, operators and pending finds make it a different machine, and flattening
+it into a table would hide that rather than simplify it.
 
 The answer view needs that machine too (`3w`, `yiw`, `viw`, `fx`), so it runs
 its keys through `src/lib/grammar.mjs` first: counts, the `y` operator, the key
@@ -267,6 +283,12 @@ text objects are confined to the logical line (`findInLine`, `resolveInLine`),
 as vim's are; the transcript is one long text. `yy` copies the current displayed line (with counts for multiple lines),
 and `p` puts into the ask bar, which reads the clipboard
 through the TextArea's own `paste()` — no `wl-paste` round trip.
+
+The keys that belong to the *panel* rather than to a pane — search, the session
+keys, settings, the mode switch — travel as one object: `Keybinds.panelChords(settings)`
+maps action id → parsed chord, and the field and the answer both take it as
+`chords`. A new panel key is an entry in `ACTIONS` and a case in
+`VimTextField.panelCommand`, not a property threaded through `Search.qml`.
 
 Settings live in `~/.config/omaseek/config.json`, shared by the panel and
 `bin/search` — **the option lists are declared once in `src/lib/settings.mjs`**

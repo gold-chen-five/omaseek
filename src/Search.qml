@@ -29,11 +29,8 @@ Item {
   readonly property var settingsRows: SettingsLib.settingsRows(config.settings, engine.state, ai.agents, ai.models)
   readonly property string chatModel: SettingsLib.selectedModel(config.settings, ai.agents, ai.models)
 
-  readonly property string searchChord: Keybinds.parseChord(config.settings.searchKey) || "Return"
-  readonly property string newSessionChord: Keybinds.parseChord(config.settings.newSessionKey) || "C-c"
-  readonly property string nextSessionChord: Keybinds.parseChord(config.settings.nextSessionKey) || "C-n"
-  readonly property string closeSessionChord: Keybinds.parseChord(config.settings.closeSessionKey) || "C-x"
-  readonly property string clearSessionsChord: Keybinds.parseChord(config.settings.clearSessionsKey) || "C-S-x"
+  // Every panel key, parsed, by action id; each falls back to its default.
+  readonly property var chords: Keybinds.panelChords(config.settings)
   readonly property string clearSessionsKeyText: config.settings.clearSessionsKey || "ctrl+shift+x"
   property bool clearArmed: false              // the first press; the second forgets them
   property int historyIndex: -1                // where the query walk sits; -1 is what was typed
@@ -43,8 +40,6 @@ Item {
   // `/` in the pane being read, while it is still being typed.
   readonly property string findPrompt: panelMode === States.PANEL.AI
     ? answerView.findPrompt : resultsList.findPrompt
-  readonly property string settingsChord: Keybinds.parseChord(config.settings.settingsKey) || "C-s"
-  readonly property string switchChord: Keybinds.parseChord(config.settings.switchModeKey) || "Tab"
 
   // [menu] tokens, as the first-party overlays use: a theme switch repaints this.
   readonly property color background: Color.menu.background
@@ -453,13 +448,7 @@ Item {
                 placeholderText: root.panelMode === States.PANEL.AI ? "Ask " + ai.agentName + "…" : "Search the web…"
                 escapeSequences: config.keymap.sequences
                 escapeTimeout: config.keymap.timeoutMs
-                searchChord: root.searchChord
-                newSessionChord: root.newSessionChord
-                nextSessionChord: root.nextSessionChord
-                closeSessionChord: root.closeSessionChord
-                clearSessionsChord: root.clearSessionsChord
-                settingsChord: root.settingsChord
-                switchChord: root.switchChord
+                chords: root.chords
 
                 onSubmitted: root.runSearch()
                 onCancelled: root.dismiss()
@@ -552,9 +541,6 @@ Item {
           id: statusLine
 
           width: parent.width
-          foreground: root.foreground
-          accent: root.accent
-          fontFamily: root.fontFamily
           isError: (root.panelMode === States.PANEL.AI ? ai.status : session.status) === "error"
           mode: SearchLib.modeLabel({
             view: root.view, panelMode: root.panelMode, focusArea: root.focusArea,
@@ -592,9 +578,6 @@ Item {
           sessions: ai.sessions
           pending: ai.pendingIds
           current: ai.sessionIndex
-          foreground: root.foreground
-          accent: root.accent
-          fontFamily: root.fontFamily
 
           onPicked: index => root.pickChat(index)
           onStarted: root.newChat()
@@ -606,9 +589,6 @@ Item {
           visible: root.view === States.VIEW.SETUP
           width: parent.width
           reason: root.setupReason
-          foreground: root.foreground
-          accent: root.accent
-          fontFamily: root.fontFamily
 
           onConfirmed: engine.start()
           onCancelled: root.closeSetup()
@@ -621,10 +601,7 @@ Item {
           width: parent.width
           height: content.viewHeight
           incomingRows: root.settingsRows
-          settingsChord: root.settingsChord
-          foreground: root.foreground
-          accent: root.accent
-          fontFamily: root.fontFamily
+          settingsChord: root.chords.settings
 
           onChanged: (key, value) => config.change(key, value)
           onActivated: (key, action) => root.runSettingAction(key, action)
@@ -634,7 +611,9 @@ Item {
 
         AnswerView {
           id: answerView
+
           binds: config.settings
+          chords: root.chords
           lineNumbers: config.settings.lineNumbers
 
           visible: root.view === States.VIEW.SEARCH && root.panelMode === States.PANEL.AI
@@ -644,9 +623,6 @@ Item {
           streamText: ai.liveStreamText
           thinking: ai.status === "thinking"
           agentName: ai.agentName
-          foreground: root.foreground
-          accent: root.accent
-          fontFamily: root.fontFamily
 
           onHandedOff: context => ai.launch(context)
           onLinkOpened: url => root.openUrl(url)
@@ -665,11 +641,11 @@ Item {
             root.focusSearch("normal")
             input.put(after, text)
           }
-          newSessionChord: root.newSessionChord
         }
 
         ResultList {
           id: resultsList
+
           binds: config.settings
           lineNumbers: config.settings.lineNumbers
 
@@ -677,9 +653,6 @@ Item {
           width: parent.width
           height: content.viewHeight
           model: session.results
-          foreground: root.foreground
-          accent: root.accent
-          fontFamily: root.fontFamily
 
           onHandedOff: index => ai.launch(session.handoffText(index))
           onPageHandedOff: ai.launch(session.handoffText(-1))

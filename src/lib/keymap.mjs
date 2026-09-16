@@ -1,5 +1,7 @@
 // The insert-mode escape sequence (vim's `inoremap jk <Esc>`) and its config.
 
+import { parseObject } from './json.mjs'
+
 export const DEFAULT_SEQUENCES = ['jk']
 // vim's `timeoutlen`: keys typed within it count as one mapping.
 export const DEFAULT_TIMEOUT_MS = 1000
@@ -9,20 +11,10 @@ const MAX_TIMEOUT_MS = 5000
 
 /** config.json -> the escape sequences and their timeout; unreadable config means defaults. */
 export function readKeymap (source) {
-  const config = parseConfig(source)
+  const config = parseObject(source)
   return {
     sequences: readSequences(config.escape_sequence),
     timeoutMs: readTimeout(config.escape_timeout_ms)
-  }
-}
-
-function parseConfig (source) {
-  if (typeof source !== 'string' || source.trim() === '') return {}
-  try {
-    const parsed = JSON.parse(source)
-    return parsed && typeof parsed === 'object' ? parsed : {}
-  } catch (error) {
-    return {}
   }
 }
 

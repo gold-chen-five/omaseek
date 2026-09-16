@@ -6,11 +6,9 @@
 // wrap. Past the oldest it stops, and past the newest it lands back on the draft
 // the reader had typed — readline's behaviour, and wrapping would lose that draft.
 
-export const MAX_QUERIES = 25
+import { asText, listUnder } from './json.mjs'
 
-function asText (value) {
-  return typeof value === 'string' ? value : ''
-}
+export const MAX_QUERIES = 25
 
 function oneLine (value) {
   return asText(value).replace(/\s+/g, ' ').trim()
@@ -18,15 +16,7 @@ function oneLine (value) {
 
 /** File text -> the queries it holds; anything unreadable is no queries. */
 export function readQueries (source) {
-  let parsed = null
-  if (typeof source === 'string' && source.trim() !== '') {
-    try {
-      parsed = JSON.parse(source)
-    } catch (error) {
-      parsed = null
-    }
-  }
-  const list = parsed && Array.isArray(parsed.queries) ? parsed.queries : []
+  const list = listUnder(source, 'queries')
   const queries = []
   const seen = {}
   for (let i = 0; i < list.length && queries.length < MAX_QUERIES; i++) {

@@ -33,6 +33,8 @@ export function inline (text, link = '') {
   return pieces.join('')
 }
 
+const LIST_ITEM = /^\s*(?:[-*+]|\d+[.)])\s+(.*)$/
+
 function block (tag, content, color) {
   const open = color ? `<${tag}><span style="color:${color}">` : `<${tag}>`
   const close = color ? `</span></${tag}>` : `</${tag}>`
@@ -91,7 +93,7 @@ export function toHtml (markdown, { color = '', lead = '', link = '' } = {}) {
       continue
     }
 
-    const item = /^\s*(?:[-*+]|\d+[.)])\s+(.*)$/.test(line) ? /^\s*(?:[-*+]|\d+[.)])\s+(.*)$/.exec(line) : null
+    const item = LIST_ITEM.exec(line)
     if (item) {
       flushParagraph()
       const tag = /^\s*\d/.test(line) ? 'ol' : 'ul'

@@ -169,173 +169,77 @@ FocusScope {
     boundsBehavior: Flickable.StopAtBounds
     onHeightChanged: Qt.callLater(page.ensureCursorVisible)
 
-  Column {
-    id: layout
+    Column {
+      id: layout
 
-    anchors.left: parent.left
-    anchors.right: parent.right
-    spacing: Style.spacing.xs
+      anchors.left: parent.left
+      anchors.right: parent.right
+      spacing: Style.spacing.xs
 
-    Repeater {
-      id: rowRepeater
-      model: page.rows
+      Repeater {
+        id: rowRepeater
+        model: page.rows
 
-      delegate: Rectangle {
-        id: settingRow
+        delegate: Rectangle {
+          id: settingRow
 
-        required property int index
-        required property var modelData
+          required property int index
+          required property var modelData
 
-        // Imperative code in a Repeater delegate can't resolve outer ids, so the page
-        // is held in a property.
-        readonly property var owner: page
-        readonly property bool isSection: modelData.type === "section"
-        readonly property bool isInfo: modelData.type === "info"
-        readonly property bool hasCursor: index === page.cursor && !isSection && !isInfo
-        readonly property bool isChoice: modelData.type === "choice"
-        readonly property bool isAction: modelData.type === "action"
-        readonly property bool isDropdown: isChoice && modelData.control === "dropdown"
-        readonly property bool refused: index === page.refusedIndex
+          // Imperative code in a Repeater delegate can't resolve outer ids, so the page
+          // is held in a property.
+          readonly property var owner: page
+          readonly property bool isSection: modelData.type === "section"
+          readonly property bool isInfo: modelData.type === "info"
+          readonly property bool hasCursor: index === page.cursor && !isSection && !isInfo
+          readonly property bool isChoice: modelData.type === "choice"
+          readonly property bool isAction: modelData.type === "action"
+          readonly property bool isDropdown: isChoice && modelData.control === "dropdown"
+          readonly property bool refused: index === page.refusedIndex
 
-        width: layout.width
-        height: isSection ? sectionLabel.implicitHeight + Style.spacing.lg + Style.spacing.md * 2
-                          : body.implicitHeight + (isInfo ? Style.spacing.xs * 2 : Style.spacing.md * 2)
-        radius: Style.cornerRadius
-        color: hasCursor ? page.selectedBackground : "transparent"
+          width: layout.width
+          height: isSection ? sectionLabel.implicitHeight + Style.spacing.lg + Style.spacing.md * 2
+                            : body.implicitHeight + (isInfo ? Style.spacing.xs * 2 : Style.spacing.md * 2)
+          radius: Style.cornerRadius
+          color: hasCursor ? page.selectedBackground : "transparent"
 
-        Rectangle {
-          visible: settingRow.isSection && settingRow.index > 0
-          anchors.left: parent.left
-          anchors.right: parent.right
-          anchors.top: parent.top
-          anchors.topMargin: Style.spacing.md
-          height: Math.max(1, Style.normalBorderWidth)
-          color: Util.alpha(page.foreground, 0.18)
-        }
-
-        Text {
-          id: sectionLabel
-
-          visible: settingRow.isSection
-          anchors.left: parent.left
-          anchors.bottom: parent.bottom
-          anchors.bottomMargin: Style.spacing.xs
-          textFormat: Text.PlainText
-          text: settingRow.isSection ? String(settingRow.modelData.label).toUpperCase() : ""
-          color: page.foreground
-          opacity: 0.5
-          font.family: page.fontFamily
-          font.pixelSize: Style.font.caption
-          font.letterSpacing: 1.5
-        }
-
-        // Emits the raw option, not its string: page sizes are numbers, and a string
-        // fails the write-side check.
-        Component {
-          id: chip
-
-          Button {
-            required property var modelData
-
-            text: String(modelData)
-            bordered: true
-            active: String(modelData) === String(settingRow.modelData.value)
-            foreground: page.foreground
-            accent: page.accent
-            fontFamily: page.fontFamily
-            fontSize: Style.font.bodySmall
-
-            onClicked: {
-              settingRow.owner.cursor = settingRow.index
-              settingRow.owner.changed(settingRow.modelData.key, modelData)
-            }
+          Rectangle {
+            visible: settingRow.isSection && settingRow.index > 0
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.topMargin: Style.spacing.md
+            height: Math.max(1, Style.normalBorderWidth)
+            color: Util.alpha(page.foreground, 0.18)
           }
-        }
 
-        Column {
-          id: body
+          Text {
+            id: sectionLabel
 
-          visible: !settingRow.isSection
-          anchors.left: parent.left
-          anchors.right: parent.right
-          anchors.leftMargin: Style.spacing.controlPaddingX
-          anchors.rightMargin: Style.spacing.controlPaddingX
-          anchors.verticalCenter: parent.verticalCenter
-          spacing: Style.spacing.xs
+            visible: settingRow.isSection
+            anchors.left: parent.left
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: Style.spacing.xs
+            textFormat: Text.PlainText
+            text: settingRow.isSection ? String(settingRow.modelData.label).toUpperCase() : ""
+            color: page.foreground
+            opacity: 0.5
+            font.family: page.fontFamily
+            font.pixelSize: Style.font.caption
+            font.letterSpacing: 1.5
+          }
 
-          Item {
-            id: headLine
-
-            width: parent.width
-            height: Math.max(labels.implicitHeight, inlineChips.visible ? inlineChips.implicitHeight : 0,
-                             picker.visible ? picker.implicitHeight : 0,
-                             engineSwitch.visible ? engineSwitch.implicitHeight : 0,
-                             actionButton.visible ? actionButton.implicitHeight : 0,
-                             sequenceField.visible ? sequenceField.implicitHeight : 0)
-
-            Column {
-              id: labels
-
-              anchors.left: parent.left
-              anchors.verticalCenter: parent.verticalCenter
-              width: parent.width - (settingRow.isInfo ? 0
-                                     : settingRow.isDropdown ? picker.width + Style.spacing.md
-                                     : Style.space(200))
-              spacing: Style.spacing.xxs
-
-              Text {
-                width: parent.width
-                textFormat: Text.PlainText
-                text: settingRow.modelData.label
-                color: page.foreground
-                opacity: settingRow.isInfo ? 0.8 : 1
-                font.family: page.fontFamily
-                font.pixelSize: settingRow.isInfo ? Style.font.body : Style.font.subtitle
-                elide: Text.ElideRight
-              }
-
-              // The hint, or why the key just typed was refused.
-              Text {
-                width: parent.width
-                textFormat: Text.PlainText
-                // Section rows have no hint; an undefined binding warns on every repaint.
-                text: settingRow.refused ? page.refusal : (settingRow.modelData.hint || "")
-                color: settingRow.refused ? Color.urgent : page.foreground
-                opacity: settingRow.refused ? 1 : 0.55
-                font.family: page.fontFamily
-                font.pixelSize: Style.font.caption
-                wrapMode: settingRow.isDropdown || settingRow.isInfo || settingRow.refused ? Text.WordWrap : Text.NoWrap
-                elide: settingRow.isDropdown || settingRow.isInfo || settingRow.refused ? Text.ElideNone : Text.ElideRight
-              }
-            }
-
-            ToggleSwitch {
-              id: engineSwitch
-
-              visible: settingRow.modelData.type === "toggle"
-              anchors.right: parent.right
-              anchors.verticalCenter: parent.verticalCenter
-              checked: settingRow.modelData.value === true
-              busy: settingRow.modelData.busy === true
-              hasCursor: settingRow.hasCursor
-              foreground: page.foreground
-              accent: page.accent
-
-              onToggled: {
-                settingRow.owner.cursor = settingRow.index
-                settingRow.owner.activated(settingRow.modelData.key, settingRow.modelData.action)
-              }
-            }
+          // Emits the raw option, not its string: page sizes are numbers, and a string
+          // fails the write-side check.
+          Component {
+            id: chip
 
             Button {
-              id: actionButton
+              required property var modelData
 
-              visible: settingRow.isAction
-              anchors.right: parent.right
-              anchors.verticalCenter: parent.verticalCenter
-              text: settingRow.modelData.button || "Run"
+              text: String(modelData)
               bordered: true
-              hasCursor: settingRow.hasCursor
+              active: String(modelData) === String(settingRow.modelData.value)
               foreground: page.foreground
               accent: page.accent
               fontFamily: page.fontFamily
@@ -343,122 +247,219 @@ FocusScope {
 
               onClicked: {
                 settingRow.owner.cursor = settingRow.index
-                if (!settingRow.modelData.busy)
-                  settingRow.owner.activated(settingRow.modelData.key, settingRow.modelData.action)
+                settingRow.owner.changed(settingRow.modelData.key, modelData)
               }
             }
+          }
 
-            Row {
-              id: inlineChips
+          Column {
+            id: body
 
-              visible: settingRow.isChoice && !settingRow.isDropdown
-              anchors.right: parent.right
-              anchors.verticalCenter: parent.verticalCenter
-              spacing: Style.spacing.sm
+            visible: !settingRow.isSection
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: Style.spacing.controlPaddingX
+            anchors.rightMargin: Style.spacing.controlPaddingX
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Style.spacing.xs
 
-              onWidthChanged: if (width > 0) settingRow.owner.noteChips(settingRow.index, width)   // hidden, it measures 0
+            Item {
+              id: headLine
 
-              Repeater {
-                model: inlineChips.visible ? settingRow.modelData.options : []
-                delegate: chip
-              }
-            }
+              width: parent.width
+              height: Math.max(labels.implicitHeight, inlineChips.visible ? inlineChips.implicitHeight : 0,
+                               picker.visible ? picker.implicitHeight : 0,
+                               engineSwitch.visible ? engineSwitch.implicitHeight : 0,
+                               actionButton.visible ? actionButton.implicitHeight : 0,
+                               sequenceField.visible ? sequenceField.implicitHeight : 0)
 
-            // While open, the list has the keys; closing it hands them back to the page.
-            Dropdown {
-              id: picker
+              Column {
+                id: labels
 
-              readonly property bool asked: settingRow.index === page.dropdownIndex
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width - (settingRow.isInfo ? 0
+                                       : settingRow.isDropdown ? picker.width + Style.spacing.md
+                                       : Style.space(200))
+                spacing: Style.spacing.xxs
 
-              visible: settingRow.isDropdown
-              anchors.right: parent.right
-              anchors.verticalCenter: parent.verticalCenter
-              width: page.chipColumn > 0 ? page.chipColumn : Style.space(200)
-              showLabel: false
-              options: picker.visible ? settingRow.modelData.options.map(String) : []
-              value: String(settingRow.modelData.value)
-              hasCursor: settingRow.hasCursor
-              foreground: page.foreground
-              accent: page.accent
-              background: Color.menu.background
-              popupBorder: Color.menu.border
-              fontFamily: page.fontFamily
+                Text {
+                  width: parent.width
+                  textFormat: Text.PlainText
+                  text: settingRow.modelData.label
+                  color: page.foreground
+                  opacity: settingRow.isInfo ? 0.8 : 1
+                  font.family: page.fontFamily
+                  font.pixelSize: settingRow.isInfo ? Style.font.body : Style.font.subtitle
+                  elide: Text.ElideRight
+                }
 
-              onAskedChanged: if (asked) open()
-              onPopupOpenChanged: {
-                if (popupOpen) {
-                  settingRow.owner.cursor = settingRow.index   // a click lands the cursor too
-                  settingRow.owner.dropdownIndex = settingRow.index
-                } else {
-                  settingRow.owner.dropdownIndex = -1
-                  settingRow.owner.forceActiveFocus()
+                // The hint, or why the key just typed was refused.
+                Text {
+                  width: parent.width
+                  textFormat: Text.PlainText
+                  // Section rows have no hint; an undefined binding warns on every repaint.
+                  text: settingRow.refused ? page.refusal : (settingRow.modelData.hint || "")
+                  color: settingRow.refused ? Color.urgent : page.foreground
+                  opacity: settingRow.refused ? 1 : 0.55
+                  font.family: page.fontFamily
+                  font.pixelSize: Style.font.caption
+                  wrapMode: settingRow.isDropdown || settingRow.isInfo || settingRow.refused ? Text.WordWrap : Text.NoWrap
+                  elide: settingRow.isDropdown || settingRow.isInfo || settingRow.refused ? Text.ElideNone : Text.ElideRight
                 }
               }
 
-              // Raw option, as the chip sends. The write rebuilds every delegate, this one
-              // included, mid-select: release the page's state first and write a tick later,
-              // or the rebuilt row reopens.
-              onChanged: function (chosen) {
-                const options = settingRow.modelData.options
-                let raw = chosen
-                for (let i = 0; i < options.length; i++) if (String(options[i]) === chosen) raw = options[i]
-                const owner = settingRow.owner
-                const key = settingRow.modelData.key
-                owner.dropdownIndex = -1
-                owner.forceActiveFocus()
-                Qt.callLater(function () { owner.changed(key, raw) })
-              }
-            }
+              ToggleSwitch {
+                id: engineSwitch
 
-            TextField {
-              id: sequenceField
+                visible: settingRow.modelData.type === "toggle"
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                checked: settingRow.modelData.value === true
+                busy: settingRow.modelData.busy === true
+                hasCursor: settingRow.hasCursor
+                foreground: page.foreground
+                accent: page.accent
 
-              readonly property bool editing: settingRow.index === page.editingIndex
-
-              visible: settingRow.modelData.type === "text"
-              anchors.right: parent.right
-              anchors.verticalCenter: parent.verticalCenter
-              width: Style.space(120)
-              text: String(settingRow.modelData.value)
-              placeholderText: settingRow.modelData.placeholder || ""
-              readOnly: !editing
-              // Declarative, so focus drops the moment editing ends; held, it would swallow
-              // the Esc meant for the page.
-              focus: editing
-              foreground: page.foreground
-              accent: page.accent
-              font.family: page.fontFamily
-              horizontalAlignment: TextInput.AlignHCenter
-
-              // A refused key keeps the old one and says why under the label.
-              function commit () {
-                const checked = SettingsLib.checkRow(settingRow.modelData, sequenceField.text, settingRow.owner.rows)
-                if (checked.error) settingRow.owner.refuse(settingRow.index, checked.error)
-                else if (checked.value !== null) settingRow.owner.changed(settingRow.modelData.key, checked.value)
-                // Back to a binding, on the new value or the old one if refused.
-                sequenceField.text = Qt.binding(function () { return String(settingRow.modelData.value) })
-                settingRow.owner.endEdit()
+                onToggled: {
+                  settingRow.owner.cursor = settingRow.index
+                  settingRow.owner.activated(settingRow.modelData.key, settingRow.modelData.action)
+                }
               }
 
-              onEditingChanged: if (sequenceField.editing) {
-                sequenceField.forceActiveFocus()
-                // Focus lands asynchronously and resets the selection; select-all must follow.
-                Qt.callLater(function () { sequenceField.selectAll() })
+              Button {
+                id: actionButton
+
+                visible: settingRow.isAction
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                text: settingRow.modelData.button || "Run"
+                bordered: true
+                hasCursor: settingRow.hasCursor
+                foreground: page.foreground
+                accent: page.accent
+                fontFamily: page.fontFamily
+                fontSize: Style.font.bodySmall
+
+                onClicked: {
+                  settingRow.owner.cursor = settingRow.index
+                  if (!settingRow.modelData.busy)
+                    settingRow.owner.activated(settingRow.modelData.key, settingRow.modelData.action)
+                }
               }
 
-              // A plain function, not an arrow: in a Repeater delegate an arrow binds lexical
-              // JS scope, and `page` and this object's methods don't resolve.
-              Keys.priority: Keys.BeforeItem
-              Keys.onPressed: function (event) {
-                if (!sequenceField.editing) return    // not this field's keyboard
+              Row {
+                id: inlineChips
 
-                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                  sequenceField.commit()
-                  event.accepted = true
-                } else if (event.key === Qt.Key_Escape) {
+                visible: settingRow.isChoice && !settingRow.isDropdown
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: Style.spacing.sm
+
+                onWidthChanged: if (width > 0) settingRow.owner.noteChips(settingRow.index, width)   // hidden, it measures 0
+
+                Repeater {
+                  model: inlineChips.visible ? settingRow.modelData.options : []
+                  delegate: chip
+                }
+              }
+
+              // While open, the list has the keys; closing it hands them back to the page.
+              Dropdown {
+                id: picker
+
+                readonly property bool asked: settingRow.index === page.dropdownIndex
+
+                visible: settingRow.isDropdown
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                width: page.chipColumn > 0 ? page.chipColumn : Style.space(200)
+                showLabel: false
+                options: picker.visible ? settingRow.modelData.options.map(String) : []
+                value: String(settingRow.modelData.value)
+                hasCursor: settingRow.hasCursor
+                foreground: page.foreground
+                accent: page.accent
+                background: Color.menu.background
+                popupBorder: Color.menu.border
+                fontFamily: page.fontFamily
+
+                onAskedChanged: if (asked) open()
+                onPopupOpenChanged: {
+                  if (popupOpen) {
+                    settingRow.owner.cursor = settingRow.index   // a click lands the cursor too
+                    settingRow.owner.dropdownIndex = settingRow.index
+                  } else {
+                    settingRow.owner.dropdownIndex = -1
+                    settingRow.owner.forceActiveFocus()
+                  }
+                }
+
+                // Raw option, as the chip sends. The write rebuilds every delegate, this one
+                // included, mid-select: release the page's state first and write a tick later,
+                // or the rebuilt row reopens.
+                onChanged: function (chosen) {
+                  const options = settingRow.modelData.options
+                  let raw = chosen
+                  for (let i = 0; i < options.length; i++) if (String(options[i]) === chosen) raw = options[i]
+                  const owner = settingRow.owner
+                  const key = settingRow.modelData.key
+                  owner.dropdownIndex = -1
+                  owner.forceActiveFocus()
+                  Qt.callLater(function () { owner.changed(key, raw) })
+                }
+              }
+
+              TextField {
+                id: sequenceField
+
+                readonly property bool editing: settingRow.index === page.editingIndex
+
+                visible: settingRow.modelData.type === "text"
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                width: Style.space(120)
+                text: String(settingRow.modelData.value)
+                placeholderText: settingRow.modelData.placeholder || ""
+                readOnly: !editing
+                // Declarative, so focus drops the moment editing ends; held, it would swallow
+                // the Esc meant for the page.
+                focus: editing
+                foreground: page.foreground
+                accent: page.accent
+                font.family: page.fontFamily
+                horizontalAlignment: TextInput.AlignHCenter
+
+                // A refused key keeps the old one and says why under the label.
+                function commit () {
+                  const checked = SettingsLib.checkRow(settingRow.modelData, sequenceField.text, settingRow.owner.rows)
+                  if (checked.error) settingRow.owner.refuse(settingRow.index, checked.error)
+                  else if (checked.value !== null) settingRow.owner.changed(settingRow.modelData.key, checked.value)
+                  // Back to a binding, on the new value or the old one if refused.
                   sequenceField.text = Qt.binding(function () { return String(settingRow.modelData.value) })
                   settingRow.owner.endEdit()
-                  event.accepted = true
+                }
+
+                onEditingChanged: if (sequenceField.editing) {
+                  sequenceField.forceActiveFocus()
+                  // Focus lands asynchronously and resets the selection; select-all must follow.
+                  Qt.callLater(function () { sequenceField.selectAll() })
+                }
+
+                // A plain function, not an arrow: in a Repeater delegate an arrow binds lexical
+                // JS scope, and `page` and this object's methods don't resolve.
+                Keys.priority: Keys.BeforeItem
+                Keys.onPressed: function (event) {
+                  if (!sequenceField.editing) return    // not this field's keyboard
+
+                  if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                    sequenceField.commit()
+                    event.accepted = true
+                  } else if (event.key === Qt.Key_Escape) {
+                    sequenceField.text = Qt.binding(function () { return String(settingRow.modelData.value) })
+                    settingRow.owner.endEdit()
+                    event.accepted = true
+                  }
                 }
               }
             }
@@ -466,6 +467,5 @@ FocusScope {
         }
       }
     }
-  }
   }
 }

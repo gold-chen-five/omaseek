@@ -83,6 +83,16 @@ export function find (text, pos, command, target) {
   return -1
 }
 
+/**
+ * Whether two find commands walk the same way — f with F, t with T. Clever-f
+ * repeats only within a kind: after `fa`, F steps back through the same a's,
+ * but t starts a new find.
+ */
+export function sameFindKind (a, b) {
+  return (a === 'f' || a === 'F') ? (b === 'f' || b === 'F')
+    : (a === 't' || a === 'T') && (b === 't' || b === 'T')
+}
+
 /** The inverse of a find command, for `,`. */
 export function flipFind (command) {
   return { f: 'F', F: 'f', t: 'T', T: 't' }[command] ?? command

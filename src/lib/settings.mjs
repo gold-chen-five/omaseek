@@ -2,6 +2,7 @@
 // once here so the page and bin/search agree; the keys come from ACTIONS in
 // keybinds.mjs, so a new binding is one entry there.
 
+import { parseObject } from './json.mjs'
 import { readKeymap, DEFAULT_SEQUENCES, DEFAULT_TIMEOUT_MS } from './keymap.mjs'
 import { ACTIONS, settingKey, normalizeBinding, actionById } from './keybinds.mjs'
 import { bindingProblem } from './keys.mjs'
@@ -37,23 +38,13 @@ export const FIXED_KEYS = [
   { label: 'Settings', keys: 'j k move · h l change · enter edit · / field normal · esc back' }
 ]
 
-function parse (source) {
-  if (typeof source !== 'string' || source.trim() === '') return {}
-  try {
-    const parsed = JSON.parse(source)
-    return parsed && typeof parsed === 'object' ? parsed : {}
-  } catch (error) {
-    return {}
-  }
-}
-
 function oneOf (value, choices, fallback) {
   return choices.indexOf(value) !== -1 ? value : fallback
 }
 
 /** Config text -> settings; anything unreadable or unknown falls back to its default. */
 export function readSettings (source) {
-  const config = parse(source)
+  const config = parseObject(source)
   const keymap = readKeymap(source)
 
   const settings = {
@@ -104,6 +95,20 @@ function readModels (value) {
   return models
 }
 
+// Who answers, given what discovery found: the installed ids, and the one that
+// stands in for 'default'. Read by the model row and by the model handed to the
+// CLI, which must agree.
+function agentChoices (agents) {
+  const known = agents && Array.isArray(agents.agents) ? agents.agents : []
+  const ids = []
+  for (let i = 0; i < known.length; i++) ids.push(known[i].id)
+  return {
+    known: known,
+    ids: ids,
+    defaultId: agents && typeof agents.default === 'string' ? agents.default : ''
+  }
+}
+
 function modelSelection (settings, agent, catalog) {
   const options = ['default']
   const discovered = catalog && catalog.agent === agent && Array.isArray(catalog.models) ? catalog.models : []
@@ -117,11 +122,10 @@ function modelSelection (settings, agent, catalog) {
 
 /** The model the panel may pass to the CLI; empty deliberately means its default. */
 export function selectedModel (settings, agents = null, catalog = null) {
-  const known = agents && Array.isArray(agents.agents) ? agents.agents : []
-  const agentIds = known.map(agent => agent.id)
-  const defaultId = agents && typeof agents.default === 'string' ? agents.default : ''
+  const choices = agentChoices(agents)
   const requested = agentId(settings.chatAgent)
-  const agent = requested !== DEFAULT_AGENT && agentIds.indexOf(requested) !== -1 ? requested : defaultId
+  const agent = requested !== DEFAULT_AGENT && choices.ids.indexOf(requested) !== -1
+    ? requested : choices.defaultId
   const selected = modelSelection(settings, agent, catalog).value
   return selected === 'default' ? '' : selected
 }
@@ -143,7 +147,7 @@ export function changeSetting (settings, key, value) {
 
 /** Settings -> JSON, preserving keys this module does not own. */
 export function writeSettings (settings, source) {
-  const config = parse(source)
+  const config = parseObject(source)
 
   config.escape_sequence = normalizeSequence(settings.escapeSequence) ?? DEFAULTS.escapeSequence
   config.results_per_page = oneOf(settings.resultsPerPage, PAGE_SIZE_CHOICES, DEFAULTS.resultsPerPage)
@@ -170,10 +174,8 @@ export const ENGINE_STATES = ['unknown', 'running', 'stopped']
 export function settingsRows (settings, engine = 'unknown', agents = null, catalog = null) {
   const state = ENGINE_STATES.indexOf(engine) === -1 ? 'unknown' : engine
   const running = state === 'running'
-  const known = agents && Array.isArray(agents.agents) ? agents.agents : []
-  const agentIds = known.map(agent => agent.id)
-  const defaultId = agents && typeof agents.default === 'string' ? agents.default : ''
-  const chatAgent = settings.chatAgent === DEFAULT_AGENT || agentIds.indexOf(settings.chatAgent) !== -1
+  const { known, ids, defaultId } = agentChoices(agents)
+  const chatAgent = settings.chatAgent === DEFAULT_AGENT || ids.indexOf(settings.chatAgent) !== -1
     ? settings.chatAgent
     : DEFAULT_AGENT
   const modelAgent = chatAgent !== DEFAULT_AGENT ? chatAgent : defaultId
@@ -217,7 +219,7 @@ export function settingsRows (settings, engine = 'unknown', agents = null, catal
         : known.length === 0 ? 'nothing installed — pick one with: omarchy default agent <name>'
         : agents.configured ? `default is ${defaultId}, from omarchy default agent`
         : `default is ${defaultId} — omarchy default agent is unset, so the first installed stands in`,
-      options: [DEFAULT_AGENT].concat(agentIds),
+      options: [DEFAULT_AGENT].concat(ids),
       value: chatAgent
     },
     {

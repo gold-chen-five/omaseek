@@ -1,6 +1,5 @@
 import QtQuick
 import Quickshell
-import Quickshell.Io
 
 // The SearXNG instance: whether it answers, and the script that manages it.
 Item {
@@ -17,8 +16,7 @@ Item {
   // /healthz touches no upstream engine, so this is cheap to ask.
   function probe () {
     state = "unknown"
-    statusProcess.running = false
-    statusProcess.running = true
+    statusProcess.start([engine.backendPath, "--status"])
   }
 
   function start () { run("") }
@@ -35,20 +33,10 @@ Item {
     ])
   }
 
-  Process {
+  JsonProcess {
     id: statusProcess
 
-    command: [engine.backendPath, "--status"]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        try {
-          const payload = JSON.parse(String(text ?? ""))
-          engine.state = payload.ok && payload.running ? "running" : "stopped"
-        } catch (error) {
-          engine.state = "unknown"
-        }
-      }
-    }
+    onParsed: payload => engine.state = payload.ok && payload.running ? "running" : "stopped"
+    onUnreadable: engine.state = "unknown"
   }
 }

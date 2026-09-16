@@ -10,10 +10,6 @@ import "chord.js" as Chord
 ListView {
   id: list
 
-  property color foreground: Color.menu.text
-  property color accent: Color.menu.selectedText
-  property color selectedBackground: Color.menu.selectedBackground
-  property string fontFamily: Style.font.menuFamily
   property var binds: null               // the settings: where the rebindable commands sit
   readonly property var readerKeys: KeysLib.readerKeys("results", binds)
   property string lineNumbers: "relative"
@@ -144,10 +140,6 @@ ListView {
     cursorIndex: list.currentIndex
     numberDigits: String(Math.max(1, list.count)).length
     hasCursor: rowItem.index === list.currentIndex
-    foreground: list.foreground
-    accent: list.accent
-    selectedBackground: list.selectedBackground
-    fontFamily: list.fontFamily
 
     onHovered: mouse => {
       if (pointerGate.moved(rowItem, mouse)) list.currentIndex = rowItem.index

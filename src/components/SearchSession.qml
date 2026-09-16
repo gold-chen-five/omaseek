@@ -1,5 +1,4 @@
 import QtQuick
-import Quickshell.Io
 import "../lib/search.mjs" as SearchLib
 
 // One query and its pages. `pages` caches each fetched page as { rows, next },
@@ -32,7 +31,7 @@ Item {
     errorMessage = ""
     resetPages()
     resultsModel.clear()
-    fetch([backendPath, query])
+    searchProcess.start([backendPath, query])
   }
 
   // `l` — forward a page, from cache when we have already been there.
@@ -44,7 +43,7 @@ Item {
     }
     if (!currentPage || !currentPage.next) return
     loadingPage = true
-    fetch([backendPath, "--next", JSON.stringify(currentPage.next)])
+    searchProcess.start([backendPath, "--next", JSON.stringify(currentPage.next)])
   }
 
   // `h` — back a page. Always cached, so this never hits the network.
@@ -90,12 +89,6 @@ Item {
     resultsModel.clear()
     for (const row of pages[index].rows) resultsModel.append(row)
     pageShown()
-  }
-
-  function fetch (command) {
-    searchProcess.running = false
-    searchProcess.command = command
-    searchProcess.running = true
   }
 
   // The current page keeps its rows and stops offering a next one.
@@ -162,23 +155,10 @@ Item {
 
   ListModel { id: resultsModel }
 
-  Process {
+  JsonProcess {
     id: searchProcess
 
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        const raw = String(text ?? "").trim()
-        if (!raw) {
-          session.fail("Search returned nothing")
-          return
-        }
-        try {
-          session.apply(JSON.parse(raw))
-        } catch (error) {
-          session.fail("Could not read search output")
-        }
-      }
-    }
+    onParsed: payload => session.apply(payload)
+    onUnreadable: raw => session.fail(raw === "" ? "Search returned nothing" : "Could not read search output")
   }
 }

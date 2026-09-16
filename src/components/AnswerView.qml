@@ -10,7 +10,9 @@ import "../lib/urls.mjs" as Urls
 import "../lib/transcript.mjs" as Transcript
 import "../lib/textobjects.mjs" as TextObjects
 import "../lib/grammar.mjs" as Grammar
+import "../lib/keybinds.mjs" as Keybinds
 import "chord.js" as Chord
+import "measure.js" as Measure
 
 // The transcript, read with vim keys. One read-only rich-text TextEdit holds
 // every turn, so the cursor and a selection can cross turns. Line motions use
@@ -71,7 +73,9 @@ FocusScope {
   property string streamText: ""                // the reply being written, so far
   property bool following: true                // stay at the bottom until the reader moves
   property bool flashing: false                // a yanked range is lit, not selected
-  property string newSessionChord: "C-c"          // from settings, already parsed
+  // The panel keys, already parsed, by action id. Only the new-session one is
+  // read here: the rest are commands in the pane's keymap.
+  property var chords: Keybinds.panelChords(null)
   property string cursorLink: ""               // the openable link under the cursor, or ""
   property real preferredX: -1                 // the column j/k try to keep
   property var binds: null                     // the settings: where the rebindable commands sit
@@ -399,11 +403,7 @@ FocusScope {
   }
 
   function characterRect (pos) {
-    const start = answer.positionToRectangle(pos)
-    const next = answer.positionToRectangle(Math.min(answer.length, pos + 1))
-    const width = Math.abs(next.y - start.y) < 1 && next.x > start.x
-      ? next.x - start.x : labelMetrics.averageCharacterWidth
-    return Qt.rect(start.x, start.y, Math.max(1, width), start.height)
+    return Measure.characterRect(answer, pos, labelMetrics.averageCharacterWidth)
   }
 
   function go (target, operator) {
@@ -652,7 +652,7 @@ FocusScope {
       return
     }
     const chord = Chord.of(event)
-    if (chord !== "" && chord === view.newSessionChord) {
+    if (chord !== "" && chord === view.chords.newSession) {
       grammar = Grammar.IDLE
       newSessionRequested()
       event.accepted = true
@@ -877,39 +877,28 @@ FocusScope {
     Repeater {
       model: view.searchMatches
 
-      Rectangle {
+      MatchHighlight {
         required property int modelData
-        readonly property rect head: view.characterRect(modelData)
-        readonly property rect tail: view.characterRect(
-          Math.max(modelData, Math.min(answer.length, modelData + view.findPattern.length) - 1))
-        readonly property bool oneLine: Math.abs(tail.y - head.y) < 1
 
-        x: head.x
-        y: head.y
-        // A match broken across a wrap lights its first character only.
-        width: oneLine ? Math.max(1, tail.x + tail.width - head.x) : head.width
-        height: head.height
-        color: modelData === view.cursor ? view.accent : view.foreground
-        opacity: modelData === view.cursor ? 0.42 : 0.14
-        radius: 2
+        head: view.characterRect(modelData)
+        tail: view.characterRect(
+          Math.max(modelData, Math.min(answer.length, modelData + view.findPattern.length) - 1))
+        current: modelData === view.cursor
+        foreground: view.foreground
+        accent: view.accent
       }
     }
 
     Repeater {
       model: view.findMatches
 
-      Rectangle {
+      MatchHighlight {
         required property int modelData
-        readonly property rect hitRect: view.characterRect(modelData)
-        readonly property bool current: modelData === view.currentFindHit
 
-        x: hitRect.x
-        y: hitRect.y
-        width: hitRect.width
-        height: hitRect.height
-        color: current ? view.accent : view.foreground
-        opacity: current ? 0.42 : 0.14
-        radius: 2
+        head: view.characterRect(modelData)
+        current: modelData === view.currentFindHit
+        foreground: view.foreground
+        accent: view.accent
       }
     }
 

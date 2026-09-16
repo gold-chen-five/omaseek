@@ -176,3 +176,20 @@ export function normalizeBinding (action, raw) {
   const sequence = parseBinding(action, raw)
   return sequence === null ? '' : chordText(sequence)
 }
+
+/**
+ * The keys the field and the panel are read with, by action id: `{ search:
+ * 'Return', newSession: 'C-c', … }`. One object rather than a property per key,
+ * so adding an action is an entry in ACTIONS and nothing else. Null settings —
+ * or an unparseable one — give that key its default.
+ */
+export function panelChords (settings) {
+  const chords = {}
+  for (let i = 0; i < ACTIONS.length; i++) {
+    const action = ACTIONS[i]
+    if (action.scope === 'reader') continue
+    const raw = settings ? settings[settingKey(action)] : ''
+    chords[action.id] = parseChord(raw) || parseChord(action.default)
+  }
+  return chords
+}

@@ -5,7 +5,9 @@ import qs.Commons
 import "../lib/motions.mjs" as Motions
 import "../lib/textobjects.mjs" as TextObjects
 import "../lib/keymap.mjs" as Keymap
+import "../lib/keybinds.mjs" as Keybinds
 import "chord.js" as Chord
+import "measure.js" as Measure
 
 // The search field with a vim editing model: the mode machine and key dispatch.
 // Cursor arithmetic lives in lib/motions.mjs, where it runs under test.
@@ -60,14 +62,10 @@ TextArea {
   readonly property string lineBreak: "\n"      // what line-opening commands insert
   property string escapePending: ""          // sequence keys typed so far
 
-  // Parsed chords, checked first so rebinding search moves it off Enter.
-  property string searchChord: "Return"
-  property string newSessionChord: "C-c"
-  property string nextSessionChord: "C-n"
-  property string closeSessionChord: "C-x"
-  property string clearSessionsChord: "C-S-x"
-  property string settingsChord: "C-s"
-  property string switchChord: "Tab"
+  // The panel keys, already parsed, by action id. Checked before mode dispatch
+  // so rebinding search moves it off Enter, and so a session key works from
+  // insert mode without typing anything.
+  property var chords: Keybinds.panelChords(null)
 
   signal submitted()
   signal cancelled()                        // Esc from normal mode
@@ -82,6 +80,34 @@ TextArea {
   signal clearSessionsRequested()           // forget all of them
 
   readonly property bool normalish: mode !== "insert"
+
+  // In the order they are checked, so the first match wins. Ctrl+, was the
+  // original settings binding and still works; Shift+Tab always switches,
+  // because left alone it would move focus.
+  function panelCommand (chord) {
+    if (chord === "") return ""
+    if (chord === chords.settings || chord === "C-,") return "settings"
+    if (chord === chords.newSession) return "newSession"
+    if (chord === chords.nextSession) return "nextSession"
+    if (chord === chords.clearSessions) return "clearSessions"
+    if (chord === chords.closeSession) return "closeSession"
+    if (chord === chords.search) return "submit"
+    if (chord === chords.switchMode || chord === "Backtab") return "toggleMode"
+    return ""
+  }
+
+  function raisePanel (command) {
+    switch (command) {
+    case "settings":      requestedSettings(); break
+    case "newSession":    newSessionRequested(); break
+    case "nextSession":   nextSessionRequested(); break
+    case "clearSessions": clearSessionsRequested(); break
+    case "closeSession":  closeSessionRequested(); break
+    // Both leave the field for good; a half-typed escape sequence goes with it.
+    case "submit":        clearEscapePending(); submitted(); break
+    case "toggleMode":    clearEscapePending(); tabbed(); break
+    }
+  }
 
   function setMode (next) {
     if (next === "normal" && mode === "insert") {
@@ -387,11 +413,7 @@ TextArea {
   }
 
   function characterRect (pos) {
-    const start = positionToRectangle(pos)
-    const next = positionToRectangle(Math.min(length, pos + 1))
-    const width = Math.abs(next.y - start.y) < 1 && next.x > start.x
-      ? next.x - start.x : metrics.averageCharacterWidth
-    return Qt.rect(start.x, start.y, Math.max(1, width), start.height)
+    return Measure.characterRect(field, pos, metrics.averageCharacterWidth)
   }
 
   // r{char}: replace count characters without entering insert mode, leaving
@@ -589,18 +611,13 @@ TextArea {
   Repeater {
     model: field.findMatches
 
-    Rectangle {
+    MatchHighlight {
       required property int modelData
-      readonly property rect hitRect: field.characterRect(modelData)
-      readonly property bool current: modelData === field.currentFindHit
 
-      x: hitRect.x
-      y: hitRect.y
-      width: hitRect.width
-      height: hitRect.height
-      color: current ? field.accent : field.foreground
-      opacity: current ? 0.42 : 0.14
-      radius: 2
+      head: field.characterRect(modelData)
+      current: modelData === field.currentFindHit
+      foreground: field.foreground
+      accent: field.accent
     }
   }
 
@@ -615,51 +632,11 @@ TextArea {
   Keys.priority: Keys.BeforeItem
   Keys.onPressed: event => {
     const ctrl = (event.modifiers & Qt.ControlModifier) !== 0
-    const chord = Chord.of(event)
 
-    // Any mode. Ctrl+, was the original binding and still works.
-    if (chord !== "" && (chord === field.settingsChord || chord === "C-,")) {
-      field.requestedSettings()
-      event.accepted = true
-      return
-    }
-
-    if (chord !== "" && chord === field.newSessionChord) {
-      field.newSessionRequested()
-      event.accepted = true
-      return
-    }
-
-    if (chord !== "" && chord === field.nextSessionChord) {
-      field.nextSessionRequested()
-      event.accepted = true
-      return
-    }
-
-    if (chord !== "" && chord === field.clearSessionsChord) {
-      field.clearSessionsRequested()
-      event.accepted = true
-      return
-    }
-
-    if (chord !== "" && chord === field.closeSessionChord) {
-      field.closeSessionRequested()
-      event.accepted = true
-      return
-    }
-
-    if (chord !== "" && chord === field.searchChord) {
-      clearEscapePending()
-      field.submitted()
-      event.accepted = true
-      return
-    }
-
-    // The switch key (Tab) works from any mode, so it is taken before mode
-    // dispatch. Shift+Tab always switches: left alone it would move focus.
-    if (chord !== "" && (chord === field.switchChord || chord === "Backtab")) {
-      clearEscapePending()
-      field.tabbed()
+    // The panel's own keys, in every mode, before the field types anything.
+    const command = field.panelCommand(Chord.of(event))
+    if (command !== "") {
+      field.raisePanel(command)
       event.accepted = true
       return
     }
