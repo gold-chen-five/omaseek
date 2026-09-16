@@ -37,7 +37,8 @@ results.
 
 The last ten conversations are kept in `~/.local/share/omaseek/sessions.json`
 and survive a shell restart. A strip of numbered squares under the status line
-shows them, `1` the newest and the open one filled: click one to switch, or
+shows them — it appears once the first question has been asked, so a fresh
+install shows none — `1` the newest and the open one filled: click one to switch, or
 walk them with `ctrl+n`. `ctrl+x` forgets the one on screen, and the `+` square
 (or `ctrl+c`) starts another. `ctrl+c` while the agent is still thinking leaves
 that question running — its square keeps a dot until the answer lands in it —
@@ -61,7 +62,15 @@ writes `~/.config/omaseek/config.json`.
 ## Install
 
 ```bash
-git clone git@github.com:gold-chen-five/omaseek.git ~/.config/omarchy/plugins/omaseek
+git clone https://github.com/gold-chen-five/omaseek.git ~/.config/omarchy/plugins/omaseek
+~/.config/omarchy/plugins/omaseek/bin/install
+```
+
+To upgrade, pull and run the installer again — it restarts `omarchy-shell`,
+because a panel that is already loaded keeps its old code until then:
+
+```bash
+git -C ~/.config/omarchy/plugins/omaseek pull
 ~/.config/omarchy/plugins/omaseek/bin/install
 ```
 
@@ -76,6 +85,12 @@ icon to the middle of the bar. It is safe to re-run and leaves
 `SUPER + D` alone if you have already bound it to something else. On an
 upgrade, it removes only the menu row written by the previous installer.
 `--no-bind` skips the keybind.
+
+It also moves the clone's `.git` directory to `~/.local/share/omaseek.git`,
+leaving the one-line pointer file git follows. Omarchy watches the plugins
+directory recursively, so with `.git` inside it every commit — and every
+`git status` an editor runs — reloaded the plugin and wiped the open panel.
+Git and editors are unaffected.
 
 By hand instead:
 
