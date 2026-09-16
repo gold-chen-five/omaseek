@@ -192,6 +192,14 @@ export function settingsRows (settings, engine = 'unknown', agents = null, catal
       value: running
     },
     {
+      key: 'engineUpdate',
+      type: 'action',
+      label: 'Update SearXNG',
+      hint: 'pull the latest image; restart only when it changed',
+      action: 'update',
+      button: 'Update'
+    },
+    {
       key: 'resultsPerPage',
       type: 'choice',
       label: 'Results per page',

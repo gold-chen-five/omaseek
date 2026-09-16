@@ -128,6 +128,15 @@ test('the engine row is a switch showing whether the instance runs, and flipping
   for (const state of ENGINE_STATES) assert.equal(row(state).type, 'toggle')
 })
 
+test('updating SearXNG is a separate action from starting and stopping it', () => {
+  for (const state of ENGINE_STATES) {
+    const row = settingsRows(readSettings(''), state).find(r => r.key === 'engineUpdate')
+    assert.equal(row.type, 'action')
+    assert.equal(row.action, 'update')
+    assert.equal(row.button, 'Update')
+  }
+})
+
 test('the engine row is never written to the config', () => {
   const out = writeSettings(readSettings(''), '{"searxng_url":"http://x:1"}')
   assert.equal(JSON.parse(out).engine, undefined)

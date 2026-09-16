@@ -4,6 +4,7 @@
 #   ./bin/searxng-up          create or start it, and wait until it answers
 #   ./bin/searxng-up --stop   stop it, keeping the container
 #   ./bin/searxng-up --down   stop and remove the container (config is kept)
+#   ./bin/searxng-up --update pull the latest image, replacing only an older container
 #
 # Asks for sudo only for docker calls, and only outside the docker group.
 
@@ -16,9 +17,16 @@ CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/searxng"
 SETTINGS="$CONFIG_DIR/settings.yml"
 URL="http://localhost:$PORT"
 
-say()  { printf '\033[1m==>\033[0m %s\n' "$*"; }
-warn() { printf '\033[33m warn:\033[0m %s\n' "$*" >&2; }
+say()  { printf '\033[1m==>\033[0m %s\n' "$*" || true; }
+warn() { printf '\033[33m warn:\033[0m %s\n' "$*" >&2 || true; }
 die()  { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
+
+MODE=${1:-start}
+(( $# <= 1 )) || die "usage: $0 [--stop|--down|--update]"
+case "$MODE" in
+  start|--stop|--down|--update) ;;
+  *) die "usage: $0 [--stop|--down|--update]" ;;
+esac
 
 command -v docker >/dev/null || die "docker is not installed — sudo pacman -S docker"
 
@@ -35,20 +43,145 @@ if ! docker info >/dev/null 2>&1; then
   fi
 fi
 
-exists() { "${docker[@]}" ps -a --format '{{.Names}}' | grep -qx "$NAME"; }
-running() { "${docker[@]}" ps --format '{{.Names}}' | grep -qx "$NAME"; }
+exists() {
+  local names
+  if ! names=$("${docker[@]}" ps -a --format '{{.Names}}'); then
+    die "could not list Docker containers"
+  fi
+  grep -qx "$NAME" <<<"$names"
+}
 
-if [[ ${1:-} == --stop ]]; then
+running() {
+  local names
+  if ! names=$("${docker[@]}" ps --format '{{.Names}}'); then
+    die "could not list running Docker containers"
+  fi
+  grep -qx "$NAME" <<<"$names"
+}
+
+container_args=(
+  --name "$NAME"
+  --restart unless-stopped
+  -p "127.0.0.1:$PORT:8080"
+  -v "$CONFIG_DIR:/etc/searxng"
+)
+
+create_container() {
+  "${docker[@]}" create "${container_args[@]}" "$1" >/dev/null
+}
+
+run_container() {
+  "${docker[@]}" run -d "${container_args[@]}" "$1" >/dev/null
+}
+
+wait_until_ready() {
+  local deadline=$(( $(date +%s) + 60 ))
+  say "waiting for the JSON API on $URL"
+  while true; do
+    if python3 - "$URL" <<'PROBE' 2>/dev/null; then
+import json, sys, urllib.parse, urllib.request
+url = sys.argv[1] + "/search?" + urllib.parse.urlencode({"q": "ping", "format": "json"})
+with urllib.request.urlopen(url, timeout=3) as response:
+    sys.exit(0 if isinstance(json.load(response).get("results"), list) else 1)
+PROBE
+      say "ready — searching through $URL"
+      return 0
+    fi
+    (( $(date +%s) >= deadline )) && return 1
+    sleep 1
+  done
+}
+
+restore_running() {
+  local image=$1 reason=$2
+  trap '' HUP INT TERM
+  warn "$reason — restoring the previous image"
+  "${docker[@]}" rm -f "$NAME" >/dev/null 2>&1 || true
+  if run_container "$image" && wait_until_ready; then
+    die "$reason; restored the previous image"
+  fi
+  die "$reason, and the previous image could not be restored"
+}
+
+restore_stopped() {
+  local image=$1 reason=$2
+  trap '' HUP INT TERM
+  warn "$reason — restoring the previous stopped container"
+  "${docker[@]}" rm -f "$NAME" >/dev/null 2>&1 || true
+  create_container "$image" || die "$reason, and the previous container could not be restored"
+  die "$reason; restored the previous stopped container"
+}
+
+restore_interrupted() {
+  local image=$1 was_running=$2 status=$3
+  # A second Ctrl+C must not interrupt the short window where the old image is
+  # being put back under the container's well-known name.
+  trap '' HUP INT TERM
+  warn "update interrupted — restoring the previous container"
+  "${docker[@]}" rm -f "$NAME" >/dev/null 2>&1 || true
+  if [[ $was_running == true ]]; then
+    run_container "$image" || die "update interrupted, and the previous container could not be restored"
+  else
+    create_container "$image" || die "update interrupted, and the previous stopped container could not be restored"
+  fi
+  exit "$status"
+}
+
+update_image() {
+  local previous_image="" latest_image="" was_running=false
+  if exists; then
+    previous_image=$("${docker[@]}" inspect --format '{{.Image}}' "$NAME")
+    running && was_running=true
+  fi
+
+  # Pull before touching a working container. A registry or network failure
+  # therefore leaves the search service exactly as it was.
+  say "pulling the latest SearXNG image"
+  "${docker[@]}" pull "$IMAGE"
+  latest_image=$("${docker[@]}" image inspect --format '{{.Id}}' "$IMAGE")
+
+  if [[ -z $previous_image ]]; then
+    say "latest image is ready — start SearXNG from Settings"
+    return
+  fi
+  if [[ $previous_image == "$latest_image" ]]; then
+    say "SearXNG is already up to date"
+    return
+  fi
+
+  say "installing the newer SearXNG image"
+  trap 'restore_interrupted "$previous_image" "$was_running" 129' HUP
+  trap 'restore_interrupted "$previous_image" "$was_running" 130' INT
+  trap 'restore_interrupted "$previous_image" "$was_running" 143' TERM
+  "${docker[@]}" rm -f "$NAME" >/dev/null
+  if [[ $was_running == true ]]; then
+    run_container "$IMAGE" || restore_running "$previous_image" "could not create the updated container"
+    wait_until_ready || restore_running "$previous_image" "the updated container did not become ready"
+    trap - HUP INT TERM
+    say "updated SearXNG and restarted it"
+  else
+    create_container "$IMAGE" || restore_stopped "$previous_image" "could not create the updated container"
+    trap - HUP INT TERM
+    say "updated SearXNG; it remains stopped"
+  fi
+}
+
+if [[ $MODE == --stop ]]; then
   running || { say "$NAME is not running"; exit 0; }
   "${docker[@]}" stop "$NAME" >/dev/null
   say "stopped $NAME — run ./bin/searxng-up to start it again"
   exit 0
 fi
 
-if [[ ${1:-} == --down ]]; then
+if [[ $MODE == --down ]]; then
   exists || { say "no $NAME container to remove"; exit 0; }
   "${docker[@]}" rm -f "$NAME" >/dev/null
   say "removed the $NAME container — $CONFIG_DIR was left alone"
+  exit 0
+fi
+
+if [[ $MODE == --update ]]; then
+  update_image
   exit 0
 fi
 
@@ -104,27 +237,8 @@ elif exists; then
   "${docker[@]}" start "$NAME" >/dev/null
 else
   say "creating the $NAME container (first run pulls ~200MB)"
-  "${docker[@]}" run -d \
-    --name "$NAME" \
-    --restart unless-stopped \
-    -p "127.0.0.1:$PORT:8080" \
-    -v "$CONFIG_DIR:/etc/searxng" \
-    "$IMAGE" >/dev/null
+  run_container "$IMAGE"
 fi
 
 # Bound to 127.0.0.1 above, so the instance is not reachable from the network.
-say "waiting for the JSON API on $URL"
-for attempt in $(seq 1 60); do
-  if python3 - "$URL" <<'PROBE' 2>/dev/null; then
-import json, sys, urllib.parse, urllib.request
-url = sys.argv[1] + "/search?" + urllib.parse.urlencode({"q": "ping", "format": "json"})
-with urllib.request.urlopen(url, timeout=3) as response:
-    sys.exit(0 if isinstance(json.load(response).get("results"), list) else 1)
-PROBE
-    say "ready — searching through $URL"
-    exit 0
-  fi
-  sleep 1
-done
-
-die "no JSON answer after 60s. Check: ${docker[*]} logs $NAME"
+wait_until_ready || die "no JSON answer after 60s. Check: ${docker[*]} logs $NAME"

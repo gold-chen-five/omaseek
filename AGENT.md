@@ -91,6 +91,12 @@ asks, rather than showing an error the user cannot act on. A 403 is *not*
 marked `setup` — SearXNG ships `formats: [html]`, so the JSON API is off until
 `settings.yml` enables it, and the error message names that fix.
 
+Updates are deliberate rather than tied to opening the panel. Settings launches
+`bin/searxng-up --update` in a terminal: it pulls before touching the current
+container, does not restart an already-current image, preserves a stopped state,
+and restores the previous image when a replacement fails its JSON readiness
+probe. The config mount under `~/.config/searxng/` is never replaced.
+
 **Speed**: one request per page is the budget. `emit_page` fills the buffer to
 exactly the page — an earlier lookahead row cost a whole extra request whenever
 a SearXNG page came back exactly `PAGE_SIZE` long, doubling latency on a
@@ -218,7 +224,7 @@ between search and AI with Tab; only an explicit mode-changing action changes it
 - `ConfigStore.qml` — the config file: `FileView` watch, `reload()`,
   `change(key, value)` written straight through.
 - `Engine.qml` — the SearXNG instance: `state` (`unknown`/`running`/`stopped`),
-  `probe()` via `bin/search --status`, `start()`/`stop()` via `bin/searxng-up`
+  `probe()` via `bin/search --status`, and start/stop/update via `bin/searxng-up`
   in a terminal. Paths come from `Qt.resolvedUrl` so the dev symlink works.
 - `SearchSession.qml` — the query, the page cache (`pages`/`pageIndex` — `h`
   never refetches), the `ListModel` the list paints, and the `Process` that

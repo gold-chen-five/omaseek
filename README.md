@@ -83,6 +83,8 @@ o.bind("SUPER + D", "Search", "omarchy-shell shell toggle omaseek")
 
 Searching needs a SearXNG instance you run yourself — `./bin/searxng-up`
 creates one on port 8888, and the panel offers to start it when it is down.
+**Ctrl+S → Search → Update SearXNG** pulls the latest image and replaces the
+container only when it changed; the existing configuration is kept.
 Asking uses an agent CLI you already have (`claude`, `codex`, `gemini`,
 `hermes`, …); there is no API key.
 

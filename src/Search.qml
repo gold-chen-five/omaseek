@@ -193,6 +193,10 @@ Item {
       config.change("stream", action === "on")
       return
     }
+    if (key === "engineUpdate" && action === "update") {
+      engine.updateImage()
+      return
+    }
     if (key !== "engine") return
     if (action === "stop") engine.stop()
     else engine.start()

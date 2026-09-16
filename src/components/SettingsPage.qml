@@ -32,7 +32,7 @@ FocusScope {
   property string fontFamily: Style.font.menuFamily
 
   signal changed(string key, var value)
-  signal activated(string key, string action) // a toggle row was flipped
+  signal activated(string key, string action) // a toggle was flipped or an action pressed
   signal closed()                            // /, esc, or the chord that opened the page
   signal editingFinished()                   // hand the keyboard back to Search.qml
 
@@ -129,6 +129,7 @@ FocusScope {
     if (!row) return
     if (row.type === "text") beginEdit(cursor)
     else if (row.type === "toggle") { if (!row.busy) activated(row.key, row.action) }
+    else if (row.type === "action") { if (!row.busy) activated(row.key, row.action) }
     else if (row.control === "dropdown") dropdownIndex = cursor
   }
 
@@ -192,6 +193,7 @@ FocusScope {
         readonly property bool isInfo: modelData.type === "info"
         readonly property bool hasCursor: index === page.cursor && !isSection && !isInfo
         readonly property bool isChoice: modelData.type === "choice"
+        readonly property bool isAction: modelData.type === "action"
         readonly property bool isDropdown: isChoice && modelData.control === "dropdown"
         readonly property bool refused: index === page.refusedIndex
 
@@ -268,6 +270,7 @@ FocusScope {
             height: Math.max(labels.implicitHeight, inlineChips.visible ? inlineChips.implicitHeight : 0,
                              picker.visible ? picker.implicitHeight : 0,
                              engineSwitch.visible ? engineSwitch.implicitHeight : 0,
+                             actionButton.visible ? actionButton.implicitHeight : 0,
                              sequenceField.visible ? sequenceField.implicitHeight : 0)
 
             Column {
@@ -321,6 +324,27 @@ FocusScope {
               onToggled: {
                 settingRow.owner.cursor = settingRow.index
                 settingRow.owner.activated(settingRow.modelData.key, settingRow.modelData.action)
+              }
+            }
+
+            Button {
+              id: actionButton
+
+              visible: settingRow.isAction
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              text: settingRow.modelData.button || "Run"
+              bordered: true
+              hasCursor: settingRow.hasCursor
+              foreground: page.foreground
+              accent: page.accent
+              fontFamily: page.fontFamily
+              fontSize: Style.font.bodySmall
+
+              onClicked: {
+                settingRow.owner.cursor = settingRow.index
+                if (!settingRow.modelData.busy)
+                  settingRow.owner.activated(settingRow.modelData.key, settingRow.modelData.action)
               }
             }
 

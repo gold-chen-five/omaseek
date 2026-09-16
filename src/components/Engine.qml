@@ -2,7 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// The SearXNG instance: whether it answers, and the script that starts or stops it.
+// The SearXNG instance: whether it answers, and the script that manages it.
 Item {
   id: engine
 
@@ -23,6 +23,7 @@ Item {
 
   function start () { run("") }
   function stop () { run(" --stop") }
+  function updateImage () { run(" --update") }
 
   // In a terminal: docker may ask for sudo, and the first pull is worth watching.
   function run (flag) {
