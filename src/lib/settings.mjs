@@ -22,7 +22,8 @@ export const DEFAULTS = {
   lineNumbers: LINE_NUMBER_CHOICES[0],
   chatAgent: DEFAULT_AGENT,
   chatModels: {},
-  launcher: LAUNCHER_CHOICES[0]
+  launcher: LAUNCHER_CHOICES[0],
+  stream: true
 }
 for (let i = 0; i < ACTIONS.length; i++) DEFAULTS[settingKey(ACTIONS[i])] = ACTIONS[i].default
 
@@ -30,9 +31,9 @@ for (let i = 0; i < ACTIONS.length; i++) DEFAULTS[settingKey(ACTIONS[i])] = ACTI
 // "what can I press". KEYS.md has the long form.
 export const FIXED_KEYS = [
   { label: 'Anywhere', keys: 'esc cancels a pending/active find first · otherwise steps back: insert → normal → the field → closed · ctrl+, settings · shift+tab switches' },
-  { label: 'Field', keys: 'insert: ctrl+w ctrl+u delete back · ctrl+j new line (ask) · ↑ ↓ lines · normal: vim motions, o O open line (ask), f{char} then f/F repeats, r{char}, d c y, text objects, v V, p P, u ctrl+r, counts' },
-  { label: 'Results', keys: 'j k ↓ ↑ move · ctrl+d ctrl+u half a screen · gg G first, last · → ← page · counts (3j) · / field normal · i a field insert' },
-  { label: 'Answer', keys: 'h j k l w b e 0 ^ $ move · f t ; , find · v V select · gv reselect · y{motion} yy yank · p P put in the ask bar · / field normal · i a field insert' },
+  { label: 'Field', keys: 'insert: ctrl+w ctrl+u delete back · ctrl+j new line (ask) · ↑ ↓ lines (ask), past queries (search) · normal: vim motions, o O open line (ask), f{char} then f/F repeats, r{char}, d c y, text objects, v V, p P, u ctrl+r, counts' },
+  { label: 'Results', keys: 'j k ↓ ↑ move · ctrl+d ctrl+u half a screen · gg G first, last · → ← page · y Y copy the URL, the title too · counts (3j) · / ? n N search the rows · gn field normal · gi i a field insert' },
+  { label: 'Answer', keys: 'h j k l w b e 0 ^ $ move · f t ; , find · v V select · gv reselect · y{motion} yy yank · p P put in the ask bar · / ? n N search · * # the word under the cursor · gn field normal · gi i a field insert' },
   { label: 'Settings', keys: 'j k move · h l change · enter edit · / field normal · esc back' }
 ]
 
@@ -64,12 +65,16 @@ export function readSettings (source) {
     chatAgent: agentId(config.chat_agent),
     chatModels: readModels(config.chat_models),
     launcher: oneOf(config.launcher, LAUNCHER_CHOICES, DEFAULTS.launcher),
+    // On unless it was deliberately turned off: an agent that cannot stream
+    // falls back on its own, so this is only for turning the behaviour off.
+    stream: config.stream !== false,
     sequences: keymap.sequences
   }
   // An unparseable key falls back to its default.
   for (let i = 0; i < ACTIONS.length; i++) {
     const action = ACTIONS[i]
-    // i was the old default and / was briefly configurable; both are fixed now.
+    // i was the old default and / was briefly configurable; both are fixed now,
+    // and / searches the pane, so a config still holding it must not keep it.
     const oldFieldKey = action.id === 'insert' && (config[action.config] === 'i' || config[action.config] === '/')
     const raw = oldFieldKey ? action.default : config[action.config]
     settings[settingKey(action)] = normalizeBinding(action, raw) || action.default
@@ -146,6 +151,7 @@ export function writeSettings (settings, source) {
   config.chat_agent = agentId(settings.chatAgent)
   config.chat_models = readModels(settings.chatModels)
   config.launcher = oneOf(settings.launcher, LAUNCHER_CHOICES, DEFAULTS.launcher)
+  config.stream = settings.stream !== false
   for (let i = 0; i < ACTIONS.length; i++) {
     const action = ACTIONS[i]
     config[action.config] = normalizeBinding(action, settings[settingKey(action)]) || action.default
@@ -216,6 +222,16 @@ export function settingsRows (settings, engine = 'unknown', agents = null, catal
         : 'choose an installed agent first',
       options: model.options,
       value: model.value
+    },
+    {
+      key: 'stream',
+      type: 'toggle',
+      label: 'Answer as it is written',
+      hint: settings.stream
+        ? 'the reply appears word by word, where the agent can do that'
+        : 'the reply appears whole, once the agent has finished',
+      action: settings.stream ? 'off' : 'on',   // what flipping it does
+      value: settings.stream !== false
     },
     {
       key: 'launcher',

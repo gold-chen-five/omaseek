@@ -8,6 +8,7 @@ import "lib/search.mjs" as SearchLib
 import "lib/settings.mjs" as SettingsLib
 import "lib/keybinds.mjs" as Keybinds
 import "lib/states.mjs" as States
+import "lib/history.mjs" as History
 
 // Web search and AI overlay. The layer-shell setup and the open/close/dismiss/
 // toggle contract mirror shell/plugins/emojis/Emojis.qml, so shell IPC works
@@ -35,6 +36,13 @@ Item {
   readonly property string clearSessionsChord: Keybinds.parseChord(config.settings.clearSessionsKey) || "C-S-x"
   readonly property string clearSessionsKeyText: config.settings.clearSessionsKey || "ctrl+shift+x"
   property bool clearArmed: false              // the first press; the second forgets them
+  property int historyIndex: -1                // where the query walk sits; -1 is what was typed
+  property string historyDraft: ""             // what was typed, kept while the walk is away from it
+  property bool applyingHistory: false         // a walk writing the field, not the reader typing
+  property string notice: ""                   // what a key just did, on the status line for a beat
+  // `/` in the pane being read, while it is still being typed.
+  readonly property string findPrompt: panelMode === States.PANEL.AI
+    ? answerView.findPrompt : resultsList.findPrompt
   readonly property string settingsChord: Keybinds.parseChord(config.settings.settingsKey) || "C-s"
   readonly property string switchChord: Keybinds.parseChord(config.settings.switchModeKey) || "Tab"
 
@@ -55,6 +63,7 @@ Item {
     opened = true
     view = States.VIEW.SEARCH                  // never reopen into settings or setup
     if (ai.agents === null) ai.probeAgents()   // once: which agents this machine has
+    resetHistoryWalk()
     focusSearch(fieldMode)                     // first launch inherits the field's insert default
   }
 
@@ -120,6 +129,12 @@ Item {
     onTriggered: root.clearArmed = false
   }
 
+  Timer {
+    id: noticeWindow
+    interval: 1200
+    onTriggered: root.notice = ""
+  }
+
   function showChat () {
     if (ai.history.length === 0) focusSearch("insert")
     else focusResults()
@@ -127,6 +142,7 @@ Item {
 
   function toggleMode () {
     const fieldMode = input.mode
+    resetHistoryWalk()
     panelMode = panelMode === States.PANEL.SEARCH ? States.PANEL.AI : States.PANEL.SEARCH
     view = States.VIEW.SEARCH
     focusSearch(fieldMode)
@@ -173,6 +189,10 @@ Item {
   }
 
   function runSettingAction (key, action) {
+    if (key === "stream") {
+      config.change("stream", action === "on")
+      return
+    }
     if (key !== "engine") return
     if (action === "stop") engine.stop()
     else engine.start()
@@ -189,8 +209,74 @@ Item {
       focusSearch("normal")
       return
     }
-    session.search(query.split(input.lineBreak).join(" "))
+    const flat = query.split(input.lineBreak).join(" ")
+    queries.remember(flat)                     // the arrows walk back to it next time
+    resetHistoryWalk()
+    session.search(flat)
     focusSearch("normal")                      // keep the query readable while results load
+  }
+
+  // ---- the queries searched before ----------------------------------------
+
+  // Up and Down in the one-line search field. The draft is what the reader had
+  // typed: it is kept aside on the first step away and put back on the last step
+  // home. An unchanged index means the walk had nowhere to go, which is how Down
+  // at the draft still steps into the results.
+  function walkHistory (delta) {
+    if (panelMode !== States.PANEL.SEARCH) return false
+    if (historyIndex === -1) historyDraft = input.text
+    const step = History.stepQuery(queries.queries, historyIndex, delta, historyDraft)
+    if (step.index === historyIndex) return false
+    historyIndex = step.index
+    applyingHistory = true
+    input.setQuery(step.text)
+    applyingHistory = false
+    return true
+  }
+
+  function resetHistoryWalk () {
+    historyIndex = -1
+    historyDraft = ""
+  }
+
+  // ---- the two halves, from each other ------------------------------------
+
+  // Every yank in the panel lands on the system clipboard, so one taken here
+  // puts in the field with p.
+  function copyText (value) {
+    if (value) Quickshell.execDetached(["wl-copy", "--", value])
+  }
+
+  // Nothing moves on screen when a yank works, so the status line says so for a
+  // beat — the line clearArmed already borrows.
+  function say (message) {
+    notice = message
+    noticeWindow.restart()
+  }
+
+  function yankResult (index, withTitle) {
+    const text = session.yankText(index, withTitle)
+    if (!text) return
+    copyText(text)
+    say(SearchLib.yankNotice(withTitle))
+  }
+
+  // gc: the result over in the ask bar. Deliberately unsent — a question still
+  // has to be typed around the URL.
+  function askAboutResult (index) {
+    const url = session.yankText(index, false)
+    if (!url) return
+    if (panelMode !== States.PANEL.AI) toggleMode()
+    input.setQuery(url + " ")
+    focusSearch("insert")
+  }
+
+  // gs: the other way. A selection is already a whole query, so this one runs.
+  function searchFor (text) {
+    if (!text) return
+    if (panelMode !== States.PANEL.SEARCH) toggleMode()
+    input.setQuery(text)
+    runSearch()
   }
 
   function hasBody () {
@@ -231,6 +317,8 @@ Item {
 
   ConfigStore { id: config }
 
+  HistoryStore { id: queries }
+
   Engine {
     id: engine
     onLaunching: root.dismiss()                // the terminal takes the screen
@@ -255,6 +343,7 @@ Item {
     chatAgent: config.settings.chatAgent
     chatModel: root.chatModel
     launcher: config.settings.launcher
+    streaming: config.settings.stream
 
     onLaunching: root.dismiss()                // the terminal takes the screen
   }
@@ -371,6 +460,12 @@ Item {
                 onSubmitted: root.runSearch()
                 onCancelled: root.dismiss()
                 onSteppedDown: if (root.hasBody()) root.focusResults()
+                onHistoryPrevRequested: root.walkHistory(1)
+                // Past the draft there is no query left, so Down means the results.
+                onHistoryNextRequested: if (!root.walkHistory(-1) && root.hasBody()) root.focusResults()
+                // Typing leaves the walk: the field is the reader's again. A walk
+                // writing the field is not typing, hence the flag.
+                onTextChanged: if (!root.applyingHistory) root.historyIndex = -1
                 onRequestedSettings: root.openSettings()
                 onTabbed: root.toggleMode()
                 onNewSessionRequested: root.newChat()
@@ -462,8 +557,10 @@ Item {
             mode: input.mode, selecting: answerView.selecting
           })
           // The destructive key takes the line over while it waits to be sure.
-          detail: root.clearArmed
+          detail: root.findPrompt ? root.findPrompt
+            : root.clearArmed
             ? SearchLib.confirmClearText(root.clearSessionsKeyText, ai.sessionCount)
+            : root.notice ? root.notice
             : SearchLib.statusText({
               view: root.view,
               panelMode: root.panelMode,
@@ -540,6 +637,7 @@ Item {
           width: parent.width
           height: content.viewHeight
           turns: ai.history
+          streamText: ai.liveStreamText
           thinking: ai.status === "thinking"
           agentName: ai.agentName
           foreground: root.foreground
@@ -548,6 +646,7 @@ Item {
 
           onHandedOff: context => ai.launch(context)
           onLinkOpened: url => root.openUrl(url)
+          onSearchRequested: text => root.searchFor(text)
           onEscaped: root.focusSearch("normal")
           onNormalRequested: root.focusSearch("normal")
           onInsertRequested: root.focusSearch("i")
@@ -580,6 +679,8 @@ Item {
 
           onHandedOff: index => ai.launch(session.handoffText(index))
           onPageHandedOff: ai.launch(session.handoffText(-1))
+          onYanked: (index, withTitle) => root.yankResult(index, withTitle)
+          onAskRequested: index => root.askAboutResult(index)
           onActivated: index => root.openResult(index)
           onEscaped: root.focusSearch("normal")
           onNormalRequested: root.focusSearch("normal")

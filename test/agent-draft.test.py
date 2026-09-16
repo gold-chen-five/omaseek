@@ -12,6 +12,109 @@ DRAFT = runpy.run_path(str(ROOT / 'bin/agent-draft'))
 ASK = runpy.run_path(str(ROOT / 'bin/ask'))
 
 
+CLAUDE = next(a for a in ASK['AGENTS'] if a['id'] == 'claude')
+
+
+def delta(text):
+    return {'type': 'stream_event',
+            'event': {'type': 'content_block_delta', 'delta': {'type': 'text_delta', 'text': text}}}
+
+
+class StreamTests(unittest.TestCase):
+    def feed(self, events):
+        """The events in order -> what was shown, and what was settled on."""
+        parse, state, shown, settled = ASK['claude_event'], {}, [], None
+        for event in events:
+            text, answer = parse(state, event)
+            if text:
+                shown.append(text)
+            if answer is not None:
+                settled = answer
+        return ''.join(shown), settled
+
+    def test_token_deltas_are_shown_and_the_result_is_what_is_kept(self):
+        shown, settled = self.feed([
+            {'type': 'system', 'subtype': 'init'},
+            delta('bl'), delta('ue'),
+            {'type': 'result', 'subtype': 'success', 'result': 'blue'},
+        ])
+        self.assertEqual(shown, 'blue')
+        self.assertEqual(settled, 'blue')
+
+    def test_a_finished_message_beside_partials_is_not_shown_twice(self):
+        # --include-partial-messages sends the whole message as well; taking
+        # both would print the answer twice.
+        shown, _ = self.feed([
+            delta('bl'), delta('ue'),
+            {'type': 'assistant', 'message': {'content': [{'type': 'text', 'text': 'blue'}]}},
+        ])
+        self.assertEqual(shown, 'blue')
+
+    def test_without_partials_the_finished_message_is_all_there_is(self):
+        shown, _ = self.feed([
+            {'type': 'assistant', 'message': {'content': [
+                {'type': 'text', 'text': 'blue'},
+                {'type': 'tool_use', 'name': 'WebSearch'},
+                {'type': 'text', 'text': ' and green'},
+            ]}},
+        ])
+        self.assertEqual(shown, 'blue and green')
+
+    def test_events_with_nothing_to_say_are_ignored(self):
+        shown, settled = self.feed([
+            {'type': 'rate_limit_event'},
+            {'type': 'stream_event', 'event': {'type': 'message_start'}},
+            {'type': 'stream_event', 'event': {'type': 'content_block_delta',
+                                               'delta': {'type': 'thinking_delta', 'thinking': 'hmm'}}},
+            {'type': 'assistant', 'message': {}},
+            {},
+        ])
+        self.assertEqual(shown, '')
+        self.assertIsNone(settled)
+
+    def test_claude_streams_and_the_rest_fall_back(self):
+        self.assertIn('--include-partial-messages', CLAUDE['stream'])
+        self.assertIn(CLAUDE['stream_format'], ASK['STREAM_PARSERS'])
+        # Measured: codex exec --json carries no text deltas, so it has no
+        # streaming spelling and takes the whole-answer path.
+        for agent in ASK['AGENTS']:
+            if agent['id'] != 'claude':
+                self.assertNotIn('stream', agent, agent['id'])
+
+    def test_a_model_choice_reaches_the_streaming_spelling(self):
+        chosen = ASK['with_model'](CLAUDE, 'claude-opus-5')
+        for kind in ('chat', 'stream', 'launch'):
+            self.assertIn('--model', chosen[kind], kind)
+        # The prompt-consuming flag stays last: the prompt is appended to it.
+        self.assertEqual(chosen['stream'][-1], '--')
+
+
+class OutcomeTests(unittest.TestCase):
+    """One classifier for both paths, so a streamed failure reads the same."""
+
+    def outcome(self, code, out, err, text):
+        return ASK['chat_outcome']({'id': 'codex', 'name': 'Codex'}, code, out, err, text)
+
+    def test_an_answer_is_an_answer(self):
+        self.assertEqual(self.outcome(0, '', '', 'hello'), {'ok': True, 'text': 'hello'})
+
+    def test_signed_out_and_out_of_allowance_stay_apart(self):
+        signed_out = self.outcome(1, '', 'Not logged in', '')
+        self.assertEqual(signed_out['error'], 'auth')
+        self.assertTrue(signed_out['login'])
+        # Only being signed out has a sign-in worth opening.
+        self.assertEqual(self.outcome(1, '', 'usage limit reached', '')['error'], 'quota')
+        self.assertNotIn('login', self.outcome(1, '', 'usage limit reached', ''))
+
+    def test_a_logged_catalogue_is_never_diagnosed(self):
+        # The 47KB model catalogue on stderr that once read as a sign-out.
+        catalogue = '2024-01-01T00:00:00Z DEBUG please sign in\n' + 'x' * 500 + ' please sign in\n'
+        self.assertEqual(self.outcome(1, '', catalogue, 'the answer'), {'ok': True, 'text': 'the answer'})
+
+    def test_nothing_at_all_is_a_failure_even_on_a_clean_exit(self):
+        self.assertEqual(self.outcome(0, '', '', '')['error'], 'agent')
+
+
 class DraftTests(unittest.TestCase):
     def test_model_catalogue_parsers_ignore_banners_and_unrelated_help(self):
         parse = ASK['parse_model_list']

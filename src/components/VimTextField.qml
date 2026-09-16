@@ -72,6 +72,8 @@ TextArea {
   signal submitted()
   signal cancelled()                        // Esc from normal mode
   signal steppedDown()                      // j / Down: the results are the "line" below
+  signal historyPrevRequested()             // Up in the one-line search field: an older query
+  signal historyNextRequested()             // Down there: back toward what was being typed
   signal requestedSettings()                // Ctrl+S (or Ctrl+,) in any mode
   signal tabbed()                           // Tab in any mode: the panel switches search <-> ai
   signal newSessionRequested()              // the new-session chord: start over
@@ -122,11 +124,32 @@ TextArea {
 
   // A line down or up within the text; down from its last line leaves the
   // field for what is below it, as it always has.
-  function moveLine (down) {
+  //
+  // In search mode the field is one line, so the arrows have no line to reach:
+  // there they walk the queries searched before, the way a shell's history does.
+  // j and k never do — j into the results is how the reader gets to them.
+  function moveLine (down, arrow) {
     const pos = mode === "visual" && visualLinewise ? visualCursor : cursorPosition
     const next = down ? Motions.lineDown(text, pos) : Motions.lineUp(text, pos)
-    if (next !== -1) applyMotion(next, false)
-    else if (down && mode !== "visual") field.steppedDown()
+    if (next !== -1) {
+      applyMotion(next, false)
+      return
+    }
+    if (mode === "visual") return
+    if (arrow && !multiline) {
+      if (down) field.historyNextRequested()
+      else field.historyPrevRequested()
+      return
+    }
+    if (down) field.steppedDown()
+  }
+
+  // The panel replaces what was typed while walking the query history. Set
+  // through here so the cursor lands at the end, as it does in a shell.
+  function setQuery (value) {
+    text = value
+    cursorPosition = length
+    clampCursor()
   }
 
   function openLine (below) {
@@ -293,7 +316,7 @@ TextArea {
       // Down works from insert too, as vim's arrows do; within a question of
       // several lines, Up and Down move between its lines first.
       clearEscapePending()
-      moveLine(event.key === Qt.Key_Down)
+      moveLine(event.key === Qt.Key_Down, true)
       event.accepted = true
     } else if (plain && Keymap.isTypedKey(event.text)) {
       handleEscapeSequence(event)             // types normally unless it closes the sequence
@@ -428,7 +451,7 @@ TextArea {
         clearPending()                      // dj and friends mean nothing here
         return
       }
-      for (let i = 0; i < count; i++) moveLine(key === "j")
+      for (let i = 0; i < count; i++) moveLine(key === "j", false)
       return
 
     // modes
@@ -662,7 +685,7 @@ TextArea {
     }
 
     if (event.key === Qt.Key_Down || event.key === Qt.Key_Up) {
-      moveLine(event.key === Qt.Key_Down)
+      moveLine(event.key === Qt.Key_Down, true)
       event.accepted = true
       return
     }

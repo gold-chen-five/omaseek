@@ -56,6 +56,17 @@ Item {
     return SearchLib.handoffText(currentPage ? currentPage.rows : [], index)
   }
 
+  // The row a reading key acts on, from the page on screen. The list raises an
+  // index; what is behind it is this store's to know.
+  function rowAt (index) {
+    const rows = currentPage ? currentPage.rows : []
+    return index >= 0 && index < rows.length ? rows[index] : null
+  }
+
+  function yankText (index, withTitle) {
+    return SearchLib.resultYankText(rowAt(index), withTitle)
+  }
+
   function reset () {
     cancel()
     status = "idle"

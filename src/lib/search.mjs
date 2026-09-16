@@ -129,6 +129,23 @@ export function modeLabel ({ view = VIEW.SEARCH, panelMode = PANEL.SEARCH, focus
 }
 
 /**
+ * What y and Y put on the clipboard: the bare URL, or the title above it — a
+ * citation to paste somewhere that wants both.
+ */
+export function resultYankText (row, withTitle = false) {
+  if (!row) return ''
+  const normalized = normalizeRow(row)
+  if (!normalized.url) return ''
+  if (!withTitle || !normalized.title) return normalized.url
+  return normalized.title + '\n' + normalized.url
+}
+
+/** What the status line says for a beat after a yank, so it is clear which ran. */
+export function yankNotice (withTitle) {
+  return withTitle ? 'yanked the title and URL' : 'yanked the URL'
+}
+
+/**
  * URLs for an editable agent draft: the selected result, or every result on the
  * page one per line. The draft is editable, so the reader types the question
  * around the links; a title and a snippet in front of them only get in the way.

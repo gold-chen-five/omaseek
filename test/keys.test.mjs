@@ -12,10 +12,20 @@ test('a bound chord is its command', () => {
 
 test('reader panes return to the field with vim entry semantics', () => {
   for (const keys of [LIST_KEYS, ANSWER_KEYS]) {
-    assert.equal(resolve(keys, '', '/').command, 'fieldNormal')
-    assert.equal(resolve(keys, 'g', 'i').command, 'fieldNormal')
+    assert.equal(resolve(keys, 'g', 'i').command, 'insert', 'gi goes back typing')
+    assert.equal(resolve(keys, 'g', 'n').command, 'fieldNormal', 'gn goes back in normal mode')
     assert.equal(resolve(keys, '', 'i').command, 'insert')
     assert.equal(resolve(keys, '', 'a').command, 'append')
+    assert.equal(resolve(keys, '', 'Escape').command, 'cancel')
+  }
+})
+
+test('/ searches the pane rather than going back to the field', () => {
+  for (const keys of [LIST_KEYS, ANSWER_KEYS]) {
+    assert.equal(resolve(keys, '', '/').command, 'findForward')
+    assert.equal(resolve(keys, '', '?').command, 'findBackward')
+    assert.equal(resolve(keys, '', 'n').command, 'findNext')
+    assert.equal(resolve(keys, '', 'N').command, 'findPrevious')
   }
 })
 
@@ -42,15 +52,34 @@ test('an unbound key clears whatever was pending', () => {
   assert.deepEqual(resolve(ANSWER_KEYS, '', 'q'), { command: '', pending: '' })
 })
 
-test('both panes agree on the keys they share; only paging is the list’s own', () => {
+// The list's own, each for a reason: h and l page where the answer moves by
+// character, and a row is one URL where a reply is text to operate on — so y
+// there copies at once rather than waiting for a motion.
+const LIST_ONLY = ['nextPage', 'previousPage', 'yankUrl', 'yankCitation', 'askAbout']
+
+test('both panes agree on the keys they share; the rest are the list’s own', () => {
   for (const chord of Object.keys(LIST_KEYS)) {
     const command = LIST_KEYS[chord]
-    if (command === 'nextPage' || command === 'previousPage') {
-      assert.notEqual(ANSWER_KEYS[chord], command, `${chord} pages the answer`)
+    if (LIST_ONLY.indexOf(command) !== -1) {
+      assert.notEqual(ANSWER_KEYS[chord], command, `${chord} means this in the answer too`)
       continue
     }
     assert.equal(ANSWER_KEYS[chord], command, `${chord} means two things`)
   }
+})
+
+test('y copies a result at once, but still opens a yank in the answer', () => {
+  assert.equal(LIST_KEYS['y'], 'yankUrl')
+  assert.equal(ANSWER_KEYS['y'], 'yank')
+  assert.equal(LIST_KEYS['Y'], 'yankCitation')
+  assert.equal(ANSWER_KEYS['Y'], undefined, 'the answer leaves Y alone')
+})
+
+test('each half reaches the other: gc asks about a result, gs searches for a reply', () => {
+  assert.equal(resolve(LIST_KEYS, 'g', 'c').command, 'askAbout')
+  assert.equal(resolve(ANSWER_KEYS, 'g', 'c').command, '', 'the answer has no result to ask about')
+  assert.equal(resolve(ANSWER_KEYS, 'g', 's').command, 'searchFor')
+  assert.equal(resolve(LIST_KEYS, 'g', 's').command, '', 'a result is already a search')
 })
 
 test('hand-off is ga and everything is gA, the same in both panes', () => {
@@ -120,7 +149,7 @@ test('result counts cancel on escape and unknown keys without leaking into the n
 })
 
 test('a rebound key moves its command in both panes and frees the old key', () => {
-  const binds = { ...DEFAULTS, handoffKey: 'ctrl+h', handoffAllKey: 'gt', openLinkKey: 'ctrl+o', nextPageKey: 'n' }
+  const binds = { ...DEFAULTS, handoffKey: 'ctrl+h', handoffAllKey: 'gt', openLinkKey: 'ctrl+o', nextPageKey: 'm' }
   for (const pane of ['results', 'answer']) {
     const keys = readerKeys(pane, binds)
     assert.equal(resolve(keys, '', 'C-h').command, 'handOff')
@@ -130,7 +159,7 @@ test('a rebound key moves its command in both panes and frees the old key', () =
   }
   assert.equal(resolve(readerKeys('answer', binds), '', 'C-o').command, 'openLink')
   assert.equal(resolve(readerKeys('answer', binds), 'g', 'x').command, '')
-  assert.equal(resolve(readerKeys('results', binds), '', 'n').command, 'nextPage')
+  assert.equal(resolve(readerKeys('results', binds), '', 'm').command, 'nextPage')
   assert.equal(resolve(readerKeys('results', binds), '', 'l').command, '', 'l is free once paging moves')
   assert.equal(resolve(readerKeys('results', binds), '', 'Right').command, 'nextPage', 'the arrow stays')
 })

@@ -45,14 +45,20 @@ export const ACTIONS = [
     label: 'Hand off to agent', hint: 'the selected result’s URL, or the selection / reply under the cursor, as a draft' },
   { id: 'handoffAll', config: 'handoff_all_key', default: 'gA', scope: 'reader', command: 'handOffPage',
     label: 'Hand off everything', hint: 'every URL on the results page, or the whole conversation, as a draft' },
+  { id: 'askAbout', config: 'ask_about_key', default: 'gc', scope: 'reader', panes: ['results'], command: 'askAbout',
+    label: 'Ask about this', hint: 'results: the selected URL into the ask bar, to type a question around' },
+  { id: 'searchFor', config: 'search_for_key', default: 'gs', scope: 'reader', panes: ['answer'], command: 'searchFor',
+    label: 'Search for this', hint: 'answer: search the web for the selection, or the word under the cursor' },
   { id: 'openLink', config: 'open_link_key', default: 'gx', scope: 'reader', panes: ['answer'], command: 'openLink',
     label: 'Open link', hint: 'answer: the URL under the cursor or in the selection, as vim’s gx' },
   { id: 'nextPage', config: 'next_page_key', default: 'l', scope: 'reader', panes: ['results'], command: 'nextPage',
     label: 'Next page', hint: 'results: the next page (→ too)' },
   { id: 'previousPage', config: 'previous_page_key', default: 'h', scope: 'reader', panes: ['results'], command: 'previousPage',
     label: 'Previous page', hint: 'results: the page before, from the cache (← too)' },
-  { id: 'insert', config: 'insert_key', default: 'gi', scope: 'reader', command: 'fieldNormal',
-    label: 'Back to the field', hint: 'results and answer: return to the field in normal mode (/ always works; i inserts; a appends)' }
+  { id: 'insert', config: 'insert_key', default: 'gi', scope: 'reader', command: 'insert',
+    label: 'Back to the field', hint: 'results and answer: return to the field in insert mode (i and a do too)' },
+  { id: 'normal', config: 'normal_key', default: 'gn', scope: 'reader', command: 'fieldNormal',
+    label: 'Back to the field (normal)', hint: 'results and answer: return to the field in normal mode (esc does too)' }
 ]
 
 export const PANES = ['results', 'answer']

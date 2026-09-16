@@ -126,7 +126,7 @@ export function toHtml (markdown, { color = '', lead = '', link = '' } = {}) {
 /** The conversation as one rich-text document, laid out as Claude Code's is. */
 export function renderTranscript (turns, {
   question = '#ffffff', answer = '#cccccc', glyph = '#888888', error = '#e06c75', link = '', dotSize = 0,
-  pending = false
+  pending = false, pendingText = ''
 } = {}) {
   // The ● only holds the dot's place: the view draws the dot over it, so a
   // finished reply's dot and the one breathing while it waits are one thing.
@@ -148,8 +148,9 @@ export function renderTranscript (turns, {
       }))
     }
   }
-  // The reply being waited for: an empty paragraph built exactly as a reply's
-  // first one is, so the waiting dot and label sit where the answer will.
-  if (pending) parts.push(toHtml('\u200b', { color: answer, lead: lead }))
+  // The reply being waited for, built exactly as a finished one is so the
+  // waiting dot sits where the answer will: empty until the agent starts
+  // writing, then the words so far, which take its place without moving.
+  if (pending) parts.push(toHtml(pendingText || '\u200b', { color: answer, link: link, lead: lead }))
   return parts.join('')
 }

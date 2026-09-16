@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Commons
+import "../lib/find.mjs" as Find
 
 // One search result. Model roles arrive as required properties: a ListView delegate.
 Rectangle {
@@ -20,6 +21,15 @@ Rectangle {
   property color accent: Color.menu.selectedText
   property color selectedBackground: Color.menu.selectedBackground
   property string fontFamily: Style.font.menuFamily
+  property string highlight: ""                // the / pattern, marked in the text below
+
+  // The cursor row is already painted in the accent, so there the mark is the
+  // weight alone; elsewhere it is the weight and the colour.
+  readonly property string markColor: hasCursor ? "" : accent.toString()
+
+  function marked (text) {
+    return Find.markMatches(text, row.highlight, row.markColor)
+  }
 
   signal activated()
   signal hovered(var mouse)
@@ -100,8 +110,9 @@ Rectangle {
       id: titleText
 
       width: parent.width
-      textFormat: Text.PlainText
-      text: row.title
+      // StyledText, not PlainText: marked() escapes and marks in one pass.
+      textFormat: Text.StyledText
+      text: row.marked(row.title)
       color: row.hasCursor ? row.accent : row.foreground
       font.family: row.fontFamily
       font.pixelSize: Style.font.subtitle
@@ -110,8 +121,9 @@ Rectangle {
 
     Text {
       width: parent.width
-      textFormat: Text.PlainText
-      text: row.display_url
+      // StyledText, not PlainText: marked() escapes and marks in one pass.
+      textFormat: Text.StyledText
+      text: row.marked(row.display_url)
       color: row.foreground
       opacity: 0.55
       font.family: row.fontFamily
@@ -122,8 +134,9 @@ Rectangle {
     Text {
       width: parent.width
       visible: row.snippet !== ""
-      textFormat: Text.PlainText
-      text: row.snippet
+      // StyledText, not PlainText: marked() escapes and marks in one pass.
+      textFormat: Text.StyledText
+      text: row.marked(row.snippet)
       color: row.foreground
       opacity: 0.75
       font.family: row.fontFamily

@@ -28,6 +28,9 @@ Item {
   property string liveId: ""                   // the id of the conversation on screen, "" when it has no turns
   property var pendingIds: []                  // conversations with a question in flight
   property var pendingTurns: ({})              // id -> its Process; not for bindings
+  property bool streaming: true                // show a reply as it is written
+  property var streamBuffers: ({})             // id -> the reply so far; not for bindings
+  property string liveStreamText: ""           // the buffer of the conversation on screen
   readonly property var sessions: store.sessions
   readonly property int sessionCount: sessions.length
   readonly property string sessionLabel: Sessions.sessionLabel(sessionIndex, sessionCount)
@@ -125,6 +128,7 @@ Item {
     if (!entry) return
     restoring = true
     history = entry.turns
+    liveStreamText = streamBuffers[entry.id] || ""
     restoring = false
     sessionIndex = index
     liveId = entry.id
@@ -153,8 +157,40 @@ Item {
     }
     pendingTurns[id] = turn
     pendingIds = pendingIds.concat([id])
-    turn.command = [session.askPath, "--json", JSON.stringify(payload)]
+    streamBuffers[id] = ""
+    if (id === liveId) liveStreamText = ""
+    const command = [session.askPath]
+    if (streaming) command.push("--stream")
+    turn.command = command.concat(["--json", JSON.stringify(payload)])
     turn.running = true
+  }
+
+  // One line of the turn's output. A delta only ever shows: what is saved is the
+  // text in the done event, so a delta misread here cannot corrupt the answer.
+  function absorb (id, line) {
+    const text = String(line ?? "").trim()
+    if (!text || !isPending(id)) return
+    let event
+    try {
+      event = JSON.parse(text)
+    } catch (error) {
+      return                                    // narration, not an event
+    }
+    if (event.event === "delta") {
+      streamBuffers[id] = (streamBuffers[id] || "") + String(event.text ?? "")
+      if (id === liveId) paint.start()          // coalesced: a repaint per token is wasted work
+      return
+    }
+    if (event.event === "done" || event.ok !== undefined) deliver(id, event)
+  }
+
+  // The reply so far reaches the screen a few times a second rather than once
+  // per token: rendering the transcript is not free, and a token is not a frame.
+  Timer {
+    id: paint
+
+    interval: 80
+    onTriggered: session.liveStreamText = session.streamBuffers[session.liveId] || ""
   }
 
   // Disowned first: stopping a process ends its stream, and a stream nobody
@@ -172,19 +208,22 @@ Item {
       delete pendingTurns[id]
       turn.destroy(0)
     }
+    delete streamBuffers[id]
+    if (id === liveId) {
+      paint.stop()
+      liveStreamText = ""
+    }
     const rest = []
     for (let i = 0; i < pendingIds.length; i++) if (pendingIds[i] !== id) rest.push(pendingIds[i])
     pendingIds = rest
   }
 
-  // A finished turn, by the conversation that asked it.
-  function deliver (id, output) {
+  // A finished turn, by the conversation that asked it. `payload` is the done
+  // event, whose body is the same object a whole answer would have been.
+  function deliver (id, payload) {
     if (!isPending(id)) return                  // cancelled, or its conversation was closed
     forget(id)
-    let payload
-    try {
-      payload = JSON.parse(String(output ?? "").trim())
-    } catch (error) {
+    if (!payload || typeof payload !== "object") {
       report(id, "error", "Could not read the agent's output", "")
       return
     }
@@ -288,6 +327,7 @@ Item {
     restoring = false
     sessionIndex = -1
     liveId = ""
+    liveStreamText = ""              // the turn left running keeps writing into its own buffer
     agent = ""
   }
 
@@ -317,9 +357,16 @@ Item {
 
       property string sessionId: ""
 
-      stdout: StdioCollector {
-        waitForEnd: true
-        onStreamFinished: session.deliver(turn.sessionId, String(text ?? ""))
+      // A line at a time rather than one blob at the end: the deltas are the
+      // point. A turn that never reaches its done event — killed, or output
+      // nobody could parse — is reported when the process exits.
+      stdout: SplitParser {
+        splitMarker: "\n"
+        onRead: line => session.absorb(turn.sessionId, line)
+      }
+
+      onExited: if (session.isPending(turn.sessionId)) {
+        session.deliver(turn.sessionId, { ok: false, message: "Could not read the agent's output" })
       }
     }
   }

@@ -314,3 +314,23 @@ test('the fixed keys close the page as read-only rows, so it lists everything pr
   }
   assert.match(FIXED_KEYS.find(entry => entry.label === 'Settings').keys, /\/ field normal/)
 })
+
+test('streaming is on unless it was deliberately turned off', async () => {
+  const { readSettings, writeSettings, settingsRows } = await import('../src/lib/settings.mjs')
+
+  assert.equal(readSettings('{}').stream, true)
+  assert.equal(readSettings('{"stream":false}').stream, false)
+  // Anything that is not an explicit false leaves the behaviour alone.
+  assert.equal(readSettings('{"stream":"maybe"}').stream, true)
+  assert.equal(readSettings('not json').stream, true)
+
+  const settings = readSettings('{}')
+  assert.equal(JSON.parse(writeSettings({ ...settings, stream: false }, '{}')).stream, false)
+  assert.equal(JSON.parse(writeSettings(settings, '{}')).stream, true)
+
+  const row = settingsRows(settings).find(r => r.key === 'stream')
+  assert.equal(row.type, 'toggle')
+  assert.equal(row.value, true)
+  assert.equal(row.action, 'off', 'the action says what flipping it does')
+  assert.equal(settingsRows({ ...settings, stream: false }).find(r => r.key === 'stream').action, 'on')
+})

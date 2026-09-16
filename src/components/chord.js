@@ -48,3 +48,13 @@ function of (event) {
   if (name) return name
   return event.text || ""
 }
+
+// The keys a find prompt reads as commands rather than as pattern text.
+// Everything else it takes from event.text, so a chord's spelling (which folds
+// shift and names the arrows) never reaches the pattern.
+function findKey (event) {
+  if (event.key === Qt.Key_Escape) return "Escape"
+  if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) return "Return"
+  if (event.key === Qt.Key_Backspace) return "Backspace"
+  return ""
+}

@@ -2,6 +2,7 @@ import QtQuick
 import qs.Commons
 import qs.Ui
 import "../lib/keys.mjs" as KeysLib
+import "../lib/find.mjs" as Find
 import "chord.js" as Chord
 
 // Result rows and the vim cursor that walks them; anything that changes the view
@@ -20,6 +21,8 @@ ListView {
 
   signal handedOff(int index)
   signal pageHandedOff()
+  signal yanked(int index, bool withTitle)   // y / Y: the URL, or the title above it
+  signal askRequested(int index)             // gc: this result, over in the ask bar
   signal activated(int index)
   signal escaped()                       // esc: back to the field, normal mode
   signal normalRequested()               // /: back to the field, normal mode
@@ -29,6 +32,30 @@ ListView {
   signal tabbed()                        // the panel switches search <-> ai
   signal nextPageRequested()
   signal previousPageRequested()
+
+  readonly property string findPrompt: finder.prompt
+  // What the rows mark. It outlives the prompt, as the answer's highlight does.
+  readonly property string findPattern: finder.active ? finder.find.pattern : finder.lastPattern
+
+  // What `/` matches here: a row, on anything the row shows.
+  Finder {
+    id: finder
+
+    matchesFor: (pattern, wholeWord) => Find.matchingRows(list.visibleRows(), pattern)
+
+    onMoved: target => list.moveCursorTo(target)
+    onDropped: target => list.moveCursorTo(target)
+  }
+
+  // The page on screen as plain rows, for the search to read.
+  function visibleRows () {
+    const rows = []
+    for (let i = 0; i < count; i++) {
+      const row = model.get(i)
+      rows.push({ title: row.title, snippet: row.snippet, display_url: row.display_url, url: row.url })
+    }
+    return rows
+  }
 
   clip: true
   keyNavigationEnabled: false            // the handler below drives j/k and the arrows
@@ -45,8 +72,8 @@ ListView {
     referenceItem: list
   }
 
-  onActiveFocusChanged: navigation = { pending: "", count: 0 }
-  onModelChanged: navigation = { pending: "", count: 0 }
+  onActiveFocusChanged: { navigation = { pending: "", count: 0 }; finder.forget() }
+  onModelChanged: { navigation = { pending: "", count: 0 }; finder.close() }
 
   function moveCursor (delta) {
     moveCursorTo(currentIndex + delta)
@@ -61,6 +88,11 @@ ListView {
 
   Keys.priority: Keys.BeforeItem
   Keys.onPressed: event => {
+    // An open prompt takes every key into the pattern before the table sees one.
+    if (finder.feed(event)) {
+      event.accepted = true
+      return
+    }
     const step = KeysLib.resolveCounted(readerKeys, navigation, Chord.of(event))
     navigation = step.state
     run(step.command, step.count)
@@ -77,7 +109,11 @@ ListView {
     case "accept":       activated(currentIndex); break
     case "handOff":      if (count > 0) handedOff(currentIndex); break
     case "handOffPage":  if (count > 0) pageHandedOff(); break
-    case "cancel":       escaped(); break
+    case "yankUrl":      if (count > 0) yanked(currentIndex, false); break
+    case "yankCitation": if (count > 0) yanked(currentIndex, true); break
+    case "askAbout":     if (count > 0) askRequested(currentIndex); break
+    // As in the answer: the search goes before the pane does.
+    case "cancel":       if (finder.lastPattern) finder.forget(); else escaped(); break
     case "fieldNormal":  normalRequested(); break
     case "insert":       insertRequested(); break
     case "append":       appendRequested(); break
@@ -89,6 +125,10 @@ ListView {
     case "previousPage": previousPageRequested(); break
     case "top":          moveCursorTo(0); break
     case "bottom":       moveCursorTo(count - 1); break
+    case "findForward":  finder.open(false, currentIndex); break
+    case "findBackward": finder.open(true, currentIndex); break
+    case "findNext":     finder.step(false, currentIndex, times); break
+    case "findPrevious": finder.step(true, currentIndex, times); break
     }
   }
 
@@ -100,6 +140,7 @@ ListView {
 
     width: list.width
     lineNumbers: list.lineNumbers
+    highlight: list.findPattern
     cursorIndex: list.currentIndex
     numberDigits: String(Math.max(1, list.count)).length
     hasCursor: rowItem.index === list.currentIndex

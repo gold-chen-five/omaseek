@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import qs.Commons
 import "../lib/keys.mjs" as KeysLib
+import "../lib/find.mjs" as Find
 import "../lib/motions.mjs" as Motions
 import "../lib/markdown.mjs" as Markdown
 import "../lib/thinking.mjs" as Thinking
@@ -67,12 +68,45 @@ FocusScope {
   property int currentFindHit: -1              // actual match; t/T leave the cursor beside it
   readonly property var findMatches: repeatFindReady && lastFind
     ? Motions.matchingCharsInLine(plain(), currentFindHit, lastFind.char) : []
+  property string streamText: ""                // the reply being written, so far
+  property bool following: true                // stay at the bottom until the reader moves
   property bool flashing: false                // a yanked range is lit, not selected
   property string newSessionChord: "C-c"          // from settings, already parsed
   property string cursorLink: ""               // the openable link under the cursor, or ""
   property real preferredX: -1                 // the column j/k try to keep
   property var binds: null                     // the settings: where the rebindable commands sit
   readonly property var readerKeys: KeysLib.readerKeys("answer", binds)
+
+  // `/` through the transcript. The pattern stays lit after the prompt closes,
+  // as vim's hlsearch does; leaving the pane forgets it.
+  readonly property string findPrompt: finder.prompt
+  readonly property string findPattern: finder.active ? finder.find.pattern : finder.lastPattern
+  // A pattern still being typed matches inside a word; one `*` started does not.
+  readonly property bool findWholeWord: finder.active ? false : finder.lastWholeWord
+  property var searchMatches: []
+
+  Finder {
+    id: finder
+
+    matchesFor: (pattern, wholeWord) => Find.matchPositions(view.plain(), pattern, wholeWord)
+
+    onMoved: target => view.placeCursor(target)
+    onDropped: target => view.placeCursor(target)
+  }
+
+  onFindPatternChanged: updateSearchMatches()
+  onFindWholeWordChanged: updateSearchMatches()
+
+  function updateSearchMatches () {
+    searchMatches = findPattern === "" ? [] : Find.matchPositions(plain(), findPattern, findWholeWord)
+  }
+
+  // `*` and `#`: the word under the cursor becomes the search, with no prompt to
+  // type into. It leaves the state an accepted prompt would, so the matches stay
+  // lit and n and N carry on from there.
+  function searchWordUnderCursor (backward) {
+    finder.searchWord(Find.wordAt(plain(), cursor), cursor, backward)
+  }
   property string lineNumbers: "relative"
   readonly property int cursorLine: {
     let nearest = 0
@@ -108,6 +142,7 @@ FocusScope {
 
   signal handedOff(string context)             // Enter: give this to the agent
   signal linkOpened(string url)                // gx on a link
+  signal searchRequested(string text)          // gs: search the web for this
   signal escaped()                             // esc: back to the field, normal mode
   signal normalRequested()                     // /: back to the field, normal mode
   signal insertRequested()                     // i: back to the field, insert before the cursor
@@ -124,6 +159,9 @@ FocusScope {
     grammar = Grammar.IDLE
     repeatFindReady = false
     currentFindHit = -1
+    // Leaving the pane drops the search as well as the prompt, so a highlight
+    // never outlives the reading that wanted it.
+    if (!activeFocus) finder.forget()
     if (activeFocus) cursorLink = linkUnder(cursor)   // the layout may not have existed when the answer landed
   }
   onTurnsChanged: Qt.callLater(refresh)
@@ -133,6 +171,7 @@ FocusScope {
   function refresh () {
     anchor = -1
     preferredX = -1
+    following = true
     repeatFindReady = false
     currentFindHit = -1
     answer.text = render()
@@ -160,7 +199,23 @@ FocusScope {
       glyph: glyphColor,
       error: Color.urgent.toString(),
       link: questionColor,  // theme ink, not Qt's link blue
-      pending: thinking
+      pending: thinking,
+      pendingText: streamText
+    })
+  }
+
+  // A reply arriving in pieces is not a new answer: the text is replaced, but
+  // the cursor stays where the reader put it and settle() is not run, or every
+  // repaint would drag them to the newest line.
+  onStreamTextChanged: if (thinking) Qt.callLater(restream)
+
+  function restream () {
+    if (!thinking) return
+    const at = cursor
+    answer.text = render()
+    Qt.callLater(() => {
+      findMarks()
+      placeCursor(following ? answer.length : Math.min(at, answer.length))
     })
   }
 
@@ -209,6 +264,7 @@ FocusScope {
     questionStarts = questions
     pendingAt = waiting
     findNumberedLines()
+    updateSearchMatches()          // the text moved, so the lit matches did too
   }
 
   // Where a reply's text begins, and its baseline.
@@ -327,6 +383,9 @@ FocusScope {
     case "wordEndBig":      return { pos: times(at => Motions.wordEnd(text, at, true)), inclusive: true }
     case "lineStart":       return { pos: lineStartAt(cursor) }
     case "lineEnd":         return { pos: Math.max(lineStartAt(cursor), lineEndAt(cursor) - 1), inclusive: true }  // on the last character, as vim puts it
+    // A motion, so a count repeats it (3n) and an operator can take it (y2n).
+    case "findNext":        return { pos: finder.target(false, cursor, count) }
+    case "findPrevious":    return { pos: finder.target(true, cursor, count) }
     }
     return null
   }
@@ -512,6 +571,21 @@ FocusScope {
     putRequested(value, after)
   }
 
+  // gs: the selection, else the word under the cursor, the way vim's * takes one.
+  // A selection is already a whole query, so Search.qml runs it rather than
+  // leaving it in the field.
+  function searchFor () {
+    const text = (selecting ? selection() : wordUnderCursor()).trim()
+    if (selecting) stopSelecting()
+    if (text) searchRequested(text)
+  }
+
+  function wordUnderCursor () {
+    const source = plain()
+    const range = TextObjects.resolveInLine(source, cursor, "i", "w")
+    return range ? source.substring(range.start, range.end) : ""
+  }
+
   // gx: the link under the cursor, whether the agent wrote it as Markdown (a
   // real anchor) or bare in the text.
   function linkUnder (pos) {
@@ -571,6 +645,12 @@ FocusScope {
 
   Keys.priority: Keys.BeforeItem
   Keys.onPressed: event => {
+    following = false        // the reader is reading; stop dragging them to the newest line
+    // An open prompt takes every key into the pattern before the grammar sees one.
+    if (finder.feed(event)) {
+      event.accepted = true
+      return
+    }
     const chord = Chord.of(event)
     if (chord !== "" && chord === view.newSessionChord) {
       grammar = Grammar.IDLE
@@ -638,7 +718,13 @@ FocusScope {
     case "handOff":      handOff(); break
     case "handOffPage":  handOffAll(); break
     case "accept":       openLink(); break
-    case "cancel":       if (selecting) stopSelecting(); else escaped(); break
+    // Esc leaves one step at a time, and a search is one of them: drop the
+    // selection, then the search and its highlight, and only then the pane.
+    case "cancel":
+      if (selecting) stopSelecting()
+      else if (finder.lastPattern) finder.forget()
+      else escaped()
+      break
     case "fieldNormal":  if (selecting) stopSelecting(); normalRequested(); break
     case "insert":       insertRequested(); break
     case "append":       appendRequested(); break
@@ -647,8 +733,13 @@ FocusScope {
     case "reselect":    reselect(); break
     case "yank":        yank(); break
     case "openLink":    openLink(); break
+    case "searchFor":   searchFor(); break
     case "put":         put(true); break
     case "putBefore":   put(false); break
+    case "findForward":  finder.open(false, cursor); break
+    case "findBackward": finder.open(true, cursor); break
+    case "searchWord":     searchWordUnderCursor(false); break
+    case "searchWordBack": searchWordUnderCursor(true); break
     }
   }
 
@@ -779,6 +870,29 @@ FocusScope {
       height: view.yankBand ? view.yankBand.height + Style.spacing.xs * 2 : 0
       color: Util.alpha(view.accent, 0.3)
       radius: Style.cornerRadius
+    }
+
+    // `/` matches, in the same language as the f/t ones above: the one the
+    // cursor is on is accented, the rest are quiet.
+    Repeater {
+      model: view.searchMatches
+
+      Rectangle {
+        required property int modelData
+        readonly property rect head: view.characterRect(modelData)
+        readonly property rect tail: view.characterRect(
+          Math.max(modelData, Math.min(answer.length, modelData + view.findPattern.length) - 1))
+        readonly property bool oneLine: Math.abs(tail.y - head.y) < 1
+
+        x: head.x
+        y: head.y
+        // A match broken across a wrap lights its first character only.
+        width: oneLine ? Math.max(1, tail.x + tail.width - head.x) : head.width
+        height: head.height
+        color: modelData === view.cursor ? view.accent : view.foreground
+        opacity: modelData === view.cursor ? 0.42 : 0.14
+        radius: 2
+      }
     }
 
     Repeater {

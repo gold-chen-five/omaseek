@@ -170,3 +170,20 @@ test('the destructive key names itself and what it will forget', () => {
   assert.match(confirmClearText('ctrl+alt+k', 2), /^ctrl\+alt\+k again/)
   assert.ok(confirmClearText('ctrl+shift+x', 10).length <= 74)
 })
+
+test('y yanks a result’s URL, Y the title above it', async () => {
+  const { resultYankText, yankNotice } = await import('../src/lib/search.mjs')
+  const row = { title: 'The Rust Book', url: 'https://doc.rust-lang.org/book/', display_url: 'doc.rust-lang.org' }
+
+  assert.equal(resultYankText(row, false), 'https://doc.rust-lang.org/book/')
+  assert.equal(resultYankText(row, true), 'The Rust Book\nhttps://doc.rust-lang.org/book/')
+  // A row the page no longer holds yanks nothing rather than throwing.
+  assert.equal(resultYankText(null, true), '')
+  assert.equal(resultYankText({ title: 'no link' }, false), '')
+  // A row whose title fell back to its domain still yanks something useful.
+  assert.equal(resultYankText({ url: 'https://x.test', title: '' }, true), 'https://x.test')
+
+  assert.equal(yankNotice(false), 'yanked the URL')
+  assert.equal(yankNotice(true), 'yanked the title and URL')
+  assert.ok(yankNotice(true).length <= 70)
+})

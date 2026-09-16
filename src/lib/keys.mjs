@@ -29,13 +29,18 @@ const NAV = {
   'k': 'up', 'Up': 'up',
   'g g': 'top',
   'G': 'bottom',
-  '/': 'fieldNormal',
+  // `/` searches the pane, as vim's does. Going back to the field is gi, gn,
+  // i, a and esc — five ways already, which is what freed this one.
+  '/': 'findForward',
+  '?': 'findBackward',
+  'n': 'findNext',
+  'N': 'findPrevious',
   'i': 'insert',
   'a': 'append'
 }
 
 const FIXED = {
-  results: merge(NAV, { 'Right': 'nextPage', 'Left': 'previousPage' }),
+  results: merge(NAV, { 'Right': 'nextPage', 'Left': 'previousPage', 'y': 'yankUrl', 'Y': 'yankCitation' }),
   // The answer is text, so it adds motions and a selection.
   answer: merge(NAV, {
     'l': 'right', 'Right': 'right',
@@ -48,6 +53,9 @@ const FIXED = {
     '$': 'lineEnd', 'End': 'lineEnd',
     'v': 'selectChars',
     'V': 'selectLines',
+    // The results have no cursor inside a row, so there is no word under it.
+    '*': 'searchWord',
+    '#': 'searchWordBack',
     'g v': 'reselect',
     'y': 'yank',
     'p': 'put', 'P': 'putBefore'
@@ -73,11 +81,16 @@ const LABELS = {
   down: 'move down', up: 'move up', right: 'move right', left: 'move left',
   top: 'go to the top', bottom: 'go to the bottom',
   fieldNormal: 'back to the field in normal mode', insert: 'insert before the cursor', append: 'insert after the cursor',
+  findForward: 'search the pane', findBackward: 'search the pane backwards',
+  findNext: 'the next match', findPrevious: 'the match before',
+  searchWord: 'search for the word under the cursor', searchWordBack: 'search back for the word under the cursor',
   nextPage: 'next page', previousPage: 'previous page',
   wordForward: 'a word motion', wordForwardBig: 'a word motion', wordBackward: 'a word motion',
   wordBackwardBig: 'a word motion', wordEnd: 'a word motion', wordEndBig: 'a word motion',
   lineStart: 'line start', lineEnd: 'line end', selectChars: 'visual mode', selectLines: 'linewise visual',
   reselect: 'reselect', yank: 'yank', put: 'put', putBefore: 'put',
+  yankUrl: 'yank the URL', yankCitation: 'yank the title and URL',
+  askAbout: 'ask about this result', searchFor: 'search the web for this',
   deleteWord: 'delete a word', deleteLine: 'delete to the line start', lineBreak: 'a line break', redo: 'redo'
 }
 

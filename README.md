@@ -9,11 +9,16 @@ A web search and AI panel for [Omarchy](https://omarchy.org) 4, driven with vim 
 | `super+d` | summon or dismiss |
 | `tab` | search ⇄ ask, keeping the current Vim mode |
 | `enter` | search and focus the first result, or ask |
+| `↑` `↓` | in the search field: the queries you searched before |
 | `j` `k` | through the results |
 | `enter` on a result | open it in the browser |
 | `h` `l` | previous and next page |
 | `v` `V` then `y` | select in an answer, and yank |
 | `enter` on a selection | hand it to the agent in a terminal |
+| `/` `?` then `n` `N` | search the results or the answer |
+| `*` `#` | search for the word under the cursor, in an answer |
+| `y` on a result | copy its URL |
+| `gc` `gs` | ask about the result, or search for the selection |
 | `ctrl+c` | new session, keeping this one |
 | `ctrl+n` `ctrl+x` | the next saved session, or forget this one |
 | `ctrl+shift+x` | forget every saved session (press twice) |
@@ -21,7 +26,14 @@ A web search and AI panel for [Omarchy](https://omarchy.org) 4, driven with vim 
 | `esc` | back, then out |
 
 The field is vim on one line — motions, operators, counts, text objects
-(`diw`, `ci"`, `da(`). `jk` leaves insert.
+(`diw`, `ci"`, `da(`). `jk` leaves insert. In the results and the answer, `/`
+searches the pane and `gi` or `gn` go back to the field, typing or in normal
+mode.
+
+The last twenty-five queries are kept in `~/.local/share/omaseek/queries.json`:
+the search field is one line, so `↑` and `↓` walk them the way a shell does, and
+`↓` past the newest puts back what you were typing before stepping into the
+results.
 
 The last ten conversations are kept in `~/.local/share/omaseek/sessions.json`
 and survive a shell restart. A strip of numbered squares under the status line
@@ -30,6 +42,9 @@ walk them with `ctrl+n`. `ctrl+x` forgets the one on screen, and the `+` square
 (or `ctrl+c`) starts another. `ctrl+c` while the agent is still thinking leaves
 that question running — its square keeps a dot until the answer lands in it —
 so you can start something else and come back to a finished reply.
+
+Replies appear as they are written, where the agent's CLI streams them
+(Claude Code does; the others answer whole). **Ctrl+S → Ask** turns it off.
 
 [**KEYS.md**](KEYS.md) has every binding. `ctrl+s` opens settings, which
 writes `~/.config/omaseek/config.json`.

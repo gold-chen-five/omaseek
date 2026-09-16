@@ -4,6 +4,7 @@
     ./bin/ask --agents                              installed agents, and the default
     ./bin/ask --models --json '{"agent":"codex"}'   model choices from the CLI or its cache
     ./bin/ask --json '{"question": "…"}'            one answer
+    ./bin/ask --stream --json '{"question": "…"}'   the same answer, as it is written
     ./bin/ask --launch --json '{"prompt": "…"}'     open an editable draft in the agent
     ./bin/ask --login --json '{"agent": "…"}'       hand its sign-in or setup to a terminal
 
@@ -15,6 +16,12 @@ not by PATH: Omarchy leaves a mise shim there for every agent, installed or not.
 Output is always one JSON object:
     {"ok": true, "agents": [...], "default": "claude"}
     {"ok": true, "text": "…", "agent": "claude"}
+
+--stream instead writes newline-delimited events, flushed as they arrive:
+    {"event": "delta", "text": "…"}          repeatedly, display only
+    {"event": "done", "ok": true, "text": "…", "agent": "claude", "model": "…"}
+The done event carries the same body one answer would, failures and all, so an
+agent with no streaming spelling simply emits that one line.
     {"ok": true, "launched": "claude", "launcher": "terminal"}
     {"ok": false, "error": "usage"|"agent"|"launcher"|"quota", "message": "…"}
     {"ok": false, "error": "auth"|"config", "login": true, "fix": "login"|"setup", "message": "…"}
@@ -28,6 +35,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 
 CONFIG_PATH = os.path.join(
     os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.environ["HOME"], ".config"),
@@ -49,6 +57,12 @@ AGENTS = [
         "id": "claude", "name": "Claude Code",
         "chat": ["claude", "-p", "--output-format", "text",
                  "--allowedTools", "WebSearch", "WebFetch", "--"],
+        # --include-partial-messages is what actually streams tokens: without it
+        # the whole reply still arrives in one `assistant` event at the end.
+        "stream": ["claude", "-p", "--output-format", "stream-json",
+                   "--include-partial-messages", "--verbose",
+                   "--allowedTools", "WebSearch", "WebFetch", "--"],
+        "stream_format": "claude",
         "launch": ["claude", "--permission-mode", "auto", "--"],
         "login": ["claude", "auth", "login"],
     },
@@ -56,6 +70,9 @@ AGENTS = [
         "id": "codex", "name": "Codex",
         # exec narrates on stdout too; the final message alone lands in -o.
         "chat": ["codex", "exec", "--skip-git-repo-check", "--color", "never", "-o", "{last}"],
+        # No "stream": measured, `codex exec --json` emits no text deltas — the
+        # reply arrives whole in one item.completed at the end — so streaming it
+        # would buy nothing but tool chatter. It takes the whole-answer path.
         "launch": ["codex", "--approve-for-me", "--"],
         "login": ["codex", "login"],
     },
@@ -160,6 +177,9 @@ def diagnosis(*streams):
 def emit(obj):
     json.dump(obj, sys.stdout, ensure_ascii=False)
     sys.stdout.write("\n")
+    # Flushed every time: a streamed delta held in the buffer until exit would
+    # defeat the whole point of streaming it.
+    sys.stdout.flush()
 
 
 def fail(error, message):
@@ -320,7 +340,9 @@ def with_model(agent, model):
     if not model:
         return agent
     selected = dict(agent)
-    for kind in ("chat", "launch"):
+    for kind in ("chat", "stream", "launch"):
+        if kind not in agent:
+            continue
         command = list(agent[kind])
         at = 2 if command[1] in ("exec", "run", "chat") else 1
         command[at:at] = ["--model", model]
@@ -348,11 +370,49 @@ def build_prompt(question, history):
     return "\n".join(lines)
 
 
-def run_chat(agent, prompt):
-    os.makedirs(WORK_DIR, exist_ok=True)
+def chat_outcome(agent, returncode, out, err, text):
+    """What a finished run amounts to: the answer, or why there is none.
+
+    Pure, and the only place a failure is classified, so the streamed and the
+    whole-answer paths can never come to different conclusions about the same
+    run. What goes in matters: `out` is passed only when it is something a
+    person wrote — Codex logs a 47KB model catalogue there, and diagnosing from
+    it once reported a signed-in CLI as signed out.
+    """
+    if returncode != 0:
+        said = diagnosis(out, err)
+        joined = "\n".join(said)
+        if OUT_OF_QUOTA.search(joined):
+            return {"ok": False, "error": "quota", "message": f"{agent['name']}: {said[-1]}"}
+        if SIGNED_OUT.search(joined):
+            return {"ok": False, "error": "auth", "login": True, "fix": "login",
+                    "message": f"{agent['name']} is signed out — opening its sign-in"}
+        # gemini reports missing auth on stderr, with a non-zero exit.
+        if NOT_CONFIGURED.search(joined):
+            return {"ok": False, "error": "config", "login": True, "fix": "setup",
+                    "message": f"{agent['name']}: {said[-1]}"}
+        if not text:
+            return {"ok": False, "error": "agent",
+                    "message": f"{agent['name']}: {said[-1] if said else f'exit {returncode}'}"}
+    if not text:
+        return {"ok": False, "error": "agent", "message": f"{agent['name']} returned nothing"}
+    # Setup instructions on stdout are not an answer.
+    if len(text) <= UNCONFIGURED_MAX and NOT_CONFIGURED.search(text):
+        return {"ok": False, "error": "config", "login": True, "fix": "setup",
+                "message": f"{agent['name']}: {' '.join(text.split())}"}
+    return {"ok": True, "text": text}
+
+
+def chat_env(agent):
     env = dict(os.environ)
     for key in agent.get("launch_env_unset", []):
         env.pop(key, None)
+    return env
+
+
+def run_chat_outcome(agent, prompt):
+    """One whole answer, as a payload. Never exits, so --stream can wrap it."""
+    os.makedirs(WORK_DIR, exist_ok=True)
     last = os.path.join(WORK_DIR, f"{agent['id']}.last")
     # A stale file from an earlier answer would be read as this one's.
     if os.path.exists(last):
@@ -360,14 +420,15 @@ def run_chat(agent, prompt):
     command = [part.replace("{last}", last) for part in agent["chat"]] + [prompt]
     try:
         done = subprocess.run(
-            command, cwd=WORK_DIR, env=env,
+            command, cwd=WORK_DIR, env=chat_env(agent),
             # Closed stdin: given the panel's, `codex exec` waits on it and never answers.
             stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=TIMEOUT,
         )
     except FileNotFoundError:
-        fail("agent", f"{agent['id']} is not installed")
+        return {"ok": False, "error": "agent", "message": f"{agent['id']} is not installed"}
     except subprocess.TimeoutExpired:
-        fail("agent", f"{agent['name']} did not answer within {TIMEOUT}s")
+        return {"ok": False, "error": "agent",
+                "message": f"{agent['name']} did not answer within {TIMEOUT}s"}
     text = done.stdout.strip()
     if "{last}" in "".join(agent["chat"]):
         try:
@@ -375,30 +436,110 @@ def run_chat(agent, prompt):
                 text = handle.read().strip()
         except OSError:
             pass
-    if done.returncode != 0:
-        said = diagnosis(done.stdout, done.stderr)
-        joined = "\n".join(said)
-        if OUT_OF_QUOTA.search(joined):
-            fail("quota", f"{agent['name']}: {said[-1]}")
-        if SIGNED_OUT.search(joined):
-            emit({"ok": False, "error": "auth", "login": True, "fix": "login",
-                  "message": f"{agent['name']} is signed out — opening its sign-in"})
-            sys.exit(0)
-        # gemini reports missing auth on stderr, with a non-zero exit.
-        if NOT_CONFIGURED.search(joined):
-            emit({"ok": False, "error": "config", "login": True, "fix": "setup",
-                  "message": f"{agent['name']}: {said[-1]}"})
-            sys.exit(0)
-        if not text:
-            fail("agent", f"{agent['name']}: {said[-1] if said else f'exit {done.returncode}'}")
-    if not text:
-        fail("agent", f"{agent['name']} returned nothing")
-    # Setup instructions on stdout are not an answer.
-    if len(text) <= UNCONFIGURED_MAX and NOT_CONFIGURED.search(text):
-        emit({"ok": False, "error": "config", "login": True, "fix": "setup",
-              "message": f"{agent['name']}: {' '.join(text.split())}"})
+    return chat_outcome(agent, done.returncode, done.stdout, done.stderr, text)
+
+
+def run_chat(agent, prompt):
+    outcome = run_chat_outcome(agent, prompt)
+    if not outcome["ok"]:
+        emit(outcome)
         sys.exit(0)
-    return text
+    return outcome["text"]
+
+
+def message_text(message):
+    """The text blocks of one assistant message, joined."""
+    parts = []
+    for block in message.get("content") or []:
+        if isinstance(block, dict) and block.get("type") == "text":
+            parts.append(block.get("text") or "")
+    return "".join(parts)
+
+
+def claude_event(state, event):
+    """One `claude -p --output-format stream-json` event -> (shown, settled).
+
+    `shown` is text to display now; `settled` is the answer the CLI itself
+    settled on, and only that is saved. `state` remembers whether token deltas
+    have been seen: with --include-partial-messages the finished message
+    arrives as well, and taking both would show the answer twice.
+    """
+    kind = event.get("type")
+    if kind == "stream_event":
+        inner = event.get("event") or {}
+        if inner.get("type") == "content_block_delta":
+            delta = inner.get("delta") or {}
+            if delta.get("type") == "text_delta":
+                state["partial"] = True
+                return delta.get("text") or "", None
+        return "", None
+    if kind == "assistant" and not state.get("partial"):
+        return message_text(event.get("message") or {}), None
+    if kind == "result":
+        return "", str(event.get("result") or "")
+    return "", None
+
+
+STREAM_PARSERS = {"claude": claude_event}
+
+
+def stream_chat(agent, prompt):
+    """The agent's streaming print mode, its events turned into ours as they
+    arrive. Display only: the answer that is saved is the one in the final
+    payload, so a delta this misreads can never corrupt it."""
+    os.makedirs(WORK_DIR, exist_ok=True)
+    parse = STREAM_PARSERS[agent["stream_format"]]
+    try:
+        process = subprocess.Popen(
+            list(agent["stream"]) + [prompt], cwd=WORK_DIR, env=chat_env(agent),
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True,
+        )
+    except FileNotFoundError:
+        return {"ok": False, "error": "agent", "message": f"{agent['id']} is not installed"}
+
+    # stderr is drained in a thread and kept whole: diagnosis() wants all of it,
+    # and a pipe left unread fills and deadlocks the run.
+    errors = []
+    reader = threading.Thread(target=lambda: errors.append(process.stderr.read()), daemon=True)
+    reader.start()
+
+    # A watchdog, not subprocess.run's timeout: nothing here waits on the
+    # process, it waits on the next line.
+    overdue = []
+    watchdog = threading.Timer(TIMEOUT, lambda: (overdue.append(True), process.kill()))
+    watchdog.start()
+
+    state = {}
+    shown = []
+    settled = None
+    try:
+        for line in process.stdout:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                event = json.loads(line)
+            except ValueError:
+                continue                    # narration, not an event
+            text, answer = parse(state, event)
+            if text:
+                shown.append(text)
+                emit({"event": "delta", "text": text})
+            if answer is not None:
+                settled = answer
+    finally:
+        watchdog.cancel()
+        process.stdout.close()
+        code = process.wait()
+        reader.join(timeout=2)
+
+    if overdue:
+        return {"ok": False, "error": "agent",
+                "message": f"{agent['name']} did not answer within {TIMEOUT}s"}
+    text = (settled if settled is not None else "".join(shown)).strip()
+    # stdout held events, not sentences, so only stderr is worth diagnosing.
+    return chat_outcome(agent, code, "", "".join(errors), text)
 
 
 def interactive_command(agent, prompt):
@@ -553,15 +694,29 @@ def main():
         emit({"ok": True, "launched": agent["id"], "launcher": launcher})
         return
 
-    if argv:
+    streaming = bool(argv) and argv[0] == "--stream"
+    if argv and not streaming:
         fail("usage", f"unknown argument {argv[0]!r}")
 
     question = str(payload.get("question") or "").strip()
     if not question:
         fail("usage", "no question given")
     history = payload.get("history") if isinstance(payload.get("history"), list) else []
-    text = run_chat(agent, build_prompt(question, history))
-    emit({"ok": True, "text": text, "agent": agent["id"], "model": model})
+    prompt = build_prompt(question, history)
+
+    if not streaming:
+        emit({"ok": True, "text": run_chat(agent, prompt), "agent": agent["id"], "model": model})
+        return
+
+    # An agent with no streaming spelling still ends in one done event, so the
+    # panel reads one protocol whichever agent answered.
+    outcome = stream_chat(agent, prompt) if agent.get("stream") else run_chat_outcome(agent, prompt)
+    done = {"event": "done"}
+    done.update(outcome)
+    if outcome.get("ok"):
+        done["agent"] = agent["id"]
+        done["model"] = model
+    emit(done)
 
 
 if __name__ == "__main__":

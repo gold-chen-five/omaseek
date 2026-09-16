@@ -21,13 +21,22 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 | Open | `open_key` | `enter` | results: open the result and dismiss · answer: the link under the cursor or in the selection |
 | Hand off to agent | `handoff_key` | `ga` | results: the selected result's URL, alone · answer: the selection, else the reply under the cursor with its question |
 | Hand off everything | `handoff_all_key` | `gA` | results: every URL on the page · answer: the whole conversation |
+| Ask about this | `ask_about_key` | `gc` | results: the selected URL over in the ask bar, unsent |
+| Search for this | `search_for_key` | `gs` | answer: search the web for the selection, or the word under the cursor |
 | Open link | `open_link_key` | `gx` | answer: the URL under the cursor or in the selection |
 | Next page | `next_page_key` | `l` | results (`right` always works too) |
 | Previous page | `previous_page_key` | `h` | results (`left` always works too) |
-| Back to the field | `insert_key` | `gi` | results and answer: return to the field in normal mode (`/` always works) |
+| Back to the field | `insert_key` | `gi` | results and answer: return to the field, insert mode (`i` and `a` do too) |
+| Back to the field (normal) | `normal_key` | `gn` | results and answer: return to the field in normal mode (`esc` does too) |
 
 A hand-off opens the agent (Settings → Ask → Hand off to) with the text
 pasted into its input and not sent: edit it, then submit it yourself.
+
+`gc` and `gs` stay inside the panel instead, one for each direction. `gc` puts
+the result under the cursor in the ask bar and leaves it there — a question
+still has to be typed around the URL. `gs` goes the other way and *does* run:
+the words you selected are already a whole query. Either way `tab` returns to
+the half you came from, with what was there still there.
 
 The last ten AI conversations are kept, newest first, in
 `~/.local/share/omaseek/sessions.json`. Every turn is saved as it happens, so
@@ -40,6 +49,13 @@ the oldest. A strip of numbered squares under the status line shows them —
 one opens it; the last square, `+`, starts a new conversation and is filled
 while the live one has nothing saved of it yet. The status line says the same in
 words — `session 2/3`.
+
+A reply appears as the agent writes it, where its CLI can do that — Claude
+Code can, and the rest answer whole, which is the same wait as before with
+nothing lost. **Ctrl+S → Ask → Answer as it is written** turns it off. The words
+on screen are only the reply so far: what is saved when the turn ends is the
+answer the CLI itself settled on, so nothing that flickers past can end up in
+the conversation.
 
 **A question keeps being answered after you leave it.** `ctrl+c` while the agent
 is thinking opens a new conversation and lets the old one finish: its square
@@ -71,7 +87,7 @@ empty value restores the default.
 | `super+d` | summon or dismiss (Hyprland, not the panel — `omarchy-shell shell toggle omaseek`) |
 | `ctrl+s` (Settings), `ctrl+,` | open or close settings |
 | `tab` (Switch search / ask), `shift+tab` | switch between searching and asking without changing Vim mode |
-| `esc` | leave one step: cancel a pending/active find, normal mode from insert, the field from a list, the panel from the field |
+| `esc` | leave one step: close an open `/` prompt, drop a search and its highlight, cancel a pending/active find, drop a selection, normal mode from insert, the field from a list, the panel from the field |
 
 ## The field
 
@@ -85,7 +101,8 @@ Insert mode:
 | `ctrl+j` | a line break in a question — AI mode; the bar grows a row, up to six |
 | `ctrl+c` `ctrl+n` `ctrl+x` | AI mode: a new conversation, the next saved one, forget this one |
 | `ctrl+shift+x` | AI mode: forget every saved conversation (twice) |
-| `down` `up` | a line down or up within a question of several lines; down from the last, into the results or the transcript |
+| `down` `up` | ask: a line down or up within a question of several lines; down from the last, into the transcript |
+| `up` `down` | search: the field is one line, so they walk the queries searched before — `up` an older one, `down` back toward what you had typed, then into the results |
 | `enter` (Search / ask) | search and focus the first result when it arrives; asking leaves the field in normal mode |
 
 Normal mode uses vim editing: `h l w W b B e 0 ^ $`, `f F t T{char}`;
@@ -98,6 +115,13 @@ field or answer, lands there — and in visual mode replace the selection.
 `Shift+V` (`V`) selects whole lines in normal mode. `j`/`k` and up/down
 extend the selection; counts work (`2j`). `y` copies, `d` deletes, and `c`
 changes the selected lines. `Esc` or `V` leaves line selection.
+
+The last twenty-five queries are kept in
+`~/.local/share/omaseek/queries.json` and survive a shell restart. Searching the
+same thing again moves it to the front rather than repeating it. The walk does
+not wrap: past the oldest it stops, and coming back the other way it puts back
+the query you were halfway through typing. `j` and `k` never walk it — `j` into
+the results is how you reach them.
 
 `yy` copies the current line, `dd` deletes it and keeps the cursor column on
 the line that replaces it (clamped when shorter), and `cc` changes it; counts
@@ -122,8 +146,14 @@ relative to the current row: `2j` moves down two results, `2k` moves up two.
 | `enter` (Open) | open in the browser and dismiss |
 | `ga` (Hand off to agent) | the selected result's URL on its own, as an editable draft in the agent |
 | `gA` (Hand off everything) | every URL on the current page, one per line, as an editable draft |
-| `gi` (Back to the field) | back to the field, normal mode |
-| `/` | back to the field, normal mode |
+| `y` | copy the selected result's URL |
+| `Y` | copy its title and URL, on two lines |
+| `gc` (Ask about this) | the selected URL over in the ask bar, to type a question around — it is not sent |
+| `/` `?` | search the rows — title, snippet and domain — forwards or backwards; the matched words are marked |
+| `n` `N` | the next match and the one before; a count repeats (`3n`) |
+| `esc` after a search | drop it and its marks, staying on the results |
+| `gi` (Back to the field) | back to the field, insert mode |
+| `gn` (Back to the field (normal)) | back to the field, normal mode |
 | `i` | back to the field, insert before the cursor, as in vim |
 | `a` | back to the field, insert after the cursor, as in vim |
 | `esc` | back to the field, normal mode |
@@ -152,6 +182,7 @@ follow the layout when the panel width changes and are excluded from copied text
 | `y` in visual mode | yank the selection |
 | `yy` | yank the current displayed line; `2yy` yanks two displayed lines |
 | `p` `P` | put into the ask bar and go there: the selection in visual mode, else the clipboard (so `yiw` then `p`) |
+| `gs` (Search for this) | search the web for the selection, or the word under the cursor — a selection is already a whole query, so this one runs |
 | `gx` (Open link) | open the link under the cursor — a Markdown link, a bare URL, or a bare domain such as `rust-lang.org` — or, in visual mode, the selected URL; http and https only, a bare domain gets `https://` |
 | `enter` (Open) | open the link under the cursor or in the selection |
 | `ga` (Hand off to agent) | the selection; else the reply under the cursor and the question it answers, as the agent wrote them — an editable draft |
@@ -160,11 +191,47 @@ follow the layout when the panel width changes and are excluded from copied text
 | `ctrl+n` (Next session) | the next saved conversation, wrapping |
 | `ctrl+x` (Close session) | forget this conversation and show the one below it |
 | `ctrl+shift+x` (Delete all sessions) | forget every saved conversation, on a second press |
-| `gi` (Back to the field) | back to the field, normal mode |
-| `/` | back to the field, normal mode |
+| `/` `?` | search the transcript forwards or backwards |
+| `*` `#` | search for the word under the cursor, forwards or backwards — whole words only |
+| `n` `N` | the next match and the one before — a motion, so counts and yanks work: `3n`, `y2n` |
+| `gi` (Back to the field) | back to the field, insert mode |
+| `gn` (Back to the field (normal)) | back to the field, normal mode |
 | `i` | back to the field, insert before the cursor, as in vim |
 | `a` | back to the field, insert after the cursor, as in vim |
-| `esc` | drop the selection or active find, else back to the field |
+| `esc` | drop the selection, then the search and its highlight, then back to the field |
+
+### Searching a pane
+
+`*` searches for the word under the cursor without a prompt, and `#` searches
+back for it. On a space they take the next word on the line, as vim's do. They
+match whole words only — `*` on `rust` passes over `rusty` and `trust`, which is
+the whole difference between it and typing the word after `/`. Otherwise they
+leave exactly what an accepted prompt leaves, so the matches stay lit and `n`
+and `N` carry on from there.
+
+`/` opens a prompt on the status line and `?` searches backwards. What you type
+lands there, not in the search field — every key goes into the pattern until
+`enter` accepts it or `esc` drops it, and `backspace` past the start closes the
+prompt, as vim's does. While you type, the cursor follows the first match from
+where you were; `esc` puts it back where it started.
+
+In the answer, matches are lit the way `f` and `t` light theirs, the one under
+the cursor accented. The results have no layout to light behind, so there the
+matched words are marked in the text itself — bold, and in the accent on every
+row but the one the cursor is on, which is painted in the accent already. A lowercase pattern matches either case and one uppercase letter
+anywhere pins it — vim's smartcase. `n` and `N` walk the matches and wrap, `N`
+reversing whichever direction the search was made in.
+
+`esc` leaves a search one step at a time, the way it leaves everything else
+here: it closes an open prompt, or drops a finished search and its highlight
+**without leaving the pane** — you stay on the result or the line you had
+walked to. Only once there is no search left does another `esc` return you to
+the field. Leaving the pane by any other route forgets the search too.
+
+`/` used to mean "back to the field". It does not any more: `gi` goes back
+typing, `gn` goes back in normal mode, and `i`, `a` and `esc` still go back too.
+The settings page keeps `/` for going back, since there is nothing there to
+search.
 
 ## Settings
 

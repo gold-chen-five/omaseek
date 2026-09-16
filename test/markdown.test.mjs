@@ -68,3 +68,20 @@ test('while waiting, a placeholder reply is built exactly as a reply is', () => 
   assert.equal(placeholder, '<p><span style="color:#ccc"><span style="color:transparent;font-size:8px;">● </span>\u200b</span></p>')
   assert.equal(placeholder.replace('\u200b', 'x'), answered.slice(answered.indexOf('<p><span style="color:#ccc">')))
 })
+
+test('the reply being written takes the waiting placeholder’s place', async () => {
+  const { renderTranscript } = await import('../src/lib/markdown.mjs')
+  const turns = [{ role: 'user', text: 'why' }]
+
+  const waiting = renderTranscript(turns, { pending: true })
+  assert.match(waiting, /​/, 'nothing written yet: the placeholder holds the line')
+
+  const writing = renderTranscript(turns, { pending: true, pendingText: 'Because **it** is.' })
+  assert.doesNotMatch(writing, /​/, 'the words take its place')
+  assert.match(writing, /<b>it<\/b>/, 'a half-written reply is still Markdown')
+  // The dot's placeholder is what the view draws over, so it must survive.
+  assert.equal((writing.match(/●/g) || []).length, 1)
+
+  // Not waiting: a stream left over from an earlier turn renders nothing.
+  assert.doesNotMatch(renderTranscript(turns, { pending: false, pendingText: 'stale' }), /stale/)
+})
