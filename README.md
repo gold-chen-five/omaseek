@@ -119,6 +119,25 @@ only when it changed; the existing configuration is kept.
 Asking uses an agent CLI you already have (`claude`, `codex`, `crush`,
 `gemini`, `hermes`, …); there is no API key.
 
+## Uninstall
+
+Remove it the usual way — `omarchy plugin remove omaseek`, or **Remove
+Plugin** in the Omarchy menu. When omaseek goes, a terminal opens and asks
+whether the SearXNG Docker container and image should go too;
+`~/.config/searxng` is kept either way. Disabling the plugin or restarting the
+shell asks nothing.
+
+From a terminal, `bin/uninstall` does the same in place and also removes the
+`SUPER + D` binding the installer added:
+
+```bash
+~/.config/omarchy/plugins/omaseek/bin/uninstall
+```
+
+`--searxng` or `--keep-searxng` answers the SearXNG question in advance, and
+`--yes` skips the one about the plugin. Your omaseek settings and conversations
+are kept.
+
 ## Switch AI models
 
 Open **Ctrl+S → Ask**, choose your **Agent**, then open the **Model** dropdown

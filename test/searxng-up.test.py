@@ -60,8 +60,11 @@ class SearxngUpdateTests(unittest.TestCase):
                 cat "$state/container_image"
                 ;;
               image)
-                [[ ${1:-} == inspect ]]
-                cat "$state/local_image"
+                case ${1:-} in
+                  inspect) [[ -f $state/local_image ]] && cat "$state/local_image" ;;
+                  rm) [[ ! -f $state/image_in_use ]] || exit 46; rm -f "$state/local_image" ;;
+                  *) exit 91 ;;
+                esac
                 ;;
               pull)
                 [[ ! -f $state/fail_pull ]] || exit 42
@@ -154,6 +157,10 @@ class SearxngUpdateTests(unittest.TestCase):
         (self.state / "container_image").write_text(previous + "\n", encoding="utf-8")
         (self.state / "local_image").write_text((local or previous) + "\n", encoding="utf-8")
         (self.state / "remote_image").write_text(latest + "\n", encoding="utf-8")
+
+    def run_mode(self, mode):
+        return subprocess.run([str(SCRIPT), mode], cwd=ROOT, env=self.env, text=True,
+                              capture_output=True, check=False)
 
     def run_update(self, close_stderr=False):
         command = [str(SCRIPT), "--update"]
@@ -313,6 +320,29 @@ class SearxngUpdateTests(unittest.TestCase):
         self.assertEqual((self.state / "container_image").read_text().strip(), "sha256:old")
         self.assertTrue((self.state / "running").exists())
         self.assertIn("restored the previous image", result.stderr)
+
+    def test_purge_removes_the_container_and_its_image_but_not_the_config(self):
+        self.arrange_container("sha256:old", "sha256:old")
+        config = self.base / "config" / "searxng"
+        config.mkdir(parents=True)
+
+        result = self.run_mode("--purge")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse((self.state / "exists").exists())
+        self.assertFalse((self.state / "local_image").exists())
+        self.assertTrue(config.is_dir())
+        self.assertIn("removed the searxng/searxng:latest image", result.stdout)
+
+    def test_purge_keeps_an_image_another_container_uses(self):
+        self.arrange_container("sha256:old", "sha256:old")
+        (self.state / "image_in_use").touch()
+
+        result = self.run_mode("--purge")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse((self.state / "exists").exists())
+        self.assertIn("kept the searxng/searxng:latest image", result.stderr)
 
 
 if __name__ == "__main__":

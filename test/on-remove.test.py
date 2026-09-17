@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+"""bin/on-remove: staged out of the plugin, then asking only after a real removal.
+docker, the terminal, gum and sleep are faked, so nothing real is touched."""
+
+import os
+import pathlib
+import shutil
+import subprocess
+import tempfile
+import unittest
+
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+
+class OnRemoveTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        base = pathlib.Path(self.temporary.name)
+        self.log = base / "calls.log"
+        self.log.touch()
+        self.runtime = base / "runtime"
+        self.runtime.mkdir()
+        self.stage = self.runtime / "omaseek-removal"
+        config = base / "config"
+
+        # The installed plugin, with this checkout's scripts in it.
+        self.plugin = config / "omarchy" / "plugins" / "omaseek"
+        (self.plugin / "bin").mkdir(parents=True)
+        (self.plugin / "manifest.json").write_text("{}")
+        for name in ("on-remove", "searxng-up"):
+            shutil.copy2(ROOT / "bin" / name, self.plugin / "bin" / name)
+
+        self.fake_bin = base / "fakes"
+        self.fake_bin.mkdir()
+        log = self.log
+        self.fake("docker", f'echo "docker $*" >> {log}; [[ $1 != ps ]] || echo searxng')
+        self.fake("xdg-terminal-exec", f'echo "terminal $*" >> {log}')
+        self.fake("gum", f'echo "gum $*" >> {log}; [[ $GUM_ANSWER == y ]]')
+        self.fake("sleep", "exit 0")
+
+        self.env = dict(os.environ, XDG_RUNTIME_DIR=str(self.runtime), XDG_CONFIG_HOME=str(config),
+                        PATH=f"{self.fake_bin}:{os.environ['PATH']}", GUM_ANSWER="n")
+
+    def fake(self, name, body):
+        path = self.fake_bin / name
+        path.write_text("#!/usr/bin/env bash\n" + body)
+        path.chmod(0o755)
+
+    def run_script(self, path, flag):
+        done = subprocess.run(["bash", str(path), flag], capture_output=True, text=True,
+                              env=self.env, stdin=subprocess.DEVNULL)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        return done
+
+    def stage_and_remove(self):
+        self.run_script(self.plugin / "bin" / "on-remove", "--stage")
+        shutil.rmtree(self.plugin)              # what omarchy plugin remove does next
+
+    def calls(self):
+        return self.log.read_text()
+
+    def test_staging_copies_the_scripts_out_of_the_plugin(self):
+        self.stage_and_remove()
+        self.assertTrue((self.stage / "on-remove").is_file())
+        self.assertTrue((self.stage / "searxng-up").is_file())
+
+    def test_a_disable_or_reload_asks_nothing(self):
+        self.run_script(self.plugin / "bin" / "on-remove", "--stage")
+        self.run_script(self.stage / "on-remove", "--watch")
+        self.assertNotIn("terminal", self.calls())
+        self.assertTrue((self.stage / "on-remove").is_file(), "kept for the next unload")
+
+    def test_a_removal_opens_a_terminal_that_asks(self):
+        self.stage_and_remove()
+        self.run_script(self.stage / "on-remove", "--watch")
+        self.assertIn(f"terminal bash {self.stage / 'on-remove'} --ask", self.calls())
+
+    def test_a_removal_with_no_searxng_asks_nothing(self):
+        self.fake("docker", f'echo "docker $*" >> {self.log}; [[ $1 == info ]]')
+        self.stage_and_remove()
+        self.run_script(self.stage / "on-remove", "--watch")
+        self.assertNotIn("terminal", self.calls())
+        self.assertFalse(self.stage.exists(), "nothing left behind")
+
+    def test_uninstall_having_asked_already_is_not_asked_twice(self):
+        self.stage_and_remove()
+        (self.stage / "searxng-decided").touch()
+        self.run_script(self.stage / "on-remove", "--watch")
+        self.assertNotIn("terminal", self.calls())
+
+    def test_yes_in_the_terminal_removes_the_container_and_image(self):
+        self.env["GUM_ANSWER"] = "y"
+        self.stage_and_remove()
+        self.run_script(self.stage / "on-remove", "--ask")
+        self.assertIn("docker rm -f searxng", self.calls())
+        self.assertIn("docker image rm searxng/searxng:latest", self.calls())
+        self.assertFalse(self.stage.exists())
+
+    def test_no_in_the_terminal_keeps_searxng(self):
+        self.stage_and_remove()
+        done = self.run_script(self.stage / "on-remove", "--ask")
+        self.assertNotIn("docker rm", self.calls())
+        self.assertIn("kept", done.stdout)
+
+
+if __name__ == "__main__":
+    unittest.main()

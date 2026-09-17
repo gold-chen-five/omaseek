@@ -5,6 +5,8 @@
 #   ./bin/searxng-up --stop   stop it, keeping the container
 #   ./bin/searxng-up --down   stop and remove the container (config is kept)
 #   ./bin/searxng-up --update pull the latest image, replacing only an older container
+#   ./bin/searxng-up --purge  remove the container and its image (config is kept)
+#   ./bin/searxng-up --present exit 0 when there may be a container or image to remove
 #
 # Asks for sudo only for docker calls, and only outside the docker group.
 
@@ -22,11 +24,21 @@ warn() { printf '\033[33m warn:\033[0m %s\n' "$*" >&2 || true; }
 die()  { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 
 MODE=${1:-start}
-(( $# <= 1 )) || die "usage: $0 [--stop|--down|--update]"
+(( $# <= 1 )) || die "usage: $0 [--stop|--down|--update|--purge|--present]"
 case "$MODE" in
-  start|--stop|--down|--update) ;;
-  *) die "usage: $0 [--stop|--down|--update]" ;;
+  start|--stop|--down|--update|--purge|--present) ;;
+  *) die "usage: $0 [--stop|--down|--update|--purge|--present]" ;;
 esac
+
+# Whether removing omaseek should ask about SearXNG. Answered without sudo and
+# without starting the daemon, so it runs unattended; when docker cannot be
+# asked, the container may well exist, so the question is still worth putting.
+if [[ $MODE == --present ]]; then
+  command -v docker >/dev/null || exit 1
+  docker info >/dev/null 2>&1 || exit 0
+  docker container inspect "$NAME" >/dev/null 2>&1 || docker image inspect "$IMAGE" >/dev/null 2>&1
+  exit
+fi
 
 command -v docker >/dev/null || die "docker is not installed — sudo pacman -S docker"
 
@@ -177,6 +189,26 @@ if [[ $MODE == --down ]]; then
   exists || { say "no $NAME container to remove"; exit 0; }
   "${docker[@]}" rm -f "$NAME" >/dev/null
   say "removed the $NAME container — $CONFIG_DIR was left alone"
+  exit 0
+fi
+
+# What bin/uninstall runs when asked to take SearXNG too. The image goes only
+# when nothing else still uses it, which Docker itself refuses on our behalf.
+if [[ $MODE == --purge ]]; then
+  if exists; then
+    "${docker[@]}" rm -f "$NAME" >/dev/null
+    say "removed the $NAME container"
+  else
+    say "no $NAME container to remove"
+  fi
+  if "${docker[@]}" image inspect "$IMAGE" >/dev/null 2>&1; then
+    if "${docker[@]}" image rm "$IMAGE" >/dev/null; then
+      say "removed the $IMAGE image"
+    else
+      warn "kept the $IMAGE image — another container still uses it"
+    fi
+  fi
+  say "$CONFIG_DIR was left alone — delete it yourself if you no longer want it"
   exit 0
 fi
 

@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# Remove omaseek, and ask whether its SearXNG Docker instance goes too.
+# `omarchy plugin remove omaseek` asks as well, in a terminal of its own
+# (bin/on-remove); this is the way for a terminal already open, or a script.
+#
+#   ./bin/uninstall                  ask, then remove the plugin and its keybind
+#   ./bin/uninstall --searxng        also remove the SearXNG container and image
+#   ./bin/uninstall --keep-searxng   leave SearXNG alone without asking
+#   ./bin/uninstall --yes            do not ask about the plugin itself
+#
+# ~/.config/searxng, ~/.config/omaseek and saved conversations are kept.
+
+set -euo pipefail
+
+REPO=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+PLUGIN_ID=omaseek
+BINDINGS="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/bindings.lua"
+BIND_LINE="o.bind(\"SUPER + D\", \"Search\", \"omarchy-shell shell toggle $PLUGIN_ID\")"
+SEARXNG_NAME=searxng
+SEARXNG_IMAGE=searxng/searxng:latest
+# bin/on-remove reads this: the question was put here, so it is not put twice.
+DECIDED="${XDG_RUNTIME_DIR:-/tmp}/omaseek-removal/searxng-decided"
+
+searxng=ask
+assume_yes=0
+for arg in "$@"; do
+  case "$arg" in
+    --searxng) searxng=remove ;;
+    --keep-searxng) searxng=keep ;;
+    -y|--yes) assume_yes=1 ;;
+    -h|--help) awk 'NR > 1 { if ($0 !~ /^#/) exit; sub(/^# ?/, ""); print }' "$0"; exit 0 ;;
+    *) echo "unknown option: $arg" >&2; exit 1 ;;
+  esac
+done
+
+say () { printf '  %s\n' "$1"; }
+
+interactive () { [[ -t 0 && -t 1 ]]; }
+
+confirm () {
+  if command -v gum >/dev/null; then
+    gum confirm "$1"
+  else
+    local reply
+    read -r -p "$1 [y/N] " reply
+    [[ $reply == [yY]* ]]
+  fi
+}
+
+searxng_present () { "$REPO/bin/searxng-up" --present; }
+
+echo "omaseek"
+
+if (( ! assume_yes )); then
+  interactive || { echo "  refusing to continue without a terminal; pass --yes" >&2; exit 1; }
+  confirm "Remove the omaseek plugin?" || { say "cancelled — nothing removed"; exit 0; }
+fi
+
+if [[ $searxng == ask ]]; then
+  if ! searxng_present; then
+    searxng=keep
+  elif interactive && confirm "Also remove the SearXNG Docker container and image? (~/.config/searxng is kept)"; then
+    searxng=remove
+  else
+    searxng=keep
+  fi
+fi
+
+# Before the plugin goes, while bin/searxng-up is still here to run.
+if [[ $searxng == remove ]]; then
+  "$REPO/bin/searxng-up" --purge
+elif searxng_present; then
+  say "SearXNG left in place — to remove it later:"
+  say "    docker rm -f $SEARXNG_NAME && docker image rm $SEARXNG_IMAGE"
+fi
+
+# Only the exact lines bin/install appends; a binding written by hand stays.
+if [[ -f $BINDINGS ]] && grep -qxF "$BIND_LINE" "$BINDINGS"; then
+  cp "$BINDINGS" "$BINDINGS.omaseek-backup"
+  awk -v line="$BIND_LINE" '$0 != line && $0 != "-- omaseek"' "$BINDINGS.omaseek-backup" >"$BINDINGS"
+  say "removed the SUPER + D keybind (backup: $BINDINGS.omaseek-backup)"
+  hyprctl reload >/dev/null 2>&1 || say "run: hyprctl reload"
+fi
+
+# Omarchy disables it, takes it off the bar, and backs the folder up.
+mkdir -p "$(dirname -- "$DECIDED")"
+touch "$DECIDED"
+omarchy plugin remove "$PLUGIN_ID" --yes || { rm -f "$DECIDED"; exit 1; }

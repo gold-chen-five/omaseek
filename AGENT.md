@@ -123,6 +123,19 @@ container, does not restart an already-current image, preserves a stopped state,
 and restores the previous image when a replacement fails its JSON readiness
 probe. The config mount under `~/.config/searxng/` is never replaced.
 
+**Removal asks about SearXNG** although Omarchy runs nothing from a plugin it
+removes (no hook, no manifest field — its README says so). What it does do is
+disable the plugin first, which destroys the panel, and delete or move the
+folder a moment later. So `Engine` stages `bin/on-remove` and `bin/searxng-up`
+into `$XDG_RUNTIME_DIR/omaseek-removal/` on load, and runs that copy on
+`Component.onDestruction`: if the manifest is gone within five seconds, it
+opens a terminal and asks; a disable, a restart or a hot reload leaves the
+manifest and asks nothing. Measured with a throwaway plugin on 2026-09-17: the
+panel is destroyed with the manifest present, and it is gone a second later.
+`bin/uninstall` asks in its own terminal and touches `searxng-decided` there,
+so the question is not put twice. A plugin already disabled when it is removed
+is never unloaded, so that removal cannot ask.
+
 **Speed**: one request per page is the budget. `emit_page` fills the buffer to
 exactly the page — an earlier lookahead row cost a whole extra request whenever
 a SearXNG page came back exactly `PAGE_SIZE` long, doubling latency on a

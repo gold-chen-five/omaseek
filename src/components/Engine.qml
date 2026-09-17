@@ -18,6 +18,16 @@ Item {
 
   signal launching()                           // a terminal is about to take the screen
 
+  // Omarchy runs nothing from a plugin it removes, so being unloaded is the only
+  // notice there is. bin/on-remove says why the copy, and how a disable or a
+  // restart is told apart from a removal.
+  Component.onCompleted: Quickshell.execDetached([
+    Qt.resolvedUrl("../../bin/on-remove").toString().replace(/^file:\/\//, ""), "--stage"
+  ])
+  Component.onDestruction: Quickshell.execDetached([
+    "bash", "-c", 'exec bash "${XDG_RUNTIME_DIR:-/tmp}/omaseek-removal/on-remove" --watch'
+  ])
+
   // /healthz touches no upstream engine, so this is cheap to ask.
   function probe () {
     state = "unknown"

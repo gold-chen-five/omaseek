@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# Ask about SearXNG when Omarchy removes omaseek.
+#
+# Omarchy runs nothing from a plugin it removes, but it does unload the plugin
+# first, and the panel sees that. The folder is gone moments later, so this
+# script and bin/searxng-up are copied out of it while the panel loads, and the
+# copy is what the panel starts as it is destroyed. A disable, a shell restart
+# and a hot reload destroy the panel too; the folder surviving tells them apart.
+# Measured: `omarchy plugin remove` destroys the panel with the manifest still
+# there, and it is gone a second later.
+#
+#   bin/on-remove --stage   copy this and searxng-up out of the plugin folder
+#   on-remove --watch       (the copy) if the plugin goes, ask in a terminal
+#   on-remove --ask         (the copy, in that terminal) the question itself
+
+set -uo pipefail
+
+PLUGIN_ID=omaseek
+STAGE="${XDG_RUNTIME_DIR:-/tmp}/omaseek-removal"
+MANIFEST="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins/$PLUGIN_ID/manifest.json"
+DECIDED="$STAGE/searxng-decided"     # bin/uninstall already asked
+HERE=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+
+case "${1:-}" in
+  --stage)
+    mkdir -p "$STAGE"
+    cp -f "$HERE/on-remove" "$HERE/searxng-up" "$STAGE/"
+    ;;
+
+  --watch)
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+      [[ -e $MANIFEST ]] || break
+      sleep 0.5
+    done
+    [[ -e $MANIFEST ]] && exit 0                 # disabled or reloaded, not removed
+
+    # Only a fresh answer counts, so a failed bin/uninstall cannot silence a later removal.
+    if [[ -n $(find "$DECIDED" -mmin -2 2>/dev/null) ]]; then
+      rm -rf "$STAGE"
+      exit 0
+    fi
+    if ! "$STAGE/searxng-up" --present; then
+      rm -rf "$STAGE"
+      exit 0
+    fi
+    exec xdg-terminal-exec bash "$STAGE/on-remove" --ask
+    ;;
+
+  --ask)
+    printf '\033[1m==>\033[0m omaseek was removed. Its SearXNG Docker container is still there.\n\n'
+    if gum confirm "Remove the SearXNG container and image too? (~/.config/searxng is kept)"; then
+      bash "$STAGE/searxng-up" --purge
+    else
+      echo "  kept — to remove it later: docker rm -f searxng && docker image rm searxng/searxng:latest"
+    fi
+    rm -rf "$STAGE"
+    echo
+    read -n1 -r -p 'press any key to close' || true
+    ;;
+
+  *)
+    echo "usage: $0 --stage | --watch | --ask" >&2
+    exit 1
+    ;;
+esac
