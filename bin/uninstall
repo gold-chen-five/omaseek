@@ -19,7 +19,7 @@ BIND_LINE="o.bind(\"SUPER + D\", \"Search\", \"omarchy-shell shell toggle $PLUGI
 SEARXNG_NAME=searxng
 SEARXNG_IMAGE=searxng/searxng:latest
 # bin/on-remove reads this: the question was put here, so it is not put twice.
-DECIDED="${XDG_RUNTIME_DIR:-/tmp}/omaseek-removal/searxng-decided"
+DECIDED="${XDG_RUNTIME_DIR:-}/omaseek-removal/searxng-decided"
 
 searxng=ask
 assume_yes=0
@@ -82,7 +82,9 @@ if [[ -f $BINDINGS ]] && grep -qxF "$BIND_LINE" "$BINDINGS"; then
   hyprctl reload >/dev/null 2>&1 || say "run: hyprctl reload"
 fi
 
-# Omarchy disables it, takes it off the bar, and backs the folder up.
-mkdir -p "$(dirname -- "$DECIDED")"
-touch "$DECIDED"
+# Omarchy disables it, takes it off the bar, and deletes the clone.
+if [[ -n ${XDG_RUNTIME_DIR:-} ]]; then
+  mkdir -p "$(dirname -- "$DECIDED")"
+  touch "$DECIDED"
+fi
 omarchy plugin remove "$PLUGIN_ID" --yes || { rm -f "$DECIDED"; exit 1; }

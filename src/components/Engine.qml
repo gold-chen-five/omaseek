@@ -25,7 +25,7 @@ Item {
     Qt.resolvedUrl("../../bin/on-remove").toString().replace(/^file:\/\//, ""), "--stage"
   ])
   Component.onDestruction: Quickshell.execDetached([
-    "bash", "-c", 'exec bash "${XDG_RUNTIME_DIR:-/tmp}/omaseek-removal/on-remove" --watch'
+    "bash", "-c", '[ -n "$XDG_RUNTIME_DIR" ] && exec bash "$XDG_RUNTIME_DIR/omaseek-removal/on-remove" --watch'
   ])
 
   // /healthz touches no upstream engine, so this is cheap to ask.

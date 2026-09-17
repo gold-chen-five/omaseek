@@ -65,78 +65,119 @@ writes `~/.config/omaseek/config.json`.
 
 ## Install
 
-```bash
-git clone git@github.com:gold-chen-five/omaseek.git ~/.config/omarchy/plugins/omaseek
-~/.config/omarchy/plugins/omaseek/bin/install
-```
-
-Already cloned — to upgrade, or to redo an install — pull and run the installer
-again instead; cloning a second time fails because the folder exists. It
-restarts `omarchy-shell`, because a panel that is already loaded keeps its old
-code until then:
+omaseek is an Omarchy 4 plugin. It is not listed in the Omarchy plugin
+marketplace yet, so add it from its repository with Omarchy's own plugin
+command:
 
 ```bash
-git -C ~/.config/omarchy/plugins/omaseek pull
-~/.config/omarchy/plugins/omaseek/bin/install
+omarchy plugin add https://github.com/gold-chen-five/omaseek.git --enable
 ```
 
-The checkout *is* the installed plugin — that is where Omarchy looks, and the
-shape [its plugin docs](https://plugins.omarchy.org/develop.html) describe.
+Omarchy clones it into `~/.config/omarchy/plugins/omaseek`, validates the
+manifest, enables it, and asks which bar section gets the search icon (center
+by default). Review the code before enabling it: like every Omarchy plugin,
+omaseek runs unsandboxed inside `omarchy-shell`.
 
-Omarchy then enables a plugin by recording its id and nothing else: it never
-runs a script from a plugin and never edits your Hyprland or menu config, so
-the keybind cannot come with the download. `./bin/install` is the opt-in way
-to add it — it enables the plugin, binds `SUPER + D`, and adds a small search
-icon to the middle of the bar. It is safe to re-run and leaves
-`SUPER + D` alone if you have already bound it to something else. On an
-upgrade, it removes only the menu row written by the previous installer.
-`--no-bind` skips the keybind.
+### Keybind
 
-It also moves the clone's `.git` directory to `~/.local/share/omaseek.git`,
-leaving the one-line pointer file git follows. Omarchy watches the plugins
-directory recursively, so with `.git` inside it every commit — and every
-`git status` an editor runs — reloaded the plugin and wiped the open panel.
-Git and editors are unaffected.
-
-By hand instead:
-
-```bash
-omarchy-shell shell rescanPlugins
-omarchy bar put omaseek --section center --index 0
-```
-
-then in `~/.config/hypr/bindings.lua`, followed by `hyprctl reload`:
+A plugin cannot bind keys, since Omarchy never edits your Hyprland config for
+one. Add this line to `~/.config/hypr/bindings.lua`, then run `hyprctl reload`:
 
 ```lua
 o.bind("SUPER + D", "Search", "omarchy-shell shell toggle omaseek")
 ```
 
-Searching needs a SearXNG instance you run yourself — `./bin/searxng-up`
-creates one on port 8888, and the panel offers to start it when it is down.
-**Ctrl+S → Search → Update SearXNG** shows the version that is running and
-whether a newer image exists, pulls the latest image and replaces the container
-only when it changed; the existing configuration is kept.
+Or let the plugin's helper add it. It appends that line with a backup, and
+leaves `SUPER + D` alone if you have already bound it to something else:
+
+```bash
+~/.config/omarchy/plugins/omaseek/bin/install
+```
+
+Without a keybind, the bar icon opens the panel.
+
+### SearXNG
+
+Searching needs a SearXNG instance you run yourself. The first time you search,
+the panel offers to create one, or you can run:
+
+```bash
+~/.config/omarchy/plugins/omaseek/bin/searxng-up
+```
+
+It runs the `searxng/searxng` Docker image as a container named `searxng`,
+listening on `127.0.0.1:8888` only, and writes `~/.config/searxng/settings.yml`
+with the JSON API on. **Ctrl+S → Search → Update SearXNG** shows the running
+version, pulls a newer image and replaces the container only when it changed.
+The configuration is kept.
+
 Asking uses an agent CLI you already have (`claude`, `codex`, `crush`,
-`gemini`, `hermes`, …); there is no API key.
+`opencode`, `gemini`, `hermes`, `copilot`, `cursor-agent`); there is no API key.
+
+## Update
+
+```bash
+omarchy plugin update omaseek
+omarchy-restart-shell
+```
+
+The panel stays loaded between summons, so it keeps the old code until the
+shell restarts.
 
 ## Uninstall
 
-Remove it the usual way — `omarchy plugin remove omaseek`, or **Remove
-Plugin** in the Omarchy menu. When omaseek goes, a terminal opens and asks
-whether the SearXNG Docker container and image should go too;
-`~/.config/searxng` is kept either way. Disabling the plugin or restarting the
-shell asks nothing.
-
-From a terminal, `bin/uninstall` does the same in place and also removes the
-`SUPER + D` binding the installer added:
-
 ```bash
-~/.config/omarchy/plugins/omaseek/bin/uninstall
+omarchy plugin remove omaseek
 ```
 
-`--searxng` or `--keep-searxng` answers the SearXNG question in advance, and
-`--yes` skips the one about the plugin. Your omaseek settings and conversations
-are kept.
+**Remove Plugin** in the Omarchy menu does the same. As omaseek is removed, a
+terminal opens and asks whether the SearXNG Docker container and image should
+go too; `~/.config/searxng` is kept either way. Disabling the plugin or
+restarting the shell asks nothing, and a plugin that was already disabled
+before removal cannot ask, because it is no longer loaded.
+
+`bin/uninstall` does the same from a terminal you already have open, and also
+removes the `SUPER + D` line `bin/install` added. `--searxng` or
+`--keep-searxng` answers the SearXNG question in advance, and `--yes` skips the
+one about the plugin.
+
+Left behind for you to delete: `~/.config/omaseek` (settings),
+`~/.local/share/omaseek` (queries and conversations), `~/.cache/omaseek`, and
+`~/.config/searxng`.
+
+## Dependencies and privileges
+
+| needs | for |
+|---|---|
+| Omarchy 4 (`omarchy-shell`, `gum`, `xdg-terminal-exec`) | the panel, and terminals for setup and removal |
+| `python3` (standard library only) | `bin/search` and `bin/ask` |
+| Docker | the SearXNG container (the image is pulled from Docker Hub) |
+| an agent CLI, optional | asking; the agent's own sign-in and provider |
+| `tmux` or `herdr`, optional | hand-offs to a tmux window or a herdr tab instead of a terminal |
+| `jq` | `bin/install` |
+
+What it does outside the panel:
+
+- **sudo**: `bin/searxng-up` alone uses it, always in a visible terminal. It
+  runs `sudo systemctl enable --now docker` when the Docker daemon is not running,
+  and `sudo docker …` when you are not in the `docker` group. Nothing else asks
+  for privileges.
+- **Network**: searches go to your SearXNG, which queries the engines you
+  enable (Google CSE, Bing and Brave by default). Result icons come from
+  DuckDuckGo's favicon service (`external-content.duckduckgo.com/ip3/`), which
+  is sent each result's bare domain and never your query. Settings asks Docker Hub for
+  the SearXNG image's tags to say whether an update exists. Questions go to
+  whichever agent CLI you use, and on to its provider. There is no telemetry.
+- **Files**: settings in `~/.config/omaseek/config.json`, history in
+  `~/.local/share/omaseek/`, the page cache in `~/.cache/omaseek/`, SearXNG's
+  config in `~/.config/searxng/`, and a copy of the removal scripts in
+  `$XDG_RUNTIME_DIR/omaseek-removal/`. Your Hyprland config is edited only by
+  `bin/install` and `bin/uninstall`, when you run them, with a backup.
+- **Agent hand-offs** (`ga`, `gA`, sign-in) open the agent's interactive CLI
+  with the same auto-approve flags `omarchy-agent` uses (`claude --permission-mode
+  auto`, `codex --approve-for-me`, `gemini --yolo`, …). The prompt is pasted as
+  an editable draft and never submitted for you. Links open only for `http` and
+  `https`.
 
 ## Switch AI models
 

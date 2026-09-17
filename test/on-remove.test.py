@@ -90,6 +90,12 @@ class OnRemoveTests(unittest.TestCase):
         self.run_script(self.stage / "on-remove", "--watch")
         self.assertNotIn("terminal", self.calls())
 
+    def test_without_a_runtime_dir_nothing_is_staged_in_shared_tmp(self):
+        del self.env["XDG_RUNTIME_DIR"]
+        self.run_script(self.plugin / "bin" / "on-remove", "--stage")
+        self.assertFalse(pathlib.Path("/tmp/omaseek-removal").exists())
+        self.assertFalse(self.stage.exists())
+
     def test_yes_in_the_terminal_removes_the_container_and_image(self):
         self.env["GUM_ANSWER"] = "y"
         self.stage_and_remove()

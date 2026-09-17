@@ -63,17 +63,9 @@ class InstallTests(unittest.TestCase):
     def calls(self):
         return self.log.read_text()
 
-    def test_a_clone_in_place_has_its_repository_moved_out_of_the_watched_directory(self):
-        out = self.install()
-        git_file = self.plugin / ".git"
-        self.assertTrue(git_file.is_file(), "a pointer file, not a directory Omarchy watches")
-        self.assertEqual(git_file.read_text().strip(), f"gitdir: {self.data / 'omaseek.git'}")
-        self.assertIn("moved the git repository", out)
-        head = subprocess.run(["git", "-C", str(self.plugin), "rev-parse", "HEAD"],
-                              capture_output=True, text=True)
-        origin = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"], capture_output=True, text=True)
-        self.assertEqual(head.returncode, 0, "git still follows the pointer: " + head.stderr)
-        self.assertEqual(head.stdout, origin.stdout, "the history came along")
+    def test_a_clone_in_place_keeps_its_git_directory_for_omarchy_plugin_update(self):
+        self.install()
+        self.assertTrue((self.plugin / ".git").is_dir(), "omarchy plugin update needs a .git directory")
         self.assertNotIn("omarchy-restart-shell", self.calls(), "a first install has nothing old to replace")
         self.assertIn("toggle omaseek", (self.config / "hypr" / "bindings.lua").read_text())
 
@@ -82,15 +74,7 @@ class InstallTests(unittest.TestCase):
         out = self.install()
         self.assertIn("omarchy-restart-shell", self.calls())
         self.assertIn("restarted omarchy-shell", out)
-        self.assertNotIn("moved the git repository", out, "already moved")
         self.assertIn("keybind already there", out)
-
-    def test_an_existing_repository_elsewhere_is_never_overwritten(self):
-        (self.data / "omaseek.git").mkdir(parents=True)
-        out = self.install()
-        self.assertTrue((self.plugin / ".git").is_dir(), "left alone")
-        self.assertIn("already exists", out)
-
 
 if __name__ == "__main__":
     unittest.main()

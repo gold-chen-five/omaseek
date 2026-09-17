@@ -16,7 +16,10 @@
 set -uo pipefail
 
 PLUGIN_ID=omaseek
-STAGE="${XDG_RUNTIME_DIR:-/tmp}/omaseek-removal"
+# Owner-only by design: a shared /tmp copy could be swapped for another script
+# before the panel runs it. With no runtime dir there is no question to ask.
+[[ -n ${XDG_RUNTIME_DIR:-} && -d $XDG_RUNTIME_DIR ]] || exit 0
+STAGE="$XDG_RUNTIME_DIR/omaseek-removal"
 MANIFEST="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins/$PLUGIN_ID/manifest.json"
 DECIDED="$STAGE/searxng-decided"     # bin/uninstall already asked
 HERE=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)

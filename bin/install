@@ -17,7 +17,6 @@ PLUGINS_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins"
 BINDINGS="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/bindings.lua"
 SHELL_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/shell.json"
 MENU_EXT="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/extensions/omarchy-menu.jsonc"
-GIT_DIR_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/$PLUGIN_ID.git"
 
 BIND_KEY="SUPER + D"
 BIND_LINE="o.bind(\"$BIND_KEY\", \"Search\", \"omarchy-shell shell toggle $PLUGIN_ID\")"
@@ -58,22 +57,6 @@ if on_bar || in_plugin_list; then was_loaded=1; fi
 
 mkdir -p "$PLUGINS_DIR"
 link="$PLUGINS_DIR/$PLUGIN_ID"
-
-# A clone made in place has its .git directory inside the plugins directory,
-# which Omarchy watches recursively with nothing excluded: every commit, and
-# every `git status` an editor runs, rewrites .git/index and reloads the
-# plugin, wiping the open panel. Move the repository out and leave the
-# one-line pointer file git follows.
-if [[ $REPO == "$link" && -d $REPO/.git ]]; then
-  if [[ -e $GIT_DIR_HOME ]]; then
-    echo "  $REPO/.git is a directory, and $GIT_DIR_HOME already exists — left alone." >&2
-    echo "  Move one of them aside, then re-run this script." >&2
-  else
-    mkdir -p "$(dirname -- "$GIT_DIR_HOME")"
-    git -C "$REPO" init --quiet --separate-git-dir="$GIT_DIR_HOME"
-    say "moved the git repository to $GIT_DIR_HOME, out of the watched plugins directory"
-  fi
-fi
 
 if [[ $REPO == "$link" ]]; then
   say "already in place: $REPO"

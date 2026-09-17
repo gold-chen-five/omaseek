@@ -401,19 +401,19 @@ layer-shell and open/close/dismiss/toggle contract mirrors
   in a user-owned copy under that directory, and `omarchy-plugin-validate`
   skips `.git` precisely because installed plugins are git checkouts. Edits are
   therefore live; there is nothing to copy or link.
-  - **The git directory lives outside the plugin folder**: `.git` here is a
-    one-line file pointing at `~/.local/share/omaseek.git`
-    (`git init --separate-git-dir`). Omarchy watches the plugins directory
-    with `inotifywait -r` and *nothing excluded*, so with `.git` inside, every
-    commit — and every `git status` an editor plugin runs — rewrote
-    `.git/index` and reloaded the plugin, wiping the panel mid-conversation.
-    That was the "k stops working after a while" bug. Editors and git are
-    unaffected; they follow the pointer. A fresh clone will have a real
-    `.git` directory: run the same `git init --separate-git-dir=…` once.
-  - A side effect worth having: with no `.git` *directory* present,
-    `omarchy-plugin-remove` takes its backed-up-folder branch instead of
-    `rm -rf`, and `omarchy-plugin-update` does not try to fast-forward the
-    working tree. Still, never suggest `omarchy plugin remove` here.
+  - **Users install with `omarchy plugin add <url> --enable`**, which clones
+    into that directory with a real `.git`; `omarchy plugin update` and
+    `remove` both depend on it (update skips a plugin without a `.git`
+    directory). `omarchy plugin validate` must pass on a clean clone: it
+    refuses any symlink in the folder, which is why `CLAUDE.md` is a one-line
+    `@AGENT.md` import rather than a link.
+  - **This dev checkout's `.git` is a pointer** to `~/.local/share/omaseek.git`
+    (`git init --separate-git-dir`), from when Omarchy's watcher excluded
+    nothing and every `git status` reloaded the panel ("k stops working after a
+    while"). The watcher now skips `.git` paths (`PluginRegistry.qml`,
+    `localPluginIdForPath`), so a fresh clone needs no such move, and
+    `bin/install` no longer makes it. Never run `omarchy plugin remove` or
+    `bin/uninstall` here: this checkout is the source.
 - Commit subjects are lowercase-ish prose in the imperative describing the
   behaviour change, not the files ("Page results with h and l instead of
   scrolling"). Bodies explain *why*, and record runtime traps found along the way.
