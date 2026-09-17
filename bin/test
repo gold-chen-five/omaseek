@@ -10,4 +10,5 @@ python3 test/agent-draft.test.py
 python3 test/searxng-up.test.py
 python3 test/search.test.py
 python3 test/install.test.py
+python3 test/ask.test.py
 exec node --test test/*.test.mjs

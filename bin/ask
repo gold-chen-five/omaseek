@@ -79,6 +79,22 @@ AGENTS = [
         "login": ["codex", "login"],
     },
     {
+        "id": "crush", "name": "Crush",
+        # `run` answers once and exits, never prompting; -q hides its spinner.
+        # No "stream": it prints the reply whole when it is done.
+        "chat": ["crush", "run", "-q"],
+        # As omarchy-agent spells it: --yolo belongs to the interactive command.
+        "launch": ["crush", "--yolo"],
+        # Only `crush run` takes --model; the interactive command refuses it, so
+        # a hand-off opens on Crush's own selected model.
+        "launch_model": False,
+        # `crush login` alone signs in to Charm Hyper, whatever provider is in
+        # use; the TUI walks through choosing one instead, as gemini's does.
+        "login": ["crush"],
+        # Its errors are boxed and wrapped over several lines.
+        "wrapped_errors": True,
+    },
+    {
         "id": "opencode", "name": "OpenCode",
         "chat": ["opencode", "run"],
         "launch": ["opencode", "--auto", "--prompt"],
@@ -120,6 +136,9 @@ MODEL_COMMANDS = {
     "opencode": ["opencode", "models"],
     "cursor-agent": ["cursor-agent", "models"],
     "copilot": ["copilot", "help", "config"],
+    # Every model of every provider Crush knows — 1,600-odd — so the rows are
+    # kept to the providers configured in its crush.json (crush_providers).
+    "crush": ["crush", "models"],
 }
 MODEL_CACHE_AGENTS = ("codex",)
 
@@ -290,10 +309,32 @@ def chosen_model(payload, config, agent):
     return "" if re.search(r"[\x00-\x1f\x7f]", value) else value
 
 
-def parse_model_list(agent_id, text):
+def crush_providers():
+    """The providers Crush has set up, by name, from its crush.json files: the
+    data one its own sign-in writes, and the hand-written config one. Only the
+    keys are read — the values hold tokens."""
+    data = os.environ.get("XDG_DATA_HOME") or os.path.join(os.environ["HOME"], ".local", "share")
+    config = os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.environ["HOME"], ".config")
+    names = []
+    for path in (os.path.join(data, "crush", "crush.json"), os.path.join(config, "crush", "crush.json")):
+        try:
+            with open(path, encoding="utf-8") as handle:
+                providers = json.load(handle).get("providers")
+        except (OSError, ValueError, AttributeError):
+            continue
+        if isinstance(providers, dict):
+            names.extend(name for name in providers if name not in names)
+    return names
+
+
+def parse_model_list(agent_id, text, providers=None):
     """Read only model rows, never banners, help prose or log lines."""
     text = ANSI.sub("", text)
-    if agent_id == "copilot":
+    if agent_id == "crush":
+        rows = re.findall(r"^([\w.-]+)/(\S+)$", text, re.M)
+        allowed = set(providers or [])
+        candidates = [f"{provider}/{model}" for provider, model in rows if provider in allowed]
+    elif agent_id == "copilot":
         section = re.search(r"(?ms)^  `model`:.*?(?=^  `|\Z)", text)
         candidates = re.findall(r'^\s+- "([^"\s]+)"\s*$', section[0] if section else "", re.M)
     elif agent_id == "opencode":
@@ -327,9 +368,12 @@ def list_models(agent):
                               capture_output=True, text=True, timeout=15)
     except (OSError, subprocess.SubprocessError):
         return {"ok": False, "agent": agent_id, "models": [], "message": "model lookup unavailable"}
-    models = parse_model_list(agent_id, done.stdout) if done.returncode == 0 else []
-    return {"ok": done.returncode == 0, "agent": agent_id, "models": models,
-            "message": "" if models else "model lookup unavailable; using default"}
+    providers = crush_providers() if agent_id == "crush" else None
+    models = parse_model_list(agent_id, done.stdout, providers) if done.returncode == 0 else []
+    message = "" if models else "model lookup unavailable; using default"
+    if agent_id == "crush" and not providers:
+        message = "set up a provider in Crush first; using its default"
+    return {"ok": done.returncode == 0, "agent": agent_id, "models": models, "message": message}
 
 
 def with_model(agent, model):
@@ -344,6 +388,8 @@ def with_model(agent, model):
     selected = dict(agent)
     for kind in ("chat", "stream", "launch"):
         if kind not in agent:
+            continue
+        if kind == "launch" and agent.get("launch_model") is False:
             continue
         command = list(agent[kind])
         at = 2 if command[1] in ("exec", "run", "chat") else 1
@@ -383,6 +429,11 @@ def chat_outcome(agent, returncode, out, err, text):
     """
     if returncode != 0:
         said = diagnosis(out, err)
+        if agent.get("wrapped_errors"):
+            # One complaint wrapped across lines under a bare ERROR heading:
+            # its last line alone ("has been reached.") says nothing.
+            words = " ".join(line for line in said if line.upper() != "ERROR")
+            said = [words] if words else []
         joined = "\n".join(said)
         if OUT_OF_QUOTA.search(joined):
             return {"ok": False, "error": "quota", "message": f"{agent['name']}: {said[-1]}"}

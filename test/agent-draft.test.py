@@ -192,7 +192,12 @@ class DraftTests(unittest.TestCase):
                         self.assertLess(command.index('--model'), len(command) - 2)
                 command = ASK['interactive_command'](agent, 'draft text')
                 try:
-                    self.assertEqual(command[command.index('--model') + 1], model)
+                    if original.get('launch_model') is False:
+                        # Crush: only `crush run` takes --model, so the draft
+                        # opens on the CLI's own model rather than failing.
+                        self.assertNotIn('--model', command)
+                    else:
+                        self.assertEqual(command[command.index('--model') + 1], model)
                     self.assertEqual(Path(command[1]).read_text(), 'draft text')
                     self.assertNotIn('draft text', command[3:])
                     for flag in ['--prompt', '--prompt-interactive', '--query', '--interactive']:

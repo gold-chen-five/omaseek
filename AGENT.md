@@ -164,7 +164,7 @@ engines answered in time. Rows are de-duplicated on URL *and* domain+title, in
 
 Same shape as `bin/search`: a separate stdlib-Python process, one JSON object
 out, exit 0 on handled failure. It speaks to **agent CLIs already installed**
-(`claude`, `codex`, `opencode`, `gemini`, `hermes`, `copilot`, `cursor-agent`)
+(`claude`, `codex`, `crush`, `opencode`, `gemini`, `hermes`, `copilot`, `cursor-agent`)
 through their print modes, so there is no API key and no SDK — do not add one.
 The interactive spellings for a hand-off are copied from Omarchy's
 `omarchy-agent`, but the window is a plain `xdg-terminal-exec` rather than
@@ -179,7 +179,14 @@ install, else `mise where`, else the agent's own installer `--check`) because
 Omarchy leaves a mise shim on `PATH` for every agent it knows, installed or
 not; and **a failure is diagnosed from short, non-log lines only** — Codex
 logs a 47KB model catalogue to stderr, and matching "sign in" anywhere in it
-reported a signed-in CLI as signed out. Being out of allowance
+reported a signed-in CLI as signed out. Crush has
+three quirks of its own, all in its `AGENTS` entry: only `crush run` takes
+`--model` (`launch_model: False` keeps it off the interactive `crush --yolo`);
+`crush models` lists every model of every provider it knows, ~1,600, so the list
+is cut to the providers named in its `crush.json` files (`crush_providers`,
+keys only — the values are tokens); and its errors are boxed and wrapped, so
+`wrapped_errors` joins them back into one sentence before they are classified.
+Being out of allowance
 (`error: "quota"`) is kept apart from being signed out (`error: "auth"`),
 since only the latter has a sign-in worth opening. The conversation lives in `AiSession.qml`
 and travels in the prompt (last 8 turns) because print mode remembers nothing.
