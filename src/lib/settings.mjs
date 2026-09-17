@@ -237,11 +237,27 @@ export function endpointTestText (test) {
 }
 
 /**
- * The settings page rows, in order. `engine` is the SearXNG switch: whether the
- * instance answers, not a stored setting. `test` is the last endpoint test, or
- * null before one ran.
+ * The Update row's hint: the running version, and whether it is the newest
+ * image, from `bin/search --version`. The date is the part a person compares;
+ * the commit after it is only noise here.
  */
-export function settingsRows (settings, engine = 'unknown', agents = null, catalog = null, test = null) {
+export function versionText (version) {
+  if (!version) return 'pull the latest image; restart only when it changed'
+  if (version.checking) return 'checking the running version…'
+  if (!version.ok) return 'not running — start it to see its version'
+  const running = version.version ? String(version.version).split('+')[0] : 'unknown version'
+  const latest = version.latest ? String(version.latest).split('-')[0] : ''
+  if (version.current === true) return `${running} — the latest`
+  if (version.current === false) return `${running} running · ${latest} available — update`
+  return `${running} running · could not check for a newer one`
+}
+
+/**
+ * The settings page rows, in order. `engine` is the SearXNG switch: whether the
+ * instance answers, not a stored setting. `test` is the last endpoint test, and
+ * `version` the last version check; null before either ran.
+ */
+export function settingsRows (settings, engine = 'unknown', agents = null, catalog = null, test = null, version = null) {
   const state = ENGINE_STATES.indexOf(engine) === -1 ? 'unknown' : engine
   const running = state === 'running'
   const { known, ids, defaultId } = agentChoices(agents)
@@ -267,7 +283,7 @@ export function settingsRows (settings, engine = 'unknown', agents = null, catal
       key: 'engineUpdate',
       type: 'action',
       label: 'Update SearXNG',
-      hint: 'pull the latest image; restart only when it changed',
+      hint: versionText(version),
       action: 'update',
       button: 'Update'
     },

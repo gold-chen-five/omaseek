@@ -2,7 +2,11 @@
 """bin/search against a fake SearXNG: pages, a page that fails and is retried,
 and what the settings page sends — engines, language — and asks of --test."""
 
+import contextlib
 import http.server
+import importlib.machinery
+import importlib.util
+import io
 import json
 import os
 import pathlib
@@ -23,8 +27,19 @@ class FakeSearxng(http.server.BaseHTTPRequestHandler):
     failing = set()
     requests = []
 
+    version = "2026.9.8+3fdc6d753"
+    tags = []
+
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
+        if parsed.path in ("/config", "/tags"):
+            body = json.dumps({"version": FakeSearxng.version} if parsed.path == "/config"
+                              else {"results": FakeSearxng.tags}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(body)
+            return
         params = dict(urllib.parse.parse_qsl(parsed.query))
         FakeSearxng.requests.append(params)
         pageno = int(params.get("pageno", "1"))
@@ -146,6 +161,72 @@ class SearchBackendTests(unittest.TestCase):
         report = self.run_search("--test")
         self.assertFalse(report["ok"])
         self.assertIn("502", report["message"])
+
+
+
+def load_search():
+    loader = importlib.machinery.SourceFileLoader("omaseek_search", str(SCRIPT))
+    spec = importlib.util.spec_from_loader("omaseek_search", loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+class VersionTests(unittest.TestCase):
+    """--version, in-process with Docker Hub's URL pointed at the fake: a test
+    must not reach the network."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.search = load_search()
+        cls.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), FakeSearxng)
+        threading.Thread(target=cls.server.serve_forever, daemon=True).start()
+        cls.base = f"http://127.0.0.1:{cls.server.server_port}"
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+
+    def report(self):
+        self.search.DOCKER_TAGS_URL = self.base + "/tags"
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.search.report_version(self.base)
+        return json.loads(out.getvalue())
+
+    def test_latest_is_the_dated_tag_sharing_its_digest(self):
+        tags = [
+            {"name": "latest", "digest": "sha256:aaa"},
+            {"name": "2026.9.16-461f174b0", "digest": "sha256:aaa"},
+            {"name": "2026.9.16-1354f3952", "digest": "sha256:bbb"},
+        ]
+        self.assertEqual(self.search.latest_tag(tags), "2026.9.16-461f174b0")
+        self.assertEqual(self.search.latest_tag(tags[2:]), "2026.9.16-1354f3952", "no latest: the newest dated tag")
+        self.assertIsNone(self.search.latest_tag([{"name": "latest"}]))
+
+    def test_current_means_the_same_commit_or_a_newer_build(self):
+        current = self.search.is_current
+        self.assertTrue(current("2026.9.16+461f174b0", "2026.9.16-461f174b0"))
+        self.assertFalse(current("2026.9.8+3fdc6d753", "2026.9.16-461f174b0"))
+        self.assertFalse(current("2026.9.16+1354f3952", "2026.9.16-461f174b0"), "same day, another commit")
+        self.assertTrue(current("2026.9.20+abcdef012", "2026.9.16-461f174b0"), "a local build ahead of the image")
+        self.assertIsNone(current("unknown", "2026.9.16-461f174b0"))
+        self.assertIsNone(current("2026.9.16+461f174b0", None))
+
+    def test_an_old_instance_is_reported_with_the_newer_version(self):
+        FakeSearxng.version = "2026.9.8+3fdc6d753"
+        FakeSearxng.tags = [{"name": "latest", "digest": "d"}, {"name": "2026.9.16-461f174b0", "digest": "d"}]
+        self.assertEqual(self.report(), {"ok": True, "version": "2026.9.8+3fdc6d753",
+                                         "latest": "2026.9.16-461f174b0", "current": False})
+
+    def test_an_unreachable_docker_hub_still_reports_the_running_version(self):
+        FakeSearxng.version = "2026.9.16+461f174b0"
+        self.search.DOCKER_TAGS_URL = "http://127.0.0.1:9/tags"
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.search.report_version(self.base)
+        self.assertEqual(json.loads(out.getvalue()),
+                         {"ok": True, "version": "2026.9.16+461f174b0", "latest": None, "current": None})
 
 
 if __name__ == "__main__":

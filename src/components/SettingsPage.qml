@@ -26,6 +26,14 @@ FocusScope {
     for (const key in chipWidths) widest = Math.max(widest, chipWidths[key])
     return widest
   }
+  // The widest action button (Update, Test), measured as laid out; every one
+  // takes it, so the buttons stack as one column rather than ragged widths.
+  property var buttonWidths: ({})
+  readonly property real buttonColumn: {
+    let widest = 0
+    for (const key in buttonWidths) widest = Math.max(widest, buttonWidths[key])
+    return widest
+  }
   property color foreground: Color.menu.text
   property color accent: Color.menu.selectedText
   property color selectedBackground: Color.menu.selectedBackground
@@ -81,6 +89,14 @@ FocusScope {
   function refuse (index, reason) {
     refusal = reason
     refusedIndex = index
+  }
+
+  function noteButton (index, width) {
+    if (buttonWidths[index] === width) return
+    const next = {}
+    for (const key in buttonWidths) next[key] = buttonWidths[key]
+    next[index] = width
+    buttonWidths = next
   }
 
   function noteChips (index, width) {
@@ -333,6 +349,11 @@ FocusScope {
                 visible: settingRow.isAction
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
+                // Its own measure is the text's; the width is the column's.
+                width: Math.max(implicitWidth, page.buttonColumn)
+                onImplicitWidthChanged: if (visible) settingRow.owner.noteButton(settingRow.index, implicitWidth)
+                onVisibleChanged: if (visible) settingRow.owner.noteButton(settingRow.index, implicitWidth)
+                Component.onCompleted: if (visible) settingRow.owner.noteButton(settingRow.index, implicitWidth)
                 text: settingRow.modelData.button || "Run"
                 bordered: true
                 hasCursor: settingRow.hasCursor

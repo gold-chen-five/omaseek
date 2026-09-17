@@ -4,7 +4,7 @@ import {
   readSettings, writeSettings, settingsRows, cycle, normalizeSequence, ENGINE_STATES,
   LAUNCHER_CHOICES, DEFAULT_AGENT,
   PAGE_SIZE_CHOICES, DEFAULTS, checkRow, FIXED_KEYS, changeSetting, selectedModel,
-  ENGINE_CHOICES, DEFAULT_ENGINES, LANGUAGE_CHOICES, toggleEngine, endpointTestText
+  ENGINE_CHOICES, DEFAULT_ENGINES, LANGUAGE_CHOICES, toggleEngine, endpointTestText, versionText
 } from '../src/lib/settings.mjs'
 import { ACTIONS, settingKey } from '../src/lib/keybinds.mjs'
 import { DEFAULT_TIMEOUT_MS } from '../src/lib/keymap.mjs'
@@ -405,4 +405,18 @@ test('the endpoint test is an action row whose hint is what the test found', () 
     'answered in 312 ms · brave 20 · bing 10 · google: Suspended: CAPTCHA')
   assert.equal(endpointTestText({ ok: false, message: 'SearXNG is not reachable' }), 'SearXNG is not reachable')
   assert.equal(endpointTestText({ ok: true, ms: 5, engines: {}, unresponsive: [] }), 'answered in 5 ms · no rows')
+})
+
+test('the update row says which version runs and whether a newer one exists', () => {
+  const hint = version => settingsRows(readSettings(''), 'running', null, null, null, version)
+    .find(r => r.key === 'engineUpdate').hint
+  assert.match(hint(null), /pull the latest image/, 'before a check it says what the button does')
+  assert.equal(hint({ checking: true }), 'checking the running version…')
+  assert.equal(hint({ ok: true, version: '2026.9.16+461f174b0', latest: '2026.9.16-461f174b0', current: true }),
+    '2026.9.16 — the latest')
+  assert.equal(hint({ ok: true, version: '2026.9.8+3fdc6d753', latest: '2026.9.16-461f174b0', current: false }),
+    '2026.9.8 running · 2026.9.16 available — update')
+  assert.equal(versionText({ ok: true, version: '2026.9.8+3fdc6d753', latest: null, current: null }),
+    '2026.9.8 running · could not check for a newer one')
+  assert.equal(versionText({ ok: false, error: 'network', setup: true }), 'not running — start it to see its version')
 })

@@ -9,6 +9,9 @@ Item {
   property string state: "unknown"
   // The last endpoint test, as bin/search --test answered it; null before one ran.
   property var test: null
+  // The running version against the newest image, as bin/search --version
+  // answered it; null before a check.
+  property var version: null
 
   readonly property string backendPath: Qt.resolvedUrl("../../bin/search").toString().replace(/^file:\/\//, "")
   readonly property string scriptPath: Qt.resolvedUrl("../../bin/searxng-up").toString().replace(/^file:\/\//, "")
@@ -19,6 +22,8 @@ Item {
   function probe () {
     state = "unknown"
     statusProcess.start([engine.backendPath, "--status"])
+    version = { checking: true }
+    versionProcess.start([engine.backendPath, "--version"])
   }
 
   // A real query with the configured engines and language. Not in a terminal:
@@ -50,6 +55,13 @@ Item {
       engine.state = payload.ok ? "running" : payload.setup === true ? "stopped" : engine.state
     }
     onUnreadable: engine.test = ({ ok: false, message: "could not read the test's output" })
+  }
+
+  JsonProcess {
+    id: versionProcess
+
+    onParsed: payload => engine.version = payload
+    onUnreadable: engine.version = ({ ok: true, version: null, latest: null, current: null })
   }
 
   JsonProcess {

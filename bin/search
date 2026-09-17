@@ -5,12 +5,15 @@
     ./bin/search --next '<the next payload>'      the following page
     ./bin/search --status                          is the instance up?
     ./bin/search --test                            one real query: time, rows per engine
+    ./bin/search --version                         the running version, and whether it is the latest
 
 Output is always one JSON object:
     {"ok": true,  "results": [...], "next": {...}|null, "backend": "searxng"}
     {"ok": false, "error": "network"|"http"|"usage", "message": "...", "setup": true}
     {"ok": true, "running": true|false, "url": "http://localhost:8888"}    (--status)
     {"ok": true, "ms": 312, "engines": {"brave": 20}, "unresponsive": [...]}  (--test)
+    {"ok": true, "version": "2026.9.16+461f174b0", "latest": "2026.9.16-461f174b0", "current": true}
+                                                                              (--version)
 
 A failed page past the first carries `retry: true`: the buffer kept its place
 and the same `--next` payload asks again, so the panel can offer a retry rather
@@ -64,6 +67,11 @@ LANGUAGE = ""           # set from searxng_language; empty sends none
 LANGUAGE_PATTERN = re.compile(r"^(auto|all|[a-z]{2,3}(-[A-Z]{2})?)$")
 # What --test asks: common enough that every engine has an answer.
 TEST_QUERY = "searxng"
+# The image bin/searxng-up --update pulls, as Docker Hub lists its tags. Sent
+# nothing but this URL: no query, no instance address.
+DOCKER_TAGS_URL = "https://hub.docker.com/v2/repositories/searxng/searxng/tags?page_size=25&ordering=last_updated"
+RUNNING_VERSION = re.compile(r"^(\d{4})\.(\d{1,2})\.(\d{1,2})\+([0-9a-f]{7,40})")
+TAG_VERSION = re.compile(r"^(\d{4})\.(\d{1,2})\.(\d{1,2})-([0-9a-f]{7,40})$")
 # Never burst: a single page turn may top the buffer up at most this many times.
 MAX_FETCHES_PER_PAGE = 3
 
@@ -208,6 +216,55 @@ def parse(payload):
             "engines": ", ".join(dict.fromkeys(engines)),
         })
     return rows
+
+
+def latest_tag(tags):
+    """Docker Hub's tag list -> the dated tag `latest` points at, or None.
+
+    `latest` names no version itself; the dated tag sharing its digest does. A
+    list without it falls back to the newest dated tag."""
+    named = [t for t in tags if isinstance(t, dict) and isinstance(t.get("name"), str)]
+    latest = next((t for t in named if t["name"] == "latest"), None)
+    dated = [t for t in named if TAG_VERSION.match(t["name"])]
+    if latest and latest.get("digest"):
+        for tag in dated:
+            if tag.get("digest") == latest["digest"]:
+                return tag["name"]
+    return dated[0]["name"] if dated else None
+
+
+def is_current(running, latest):
+    """Whether the running version is the latest image: the same commit, or a
+    newer date (a local build). None when either cannot be read."""
+    ran = RUNNING_VERSION.match(running or "")
+    tag = TAG_VERSION.match(latest or "")
+    if not ran or not tag:
+        return None
+    if tag.group(4).startswith(ran.group(4)) or ran.group(4).startswith(tag.group(4)):
+        return True
+    date = lambda m: tuple(int(m.group(i)) for i in (1, 2, 3))
+    return date(ran) > date(tag)
+
+
+def read_json(url, timeout):
+    request = urllib.request.Request(url, headers={"Accept": "application/json"})
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return json.loads(response.read().decode("utf-8", "replace"))
+
+
+def report_version(base):
+    """The running instance's version against the newest image. Either half
+    may be missing — stopped, or offline — and says so rather than failing."""
+    try:
+        version = read_json(base + "/config", 3).get("version")
+    except (urllib.error.URLError, TimeoutError, ValueError, AttributeError):
+        fail("network", f"SearXNG is not reachable at {base}", setup=True)
+    try:
+        latest = latest_tag(read_json(DOCKER_TAGS_URL, 5).get("results") or [])
+    except (urllib.error.URLError, TimeoutError, ValueError, AttributeError):
+        latest = None
+    emit({"ok": True, "version": version if isinstance(version, str) else None,
+          "latest": latest, "current": is_current(version, latest)})
 
 
 def test_endpoint(base):
@@ -358,6 +415,10 @@ def main():
 
     if argv and argv[0] == "--test":
         test_endpoint(base)
+        return
+
+    if argv and argv[0] == "--version":
+        report_version(base)
         return
 
     if argv and argv[0] == "--next":

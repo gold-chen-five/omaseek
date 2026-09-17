@@ -110,6 +110,13 @@ SearXNG's `unresponsive_engines` (Google answers `Suspended: CAPTCHA` locally).
 and changing an engine or the language clears it, since it described the old
 ones.
 
+`bin/search --version` is the Update row's hint: `/config`'s `version`
+(`2026.9.16+461f174b0`) against the dated Docker Hub tag sharing `latest`'s
+digest (`2026.9.16-461f174b0`) — `latest` names no version itself. Current means
+the same commit, or a newer date (a local build). Docker Hub is sent the tags URL
+and nothing else, and an unreachable Hub still reports the running version.
+`Engine.probe()` runs it each time Settings opens.
+
 Updates are deliberate rather than tied to opening the panel. Settings launches
 `bin/searxng-up --update` in a terminal: it pulls before touching the current
 container, does not restart an already-current image, preserves a stopped state,

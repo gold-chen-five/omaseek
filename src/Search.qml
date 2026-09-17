@@ -26,7 +26,7 @@ Item {
   property string focusArea: States.FOCUS.FIELD  // who has the keyboard
   property string setupReason: ""              // what the backend said when the instance was down
 
-  readonly property var settingsRows: SettingsLib.settingsRows(config.settings, engine.state, ai.agents, ai.models, engine.test)
+  readonly property var settingsRows: SettingsLib.settingsRows(config.settings, engine.state, ai.agents, ai.models, engine.test, engine.version)
   readonly property string chatModel: SettingsLib.selectedModel(config.settings, ai.agents, ai.models)
 
   // Every panel key, parsed, by action id; each falls back to its default.
