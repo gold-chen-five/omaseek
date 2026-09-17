@@ -252,8 +252,15 @@ dies, SIGKILL included, and a stopped answer does not keep an agent running and
 billing in the background.
 
 Handoffs open an editable draft, never an initial submitted prompt. `bin/agent-draft`
-runs the interactive CLI in a PTY, waits for bracketed-paste mode and a short startup delay
-(independent of repaints, since Codex animates continuously), then sends only a bracketed paste (no Enter). Terminal control characters
+runs the interactive CLI in a PTY, waits for bracketed-paste mode and a second, then sends only a
+bracketed paste (no Enter) — and **keeps sending it until the draft shows on screen**. Enabling
+bracketed paste is not being ready for one: OpenCode 1.18 enables it at ~0.9 s but draws its
+input box at ~3.5 s, dropping every earlier paste without a trace, which made `ga`/`gA` open
+an empty agent. No quiet period marks readiness (its logo is followed by 2.5 s of silence), so
+the paste is confirmed by its echo — the draft's first characters, or the `[Pasted …]` label
+agents show for a long one — retried every 1.5 s for up to 20 s. Retries stop the moment the
+reader types; the terminal's own answers to capability queries arrive on the same input and
+are escape sequences, so they do not count as typing (counting them cancelled every retry). Terminal control characters
 are removed from the draft. The same wrapper works in terminal, tmux and herdr;
 a private temporary prompt file is deleted when the wrapper reads it. Do not
 restore prompt arguments that auto-submit. Both reading panes hand off with the

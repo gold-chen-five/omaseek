@@ -4,6 +4,7 @@ import errno
 import fcntl
 import os
 import pty
+import re
 import select
 import signal
 import sys
@@ -18,6 +19,33 @@ def paste_bytes(text):
     clean = ''.join(c for c in text.replace('\r\n', '\n').replace('\r', '\n')
                     if c in '\n\t' or (ord(c) >= 32 and not 127 <= ord(c) <= 159))
     return b'\x1b[200~' + clean.encode('utf-8') + b'\x1b[201~'
+
+
+# Enabling bracketed paste is not being ready for one. Measured with OpenCode
+# 1.18.31: it sends ESC[?2004h at ~0.9 s, draws its logo, goes silent, and only
+# draws the input box at ~3.5 s — every paste before 3 s was dropped without a
+# trace, which is what made ga/gA open an empty agent. No quiet period marks
+# readiness (the logo is followed by 2.5 s of silence), so the paste is
+# confirmed instead: kept up until the draft shows on screen, then stopped.
+FIRST_PASTE_S = 1.0         # after bracketed paste is enabled
+RETRY_EVERY_S = 1.5
+GIVE_UP_S = 20.0
+ESCAPES = re.compile(rb'\x1b\[[0-9;?<>=!]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[P^_][^\x1b]*\x1b\\|\x1b.')
+
+
+def signature(text):
+    """What the draft looks like on screen, spacing aside: the start of its first
+    line, past a URL scheme every agent's banner might also show."""
+    first = next((line for line in text.splitlines() if line.strip()), '')
+    compact = re.sub(r'\s+', '', re.sub(r'^\s*(https?://)?(www\.)?', '', first))
+    return compact[:16].lower()
+
+
+def shows_paste(screen, sign):
+    """Whether output since the paste shows it: the draft itself, or the
+    `[Pasted …]` label agents put in place of a long one."""
+    visible = re.sub(rb'\s+', b'', ESCAPES.sub(b'', screen)).decode('utf-8', 'replace').lower()
+    return 'pasted' in visible or (bool(sign) and sign in visible)
 
 
 def write_all(fd, data):
@@ -39,10 +67,14 @@ def run(command, text):
 
     resize()
     previous = signal.signal(signal.SIGWINCH, resize)
-    pending = paste_bytes(text)
+    paste = paste_bytes(text)
+    sign = signature(text)
+    pending = True              # until the draft is seen, the reader types, or it is given up
     bracketed = False
     tail = b''
     paste_ready_at = None
+    give_up_at = None
+    since_paste = None          # output after the first paste, searched for the draft
     stdin_open = True
     try:
         if saved is not None:
@@ -60,6 +92,10 @@ def run(command, text):
                 if not output:
                     break
                 write_all(1, output)
+                if since_paste is not None:
+                    since_paste += output
+                    if pending and shows_paste(since_paste, sign):
+                        pending = False
                 # The child must explicitly enable paste handling. Never send
                 # a multiline draft to an unprepared terminal or shell.
                 stream = tail + output
@@ -69,7 +105,9 @@ def run(command, text):
                     was_bracketed = bracketed
                     bracketed = enabled > disabled
                     if bracketed and not was_bracketed:
-                        paste_ready_at = time.monotonic() + 1.0
+                        paste_ready_at = time.monotonic() + FIRST_PASTE_S
+                        if give_up_at is None:
+                            give_up_at = time.monotonic() + GIVE_UP_S
                     elif not bracketed:
                         paste_ready_at = None
                 tail = stream[-7:]
@@ -78,10 +116,22 @@ def run(command, text):
                 if not data:
                     stdin_open = False
                 else:
+                    # The reader has the keyboard: a retry now would land in
+                    # the middle of whatever they are typing. Only printable
+                    # input counts — at startup the terminal writes its answers
+                    # to the agent's capability queries here too, and those are
+                    # escape sequences, not a person typing.
+                    if ESCAPES.sub(b'', data).strip(b'\x00'):
+                        pending = False
                     write_all(master, data)
-            if pending and bracketed and paste_ready_at is not None and time.monotonic() >= paste_ready_at:
-                write_all(master, pending)
-                pending = b''
+            now = time.monotonic()
+            if pending and give_up_at is not None and now >= give_up_at:
+                pending = False
+            if pending and bracketed and paste_ready_at is not None and now >= paste_ready_at:
+                write_all(master, paste)
+                if since_paste is None:
+                    since_paste = b''
+                paste_ready_at = now + RETRY_EVERY_S
     finally:
         signal.signal(signal.SIGWINCH, previous)
         if saved is not None:

@@ -252,5 +252,81 @@ Path(sys.argv[1]).write_bytes(data)
             self.assertFalse(prompt.exists())
 
 
+    def run_fake(self, editor, stdin=subprocess.DEVNULL, prompt_text='https://example.org/draft', timeout=15):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prompt = root / 'prompt'
+            captured = root / 'captured'
+            prompt.write_text(prompt_text)
+            fake = root / 'editor.py'
+            fake.write_text(editor)
+            result = subprocess.run([sys.executable, str(ROOT / 'bin/agent-draft'),
+                                     str(prompt), '--', sys.executable, str(fake), str(captured)],
+                                    stdin=stdin, capture_output=True, timeout=timeout)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            return captured.read_bytes()
+
+    # An agent like OpenCode 1.18: bracketed paste on at once, input box only
+    # later, and every paste before that silently dropped.
+    SLOW_EDITOR = '''import os, select, sys, time, tty
+from pathlib import Path
+tty.setraw(0)
+os.write(1, b'\\x1b[?2004h')
+ready_at = time.monotonic() + {ready}
+accepted = []
+deadline = time.monotonic() + {deadline}
+while time.monotonic() < deadline:
+    if select.select([0], [], [], 0.05)[0]:
+        data = os.read(0, 4096)
+        if time.monotonic() >= ready_at and b'\\x1b[200~' in data:
+            accepted.append(data)
+            os.write(1, b'\\x1b[2;3H' + data.split(b'\\x1b[200~')[1].split(b'\\x1b[201~')[0])
+Path(sys.argv[1]).write_bytes(b'|'.join(accepted))
+'''
+
+    def test_a_paste_dropped_before_the_editor_is_ready_is_retried_once_it_is(self):
+        accepted = self.run_fake(self.SLOW_EDITOR.format(ready=1.6, deadline=3.6))
+        self.assertEqual(accepted, b'\x1b[200~https://example.org/draft\x1b[201~',
+                         'the retry landed, and stopped once the draft was on screen')
+
+    def test_terminal_replies_do_not_count_as_the_reader_typing(self):
+        # A real terminal answers the agent's capability queries on its input.
+        read, write = os.pipe()
+        os.write(write, b'\x1b[?62;22c\x1b[?1u\x1b]11;rgb:0000/0000/0000\x07')
+        accepted = self.run_fake(self.SLOW_EDITOR.format(ready=1.6, deadline=3.6), stdin=read)
+        os.close(write)
+        os.close(read)
+        self.assertEqual(accepted, b'\x1b[200~https://example.org/draft\x1b[201~')
+
+    def test_typing_stops_the_retries(self):
+        read, write = os.pipe()
+        os.write(write, b'my own question')
+        accepted = self.run_fake(self.SLOW_EDITOR.format(ready=1.6, deadline=3.6), stdin=read)
+        os.close(write)
+        os.close(read)
+        self.assertEqual(accepted, b'', 'no paste may land in the middle of what the reader types')
+
+    def test_a_long_draft_is_confirmed_by_the_pasted_label(self):
+        editor = '''import os, select, sys, time, tty
+from pathlib import Path
+tty.setraw(0)
+os.write(1, b'\\x1b[?2004h')
+count = 0
+deadline = time.monotonic() + 3
+while time.monotonic() < deadline:
+    if select.select([0], [], [], 0.05)[0] and b'\\x1b[200~' in os.read(0, 4096):
+        count += 1
+        os.write(1, b'[Pasted ~3 lines]')
+Path(sys.argv[1]).write_bytes(str(count).encode())
+'''
+        self.assertEqual(self.run_fake(editor, prompt_text='one\ntwo\nthree'), b'1', 'shown once, pasted once')
+
+    def test_the_draft_signature_skips_the_scheme_and_survives_styling(self):
+        self.assertEqual(DRAFT['signature']('https://www.rust-lang.org/learn\nmore'), 'rust-lang.org/le')
+        self.assertTrue(DRAFT['shows_paste'](b'\x1b[31mrust-lang\x1b[0m.org/le\x1b[2Carn',
+                                             DRAFT['signature']('https://www.rust-lang.org/learn')))
+        self.assertFalse(DRAFT['shows_paste'](b'Ask anything https://opencode.ai', 'example.org/draf'))
+
+
 if __name__ == '__main__':
     unittest.main()
