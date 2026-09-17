@@ -346,7 +346,9 @@ test('streaming is on unless it was deliberately turned off', async () => {
 })
 
 test('engines read as bin/search reads them: absent is the defaults, an explicit [] is kept', () => {
-  assert.deepEqual(DEFAULT_ENGINES, ['brave', 'bing', 'google', 'google cse'], 'mirrors DEFAULT_ENGINES in bin/search')
+  assert.deepEqual(DEFAULT_ENGINES, ['google cse', 'bing', 'brave'], 'mirrors DEFAULT_ENGINES in bin/search')
+  const google = settingsRows(readSettings(''), 'running').find(r => r.key === 'searxngEngine:google')
+  assert.equal(google.value, false, 'plain google is offered, and off by default')
   assert.deepEqual(readSettings('').searxngEngines, DEFAULT_ENGINES)
   assert.deepEqual(readSettings('{"searxng_engines":"brave"}').searxngEngines, DEFAULT_ENGINES, 'malformed')
   assert.deepEqual(readSettings('{"searxng_engines":[]}').searxngEngines, [])

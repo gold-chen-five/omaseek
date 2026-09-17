@@ -14,8 +14,10 @@ export const PAGE_SIZE_CHOICES = [5, 10, 15, 20]
 // The SearXNG engines the page switches, mirrored as DEFAULT_ENGINES in
 // bin/search. Measured to answer, and fast; the rest mostly answer with a
 // CAPTCHA or nothing. A name typed into searxng_engines by hand is kept.
-export const ENGINE_CHOICES = ['brave', 'bing', 'google', 'google cse']
-export const DEFAULT_ENGINES = ENGINE_CHOICES.slice(0)
+// Plain google is offered but off: it answers with a CAPTCHA where google cse,
+// Google through its embeddable search box, does not.
+export const ENGINE_CHOICES = ['google cse', 'bing', 'brave', 'google']
+export const DEFAULT_ENGINES = ['google cse', 'bing', 'brave']
 // How a switch is labelled where capitalising the SearXNG name reads wrong.
 const ENGINE_LABELS = { 'google cse': 'Google CSE' }
 

@@ -131,9 +131,9 @@ class SearchBackendTests(unittest.TestCase):
         self.assertEqual(len(page["results"]), 10)
         self.assertIsNotNone(page["next"], "and the rest is still offered")
 
-    def test_a_fresh_install_asks_the_default_engines_including_google_cse(self):
+    def test_a_fresh_install_asks_google_cse_bing_and_brave(self):
         self.run_search("rust")
-        self.assertEqual(FakeSearxng.requests[-1]["engines"], "brave,bing,google,google cse",
+        self.assertEqual(FakeSearxng.requests[-1]["engines"], "google cse,bing,brave",
                          "a name with a space travels as one engine")
 
     def test_engines_and_language_are_sent_and_key_the_buffer(self):

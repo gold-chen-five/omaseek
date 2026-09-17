@@ -55,12 +55,12 @@ ICON_ENDPOINT = "https://external-content.duckduckgo.com/ip3/"
 PAGE_SIZE = 10          # overridden by results_per_page in the config
 ENGINES = []            # set from searxng_engines / DEFAULT_ENGINES at startup
 # Measured against a local instance: the engines that actually answer, fast.
-# brave and google page; bing fills page one only, so brave carries h/l.
 # google cse is Google through its embeddable search box, which answered while
-# plain google was suspended on a CAPTCHA; it pages too, five pages deep.
-# SearXNG silently ignores a name its instance does not have, so naming
-# these is safe even where one is missing.
-DEFAULT_ENGINES = ("brave", "bing", "google", "google cse")
+# plain google was suspended on a CAPTCHA — so plain google is a switch, not a
+# default. brave and google cse page (google cse five pages deep); bing fills
+# page one only. SearXNG silently ignores a name its instance does not have, so
+# naming these is safe even where one is missing.
+DEFAULT_ENGINES = ("google cse", "bing", "brave")
 PAGE_SIZE_CHOICES = (5, 10, 15, 20)
 LANGUAGE = ""           # set from searxng_language; empty sends none
 # Mirrors settings.mjs: SearXNG's codes, 'auto' and 'all'. 'default' sends none.
