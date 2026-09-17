@@ -61,6 +61,37 @@ export function urlFromSelection (text) {
 }
 
 
+// Domains a bare query is opened as rather than searched for. A list, not any
+// letters: vue.js, README.md (Moldova), main.py (Paraguay) or main.rs (Serbia)
+// is a question about a file, not an address — with a path (docs.rs/tokio) it
+// opens whatever the domain.
+const WEB_TLDS = ('com org net io dev app ai co gov edu mil int info biz me tv xyz tech site ' +
+  'online blog page cloud wiki news link zone gg to fm im ly uk us eu de fr jp cn tw hk ' +
+  'kr in ca au nz nl be se no fi dk ch at it es pt ie ru br mx ar za sg').split(' ')
+
+/**
+ * What the search field holds, as an address to open instead of searched for,
+ * or ''. Only the whole query counts, and only when it is unmistakably one: an
+ * http(s) URL, www.…, a common web domain (rust-lang.org), any domain with a
+ * path or port (docs.rs/tokio), or localhost / an IP with a port (over http).
+ */
+export function queryUrl (text) {
+  const raw = String(text == null ? '' : text).trim()
+  if (!raw || /\s/.test(raw)) return ''
+  if (isOpenable(raw)) return raw
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)) return ''          // another scheme
+  const m = /^([^/?#]+)([/?#].*)?$/.exec(raw)
+  if (!m) return ''
+  const host = m[1]
+  const rest = m[2] || ''
+  if (/^(localhost|\d{1,3}(\.\d{1,3}){3}):\d{1,5}$/i.test(host)) return 'http://' + raw
+  const domain = /^((?:[a-z0-9-]+\.)+([a-z]{2,}))(:\d{1,5})?$/i.exec(host)
+  if (!domain) return ''
+  const known = WEB_TLDS.indexOf(domain[2].toLowerCase()) !== -1
+  const path = rest.length > 1 && rest.charAt(0) === '/'
+  return known || /^www\./i.test(host) || domain[3] || path ? 'https://' + raw : ''
+}
+
 /** Link metadata from TextEdit.getFormattedText for the cursor's character. */
 export function hrefFromHtml (html) {
   const match = /<a\b[^>]*\bhref=["']([^"']*)["']/i.exec(String(html || ''))

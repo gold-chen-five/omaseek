@@ -19,6 +19,7 @@ ListView {
   signal pageHandedOff()
   signal yanked(int index, bool withTitle)   // y / Y: the URL, or the title above it
   signal askRequested(int index)             // gc: this result, over in the ask bar
+  signal searchRequested(int index)          // gs: search for this result's title
   signal activated(int index)
   signal escaped()                       // esc: back to the field, normal mode
   signal normalRequested()               // /: back to the field, normal mode
@@ -108,6 +109,7 @@ ListView {
     case "yankUrl":      if (count > 0) yanked(currentIndex, false); break
     case "yankCitation": if (count > 0) yanked(currentIndex, true); break
     case "askAbout":     if (count > 0) askRequested(currentIndex); break
+    case "searchFor":    if (count > 0) searchRequested(currentIndex); break
     // As in the answer: the search goes before the pane does.
     case "cancel":       if (finder.lastPattern) finder.forget(); else escaped(); break
     case "fieldNormal":  normalRequested(); break

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { urlAt, isOpenable, hostOf, urlFromSelection } from '../src/lib/urls.mjs'
+import { urlAt, isOpenable, hostOf, urlFromSelection, queryUrl } from '../src/lib/urls.mjs'
 
 const book = 'Good places are (https://doc.rust-lang.org/book/), and Rustlings.'
 
@@ -68,4 +68,25 @@ test('cursor link metadata preserves the actual target and query parameters', as
   assert.equal(hrefFromHtml('<p><a href="https://doc.rust-lang.org/book/?x=1&amp;y=2">R</a></p>'),
     'https://doc.rust-lang.org/book/?x=1&y=2')
   assert.equal(hrefFromHtml('<p>R</p>'), '')
+})
+
+test('a search-field query opens only when it is unmistakably an address', () => {
+  const opens = {
+    'https://docs.rs/tokio': 'https://docs.rs/tokio',
+    'docs.rs/tokio': 'https://docs.rs/tokio',
+    'rust-lang.org': 'https://rust-lang.org',
+    'github.com/foo/bar': 'https://github.com/foo/bar',
+    'www.example.xyz': 'https://www.example.xyz',
+    'socket.io': 'https://socket.io',
+    'foo.bar:8080': 'https://foo.bar:8080',
+    '  rust-lang.org  ': 'https://rust-lang.org',
+    'localhost:8888': 'http://localhost:8888',
+    '127.0.0.1:3000/x': 'http://127.0.0.1:3000/x'
+  }
+  for (const query in opens) assert.equal(queryUrl(query), opens[query], query)
+  // Files and version strings are questions, not addresses.
+  for (const query of ['vue.js', 'node.js', 'README.md', 'main.py', 'main.rs', 'lib.so', 'config.sh',
+    'python3.12', 'docs.rs', 'example.test', 'rust ownership', 'ftp://x.org', 'javascript:alert(1)', '']) {
+    assert.equal(queryUrl(query), '', query)
+  }
 })

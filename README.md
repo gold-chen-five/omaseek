@@ -30,6 +30,10 @@ The field is vim on one line — motions, operators, counts, text objects
 searches the pane and `gi` or `gn` go back to the field, typing or in normal
 mode.
 
+Paste an address into the search field and Enter opens it in the browser, the
+way an address bar would; `gx` in normal mode opens the one under the cursor.
+`gs` on a result searches for its title.
+
 The last twenty-five queries are kept in `~/.local/share/omaseek/queries.json`:
 the search field is one line, so `↑` and `↓` walk them the way a shell does, and
 `↓` past the newest puts back what you were typing before stepping into the

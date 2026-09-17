@@ -80,11 +80,11 @@ test('y copies a result at once, but still opens a yank in the answer', () => {
   assert.equal(ANSWER_KEYS['Y'], undefined, 'the answer leaves Y alone')
 })
 
-test('each half reaches the other: gc asks about a result, gs searches for a reply', () => {
+test('each half reaches the other: gc asks about a result, gs searches for a reply or a result', () => {
   assert.equal(resolve(LIST_KEYS, 'g', 'c').command, 'askAbout')
   assert.equal(resolve(ANSWER_KEYS, 'g', 'c').command, '', 'the answer has no result to ask about')
   assert.equal(resolve(ANSWER_KEYS, 'g', 's').command, 'searchFor')
-  assert.equal(resolve(LIST_KEYS, 'g', 's').command, '', 'a result is already a search')
+  assert.equal(resolve(LIST_KEYS, 'g', 's').command, 'searchFor', 'a result’s title, searched in its own right')
 })
 
 test('hand-off is ga and everything is gA, the same in both panes', () => {
@@ -242,4 +242,10 @@ test('ctrl+shift+x forgets the lot, without standing on ctrl+x', () => {
   assert.match(bindingProblem('clearSessions', 'ctrl+x', DEFAULTS), /Close session/)
   assert.equal(bindingProblem('clearSessions', 'ctrl+shift+x', DEFAULTS), '')
   assert.equal(bindingProblem('closeSession', 'ctrl+shift+c', DEFAULTS), '', 'shift makes a chord of its own')
+})
+
+test('gs searches from the results too, and gx stays the answer pane’s', () => {
+  assert.equal(resolve(LIST_KEYS, 'g', 's').command, 'searchFor')
+  assert.equal(resolve(ANSWER_KEYS, 'g', 's').command, 'searchFor')
+  assert.equal(resolve(LIST_KEYS, 'g', 'x').command, '')
 })

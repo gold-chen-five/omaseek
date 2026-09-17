@@ -23,7 +23,7 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 | Hand off to agent | `handoff_key` | `ga` | results: the selected result's URL, alone · answer: the selection, else the reply under the cursor with its question |
 | Hand off everything | `handoff_all_key` | `gA` | results: every URL on the page · answer: the whole conversation |
 | Ask about this | `ask_about_key` | `gc` | results: the selected URL over in the ask bar, unsent |
-| Search for this | `search_for_key` | `gs` | answer: search the web for the selection, or the word under the cursor |
+| Search for this | `search_for_key` | `gs` | results: search for the selected result's title · answer: search the web for the selection, or the word under the cursor |
 | Open link | `open_link_key` | `gx` | answer: the URL under the cursor or in the selection |
 | Next page | `next_page_key` | `l` | results (`right` always works too) |
 | Previous page | `previous_page_key` | `h` | results (`left` always works too) |
@@ -117,7 +117,19 @@ Insert mode:
 | `ctrl+shift+r` | AI mode: ask the last question again after a failure or a stop |
 | `down` `up` | ask: a line down or up within a question of several lines; down from the last, into the transcript |
 | `up` `down` | search: the field is one line, so they walk the queries searched before — `up` an older one, `down` back toward what you had typed, then into the results |
-| `enter` (Search / ask) | search and focus the first result when it arrives; asking keeps the field in insert mode, ready for the next question |
+| `enter` (Search / ask) | search and focus the first result when it arrives — or, when the field holds an address, open it in the browser; asking keeps the field in insert mode, ready for the next question |
+
+`gx` in normal mode opens the URL or bare domain under the cursor in the browser,
+as vim's does; in visual mode, the selected one.
+
+**Paste an address to go there.** In search mode, Enter on a field that holds
+only an address opens it instead of searching, and the status line says so
+first (`enter opens rust-lang.org`). An address is an `http(s)://` URL, a
+`www.` one, a common web domain (`rust-lang.org`, `socket.io`), any domain with
+a path or port (`docs.rs/tokio`), or `localhost` / an IP with a port. Anything
+that could be a file or a version — `vue.js`, `README.md`, `main.rs`,
+`python3.12` — is still searched. `gs` on a result always searches, even for
+a title that looks like a domain.
 
 In AI mode, while a reply is being written, `q` or `esc` in normal mode stops it
 (`esc` closes the panel again once nothing is being written); `q` otherwise does
@@ -167,6 +179,7 @@ relative to the current row: `2j` moves down two results, `2k` moves up two.
 | `y` | copy the selected result's URL |
 | `Y` | copy its title and URL, on two lines |
 | `gc` (Ask about this) | the selected URL over in the ask bar, to type a question around — it is not sent |
+| `gs` (Search for this) | search for the selected result's title |
 | `/` `?` | search the rows — title, snippet and domain — forwards or backwards; the matched words are marked |
 | `n` `N` | the next match and the one before; a count repeats (`3n`) |
 | `esc` after a search | drop it and its marks, staying on the results |

@@ -9,6 +9,7 @@ import "lib/settings.mjs" as SettingsLib
 import "lib/keybinds.mjs" as Keybinds
 import "lib/states.mjs" as States
 import "lib/history.mjs" as History
+import "lib/urls.mjs" as Urls
 
 // Web search and AI overlay. The layer-shell setup and the open/close/dismiss/
 // toggle contract mirror shell/plugins/emojis/Emojis.qml, so shell IPC works
@@ -223,7 +224,9 @@ Item {
 
   // ---- focus --------------------------------------------------------------
 
-  function runSearch () {
+  // `searching` forces a search: gs on a title that happens to look like a
+  // domain means "find this", not "go there".
+  function runSearch (searching) {
     const query = input.text.trim()
     if (!query) return
     if (panelMode === States.PANEL.AI) {
@@ -235,6 +238,13 @@ Item {
     const flat = query.split(input.lineBreak).join(" ")
     queries.remember(flat)                     // the arrows walk back to it next time
     resetHistoryWalk()
+    // A pasted address is opened, as a browser's address bar would; anything
+    // that is not unmistakably one (vue.js, README.md) is still searched.
+    const address = searching === true ? "" : Urls.queryUrl(flat)
+    if (address) {
+      openUrl(address)
+      return
+    }
     session.search(flat)
     focusSearch("normal")                      // keep the query readable while results load
   }
@@ -299,7 +309,7 @@ Item {
     if (!text) return
     if (panelMode !== States.PANEL.SEARCH) toggleMode()
     input.setQuery(text)
-    runSearch()
+    runSearch(true)
   }
 
   function hasBody () {
@@ -492,6 +502,7 @@ Item {
                 onClearSessionsRequested: root.clearChats()
                 onStopRequested: root.stopAnswer()
                 onRetryRequested: root.retryAnswer()
+                onLinkOpened: url => root.openUrl(url)
 
                 // The frame scrolls to keep the cursor in view as it passes an edge.
                 onCursorRectangleChanged: {
@@ -606,7 +617,9 @@ Item {
               stopKey: root.focusArea === States.FOCUS.RESULTS ? "q"
                 : input.mode === "insert" ? "esc esc" : "esc",
               retryKey: config.settings.retryAnswerKey,
-              canRetry: ai.canRetry
+              canRetry: ai.canRetry,
+              address: root.panelMode === States.PANEL.SEARCH && root.focusArea === States.FOCUS.FIELD
+                ? Urls.queryUrl(input.text.split(input.lineBreak).join(" ")) : ""
             })
         }
 
@@ -704,6 +717,10 @@ Item {
           onPageHandedOff: ai.launch(session.handoffText(-1))
           onYanked: (index, withTitle) => root.yankResult(index, withTitle)
           onAskRequested: index => root.askAboutResult(index)
+          onSearchRequested: index => {
+            const row = session.rowAt(index)
+            if (row && row.title) root.searchFor(row.title)
+          }
           onActivated: index => root.openResult(index)
           onEscaped: root.focusSearch("normal")
           onNormalRequested: root.focusSearch("normal")

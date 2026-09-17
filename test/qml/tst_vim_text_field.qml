@@ -20,6 +20,7 @@ Item {
   property int stops: 0
   property int retries: 0
   property int cancels: 0
+  property var opened: []
 
   Connections {
     target: field
@@ -28,6 +29,7 @@ Item {
     function onClearSessionsRequested () { clearedSessions++ }
     function onStopRequested () { stops++ }
     function onCancelled () { cancels++ }
+    function onLinkOpened (url) { opened = opened.concat([url]) }
     function onRetryRequested () { retries++ }
   }
 
@@ -71,6 +73,29 @@ Item {
       compare(nextSessions, 2)
       compare(closedSessions, 2)
       compare(field.text, "half a question")
+    }
+
+    // gx opens the address under the cursor, as vim's does; g then anything
+    // else is nothing, and does not leave a g waiting.
+    function test_gx_opens_the_url_under_the_cursor() {
+      opened = []
+      setNormal("see docs.rs/tokio please", 7)
+      keyClick(Qt.Key_G)
+      keyClick(Qt.Key_X)
+      compare(opened, ["https://docs.rs/tokio"])
+      compare(field.text, "see docs.rs/tokio please", "x after g deletes nothing")
+
+      setNormal("no address here", 3)
+      keyClick(Qt.Key_G)
+      keyClick(Qt.Key_X)
+      compare(opened.length, 1, "nothing under the cursor, nothing opened")
+
+      setNormal("https://example.org", 0)
+      keyClick(Qt.Key_G)
+      keyClick(Qt.Key_W)
+      keyClick(Qt.Key_X)
+      compare(opened.length, 1, "gw is nothing, and the x after it is a plain x")
+      compare(field.text, "ttps://example.org")
     }
 
     // Retry reaches the panel from either mode, and wears shift so that

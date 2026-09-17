@@ -6,6 +6,7 @@ import "../lib/motions.mjs" as Motions
 import "../lib/textobjects.mjs" as TextObjects
 import "../lib/keymap.mjs" as Keymap
 import "../lib/keybinds.mjs" as Keybinds
+import "../lib/urls.mjs" as Urls
 import "chord.js" as Chord
 import "measure.js" as Measure
 
@@ -47,6 +48,7 @@ TextArea {
   property int pendingReplace: 0            // r awaiting its character; value is the count
   property string pendingTextObject: ""     // i/a awaiting its object, as in diw
   property int pendingCount: 0
+  property bool pendingG: false             // g awaiting its second key: gx
   property string lastFindCommand: ""       // for ; and ,
   property string lastFindChar: ""
   property bool repeatFindReady: false       // clever-f: fa, then f/F walk the same target
@@ -79,6 +81,7 @@ TextArea {
   signal nextSessionRequested()             // the next saved conversation
   signal closeSessionRequested()            // forget this conversation
   signal clearSessionsRequested()           // forget all of them
+  signal linkOpened(string url)             // gx: the URL under the cursor, or selected
   signal stopRequested()                    // stop the reply being written
   signal retryRequested()                   // ask the last question again
 
@@ -143,8 +146,17 @@ TextArea {
     pendingReplace = 0
     pendingTextObject = ""
     pendingCount = 0
+    pendingG = false
     repeatFindReady = false
     currentFindHit = -1
+  }
+
+  // gx, as vim's: the URL or bare domain under the cursor, or the selection.
+  // A pasted address opens without leaving the field for the results.
+  function openLinkUnderCursor () {
+    const url = mode === "visual" ? Urls.urlFromSelection(selectedText) : Urls.urlAt(text, cursorPosition)
+    if (mode === "visual") setMode("normal")
+    if (url) linkOpened(url)
   }
 
   function takeCount (fallback) {
@@ -653,7 +665,7 @@ TextArea {
 
     if (event.key === Qt.Key_Escape) {
       if (mode === "visual") setMode("normal")
-      else if (pendingOperator || pendingCount > 0 || pendingFind || repeatFindReady || pendingReplace > 0 || pendingTextObject) clearPending()
+      else if (pendingOperator || pendingCount > 0 || pendingFind || repeatFindReady || pendingReplace > 0 || pendingTextObject || pendingG) clearPending()
       // While a reply is being written, esc stops it rather than closing the
       // panel; the one after that closes it.
       else if (field.stoppable) field.stopRequested()
@@ -691,6 +703,18 @@ TextArea {
 
     if (pendingTextObject !== "") {
       handleTextObject(key)
+      return
+    }
+
+    // g's only command here is gx; anything else after g means nothing.
+    if (pendingG) {
+      pendingG = false
+      pendingCount = 0
+      if (key === "x" && pendingOperator === "") openLinkUnderCursor()
+      return
+    }
+    if (key === "g" && pendingOperator === "") {
+      pendingG = true
       return
     }
 

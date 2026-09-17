@@ -213,3 +213,11 @@ test('the AI line offers stop while thinking and retry once a turn failed or sto
   assert.equal(statusText({ panelMode: PANEL.AI, status: 'idle', canRetry: true, session: 'session 1/2' }),
     'session 1/2 · not answered · ctrl+shift+r retries', 'a question the shell lost can be asked again')
 })
+
+test('while the field holds an address the status line says Enter opens it', () => {
+  assert.equal(statusText({ status: 'idle', address: 'https://www.rust-lang.org/learn' }),
+    'enter opens rust-lang.org · gx too, from normal mode')
+  assert.match(statusText({ status: 'idle', address: '' }), /enter searches/)
+  assert.doesNotMatch(statusText({ panelMode: PANEL.AI, status: 'idle', address: 'https://x.org' }), /enter opens/,
+    'asking about a URL is not opening it')
+})
