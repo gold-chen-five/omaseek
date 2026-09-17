@@ -505,8 +505,8 @@ TextArea {
       return
     case "o": openLine(true); return
     case "O": openLine(false); return
-    case "I": cursorPosition = Motions.firstNonBlank(text); setMode("insert"); return
-    case "A": cursorPosition = text.length; setMode("insert"); return
+    case "I": cursorPosition = Motions.firstNonBlank(text, pos); setMode("insert"); return
+    case "A": cursorPosition = Motions.lineBounds(text, pos).end; setMode("insert"); return
     case "V":
       if (mode === "visual" && visualLinewise) {
         setMode("normal")
@@ -534,9 +534,20 @@ TextArea {
     // motions
     case "h": applyMotion(Math.max(0, pos - count), false); return
     case "l": applyMotion(Math.min(text.length, pos + count), false); return
-    case "0": applyMotion(0, false); return
-    case "^": applyMotion(Motions.firstNonBlank(text), false); return
-    case "$": applyMotion(text.length, false); return
+    // A question can hold several lines; these keep to the one under the cursor.
+    case "0": applyMotion(Motions.lineBounds(text, pos).start, false); return
+    case "^": applyMotion(Motions.firstNonBlank(text, pos), false); return
+    case "_":
+      if (pendingOperator !== "") {           // d_ is dd, as in vim
+        const operator = pendingOperator
+        pendingOperator = ""
+        operateLines(operator, count * operatorCount)
+        operatorCount = 1
+        return
+      }
+      applyMotion(Motions.firstNonBlank(text, Motions.linesDown(text, pos, count)), false)
+      return
+    case "$": applyMotion(Motions.lineBounds(text, Motions.linesDown(text, pos, count)).end, false); return
     case "w": applyMotion(step(Motions.wordForward, false), false); return
     case "W": applyMotion(step(Motions.wordForward, true), false); return
     case "b": applyMotion(step(Motions.wordBackward, false), false); return
@@ -572,8 +583,8 @@ TextArea {
         operatorCount = count
       }
       return
-    case "D": applyOperator("d", pos, text.length); return
-    case "C": applyOperator("c", pos, text.length); return
+    case "D": applyOperator("d", pos, Motions.lineBounds(text, pos).end); return
+    case "C": applyOperator("c", pos, Motions.lineBounds(text, pos).end); return
     case "Y": operateLines("y", count); return
 
     // single-key edits

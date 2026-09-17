@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   charClass, wordForward, wordBackward, wordEnd,
-  firstNonBlank, find, findInLine, findMatchPosition, matchingCharsInLine,
+  firstNonBlank, linesDown, find, findInLine, findMatchPosition, matchingCharsInLine,
   flipFind, clampToLine, insertExit, repeat, BLANK, WORD, PUNCT
 } from '../src/lib/motions.mjs'
 
@@ -50,6 +50,15 @@ test('^ finds the first non-blank', () => {
   assert.equal(firstNonBlank('   indented'), 3)
   assert.equal(firstNonBlank('flush'), 0)
   assert.equal(firstNonBlank('    '), 0, 'all blanks falls back to 0')
+  assert.equal(firstNonBlank('first\n  second', 9), 8, 'on the line holding the cursor')
+  assert.equal(firstNonBlank('first\n   \nthird', 7), 6, 'an all-blank line falls back to its start')
+})
+
+test('a count on $ and _ reaches lines further down', () => {
+  const text = 'one\ntwo\nthree'
+  assert.equal(linesDown(text, 1, 1), 1, 'a count of one stays')
+  assert.equal(linesDown(text, 1, 2), 5)
+  assert.equal(linesDown(text, 1, 9), 9, 'stops on the last line')
 })
 
 test('f and t differ by one, F and T search backwards', () => {

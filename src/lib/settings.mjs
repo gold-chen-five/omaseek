@@ -56,7 +56,7 @@ export const FIXED_KEYS = [
   { label: 'Anywhere', keys: 'esc cancels a pending/active find first · otherwise steps back: insert → normal → the field → closed · ctrl+, settings · shift+tab switches' },
   { label: 'Field', keys: 'insert: ctrl+w ctrl+u delete back · ctrl+j new line (ask) · ↑ ↓ lines (ask), past queries (search) · normal: vim motions, gx opens the URL under the cursor, q or esc stops a reply being written (ask), o O open line (ask), f{char} then f/F repeats, r{char}, d c y, text objects, v V, p P, u ctrl+r, counts' },
   { label: 'Results', keys: 'j k ↓ ↑ move · ctrl+d ctrl+u half a screen · gg G first, last · → ← page · y Y copy the URL, the title too · counts (3j) · / ? n N search the rows · gn field normal · gi i a field insert' },
-  { label: 'Answer', keys: 'q stops a reply being written · h j k l w b e 0 ^ $ move · f t ; , find · v V select · gv reselect · y{motion} yy yank · p P put in the ask bar · / ? n N search · * # the word under the cursor · gn field normal · gi i a field insert' },
+  { label: 'Answer', keys: 'q stops a reply being written · h j k l w b e 0 ^ _ $ move · f t ; , find · v V select · gv reselect · y{motion} yy yank · p P put in the ask bar · / ? n N search · * # the word under the cursor · gn field normal · gi i a field insert' },
   { label: 'Settings', keys: 'j k move · h l change · enter edit · / field normal · esc back' }
 ]
 

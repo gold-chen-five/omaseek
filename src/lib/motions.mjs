@@ -56,12 +56,24 @@ export function wordEnd (text, pos, big = false) {
   return at
 }
 
-/** `^` — first non-blank character. */
-export function firstNonBlank (text) {
-  for (let i = 0; i < text.length; i++) {
+/** `^` `_` — first non-blank character of the line holding pos; its start when it is all blank. */
+export function firstNonBlank (text, pos = 0) {
+  const bounds = lineBounds(text, Math.max(0, Math.min(pos, text.length)))
+  for (let i = bounds.start; i < bounds.end; i++) {
     if (charClass(text, i) !== BLANK) return i
   }
-  return 0
+  return bounds.start
+}
+
+/** A count on `$` or `_` reaches count - 1 lines down, stopping at the last. */
+export function linesDown (text, pos, count) {
+  let at = pos
+  for (let i = 1; i < count; i++) {
+    const next = lineDown(text, at)
+    if (next < 0) break
+    at = next
+  }
+  return at
 }
 
 /**

@@ -99,6 +99,7 @@ test('the answer view adds motions and a selection', () => {
   assert.equal(resolve(ANSWER_KEYS, '', 'w').command, 'wordForward')
   assert.equal(resolve(ANSWER_KEYS, '', 'W').command, 'wordForwardBig')
   assert.equal(resolve(ANSWER_KEYS, '', '$').command, 'lineEnd')
+  assert.equal(resolve(ANSWER_KEYS, '', '_').command, 'lineStart')
   assert.equal(resolve(ANSWER_KEYS, '', 'V').command, 'selectLines')
   assert.equal(resolve(ANSWER_KEYS, '', 'y').command, 'yank')
   assert.equal(resolve(ANSWER_KEYS, '', 'l').command, 'right')

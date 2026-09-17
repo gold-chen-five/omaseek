@@ -135,7 +135,7 @@ In AI mode, while a reply is being written, `q` or `esc` in normal mode stops it
 (`esc` closes the panel again once nothing is being written); `q` otherwise does
 nothing, since macros are absent.
 
-Normal mode uses vim editing: `h l w W b B e 0 ^ $`, `f F t T{char}`;
+Normal mode uses vim editing: `h l w W b B e 0 ^ _ $` (on the line under the cursor, in a question of several), `f F t T{char}`;
 after a find, `f`/`F` keep walking that character forward/backward, and `;`/`,`
 also repeat/reverse. All matches on the line are highlighted; the current one
 uses the accent colour. `i a I A`, `o O` (open a line below/above in AI mode), `r{char}`, `x`, `d c y` with a motion or doubled (`dd cc yy`), `v`,
@@ -199,7 +199,7 @@ follow the layout when the panel width changes and are excluded from copied text
 |---|---|
 | `j` `k` `h` `l`, arrows | move the cursor by line and character |
 | `w` `W` `b` `B` `e` `E` | by word |
-| `0` `^` `home`, `$` `end` | line ends |
+| `0` `^` `_` `home`, `$` `end` | line ends |
 | `f` `F` `t` `T` {char}, `;` `,` | find on the line; matches are highlighted with the current one accented, and `f`/`F` keep walking forward/backward |
 | `gg` `G` | transcript ends |
 | `ctrl+d` `ctrl+u` | half a screen |

@@ -49,7 +49,7 @@ const FIXED = {
     'b': 'wordBackward', 'B': 'wordBackwardBig',
     'e': 'wordEnd',
     'E': 'wordEndBig',
-    '0': 'lineStart', '^': 'lineStart', 'Home': 'lineStart',
+    '0': 'lineStart', '^': 'lineStart', '_': 'lineStart', 'Home': 'lineStart',
     '$': 'lineEnd', 'End': 'lineEnd',
     'v': 'selectChars',
     'V': 'selectLines',

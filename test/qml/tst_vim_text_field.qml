@@ -235,5 +235,59 @@ Item {
       compare(field.mode, "normal")
       compare(field.cursorPosition, 1)
     }
+
+    function test_line_motions_keep_to_the_line_under_the_cursor() {
+      setNormal("first\n  second line\nthird", 12)
+
+      keyClick("0")
+      compare(field.cursorPosition, 6)
+      keyClick("$")
+      compare(field.cursorPosition, 18, "the last character of this line, not of the text")
+      keyClick(Qt.Key_Underscore, Qt.ShiftModifier)    // as a keyboard sends it
+      compare(field.cursorPosition, 8)
+      field.cursorPosition = 16
+      keyClick("^")
+      compare(field.cursorPosition, 8)
+    }
+
+    function test_a_count_on_dollar_and_underscore_reaches_lines_below() {
+      setNormal("one\n  two\nthree", 1)
+
+      keyClick("2")
+      keyClick("_")
+      compare(field.cursorPosition, 6)
+      keyClick("2")
+      keyClick("$")
+      compare(field.cursorPosition, 14)
+    }
+
+    function test_d_dollar_and_D_stop_at_the_line_break() {
+      setNormal("first line\nsecond", 5)
+      keyClick("d")
+      keyClick("$")
+      compare(field.text, "first\nsecond")
+
+      setNormal("first line\nsecond", 5)
+      keyClick("D")
+      compare(field.text, "first\nsecond")
+    }
+
+    function test_d_underscore_deletes_the_line() {
+      setNormal("first\nsecond\nthird", 8)
+      keyClick("d")
+      keyClick("_")
+      compare(field.text, "first\nthird")
+    }
+
+    function test_I_and_A_insert_at_this_lines_ends() {
+      setNormal("first\n  second", 1)
+      field.cursorPosition = 10
+      keyClick("I")
+      compare(field.cursorPosition, 8)
+      field.setMode("normal")
+      field.cursorPosition = 1
+      keyClick("A")
+      compare(field.cursorPosition, 5)
+    }
   }
 }
