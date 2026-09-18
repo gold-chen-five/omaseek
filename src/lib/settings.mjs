@@ -234,14 +234,26 @@ export const ENGINE_STATES = ['unknown', 'running', 'stopped']
  */
 export function endpointTestText (test) {
   if (!test) return ''
-  if (test.running) return 'asking SearXNG a real query…'
+  if (test.running) return 'asking each engine in turn…'
   if (!test.ok) return test.message || 'SearXNG did not answer'
-  const parts = [`answered in ${test.ms} ms`]
-  const counts = test.engines || {}
-  for (const name in counts) parts.push(`${name} ${counts[name]}`)
+  const parts = [`${test.ms} ms for all of them`]
+  const answers = test.engines || {}
+  const named = {}
+  for (const name in answers) {
+    const answer = answers[name]
+    // A count alone is what --test printed before it timed each engine.
+    const rows = typeof answer === 'number' ? answer : answer.rows
+    const ms = typeof answer === 'number' ? null : answer.ms
+    named[name] = true
+    parts.push(`${name} ${rows}` + (ms === null || ms === undefined ? '' : ` in ${ms} ms`))
+  }
   const silent = test.unresponsive || []
-  for (let i = 0; i < silent.length; i++) parts.push(`${silent[i].engine}: ${silent[i].reason}`)
-  if (Object.keys(counts).length === 0 && silent.length === 0) parts.push('no rows')
+  for (let i = 0; i < silent.length; i++) {
+    // An engine that answered nothing is already listed, with its own time.
+    if (named[silent[i].engine]) continue
+    parts.push(`${silent[i].engine}: ${silent[i].reason}`)
+  }
+  if (Object.keys(answers).length === 0 && silent.length === 0) parts.push('no rows')
   return parts.join(' · ')
 }
 
@@ -404,7 +416,7 @@ export function settingsRows (settings, engine = 'unknown', agents = null, catal
       type: 'action',
       label: 'Test SearXNG',
       hint: test ? endpointTestText(test)
-        : 'run one real query with these engines and language; see who answers',
+        : 'ask every engine below one real query, one at a time: who answers, with how many rows, and how long each takes',
       action: 'test',
       button: 'Test',
       busy: !!(test && test.running)

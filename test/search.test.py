@@ -149,10 +149,17 @@ class SearchBackendTests(unittest.TestCase):
         self.assertNotEqual(set(os.listdir(self.base / "cache" / "omaseek")), german,
                             "another language must not share page 2 with the German buffer")
 
-    def test_the_endpoint_test_counts_rows_per_engine_and_names_the_silent_ones(self):
+    def test_the_endpoint_test_times_each_engine_on_its_own(self):
         report = self.run_search("--test")
         self.assertTrue(report["ok"])
-        self.assertEqual(report["engines"], {"brave": 10, "bing": 5})
+        # One query per configured engine, so each one's time is its own.
+        asked = [params.get("engines") for params in FakeSearxng.requests]
+        self.assertEqual(asked, ["google cse", "bing", "brave"])
+        rows = {name: answer["rows"] for name, answer in report["engines"].items()}
+        self.assertEqual(rows, {"google cse": 0, "bing": 5, "brave": 10})
+        for answer in report["engines"].values():
+            self.assertIsInstance(answer["ms"], int)
+        # Named once, however many queries the instance mentioned it in.
         self.assertEqual(report["unresponsive"], [{"engine": "google", "reason": "Suspended: CAPTCHA"}])
         self.assertIsInstance(report["ms"], int)
 

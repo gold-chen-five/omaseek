@@ -347,8 +347,11 @@ FocusScope {
                   opacity: settingRow.refused ? 1 : 0.55
                   font.family: page.fontFamily
                   font.pixelSize: Style.font.caption
-                  wrapMode: settingRow.isDropdown || settingRow.isInfo || settingRow.refused ? Text.WordWrap : Text.NoWrap
-                  elide: settingRow.isDropdown || settingRow.isInfo || settingRow.refused ? Text.ElideNone : Text.ElideRight
+                  // An action's hint is a report — what the test found, per engine —
+                  // so it wraps onto as many lines as it needs rather than ending in
+                  // an ellipsis that hides the engine you were asking about.
+                  wrapMode: settingRow.isDropdown || settingRow.isInfo || settingRow.isAction || settingRow.refused ? Text.WordWrap : Text.NoWrap
+                  elide: settingRow.isDropdown || settingRow.isInfo || settingRow.isAction || settingRow.refused ? Text.ElideNone : Text.ElideRight
                 }
               }
 
