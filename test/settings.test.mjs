@@ -409,8 +409,8 @@ test('the endpoint test is an action row whose hint is what the test found', () 
     engines: { brave: { rows: 20, ms: 630 }, bing: { rows: 10, ms: 194 }, google: { rows: 0, ms: 3, reason: 'Suspended: CAPTCHA' } },
     unresponsive: [{ engine: 'google', reason: 'Suspended: CAPTCHA' }]
   }).hint,
-  'brave 20 in 630 ms · bing 10 in 194 ms · google: Suspended: CAPTCHA',
-  'a blocked engine says why, not how fast it said nothing')
+  'brave 20 in 630 ms · bing 10 in 194 ms · google 0 in 3 ms (CAPTCHA)',
+  'a blocked engine keeps its count and time, and says why in brackets')
   assert.equal(endpointTestText({ ok: true, ms: 312, engines: { brave: 20 }, unresponsive: [{ engine: 'google', reason: 'CAPTCHA' }] }),
     'brave 20 · google: CAPTCHA', 'counts alone, as an older --test printed them')
   assert.equal(endpointTestText({ ok: false, message: 'SearXNG is not reachable' }), 'SearXNG is not reachable')

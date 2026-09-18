@@ -232,6 +232,13 @@ export const ENGINE_STATES = ['unknown', 'running', 'stopped']
  * What the endpoint test found, from `bin/search --test`, as the Test row's
  * hint: how long a real query took and which engine gave what.
  */
+// SearXNG prefixes an engine it has parked with "Suspended: "; inside the
+// brackets after a row count, the prefix says nothing the brackets do not.
+function shortReason (reason) {
+  const text = String(reason)
+  return text.indexOf('Suspended: ') === 0 ? text.slice('Suspended: '.length) : text
+}
+
 export function endpointTestText (test) {
   if (!test) return ''
   if (test.running) return 'asking each engine in turn…'
@@ -246,14 +253,14 @@ export function endpointTestText (test) {
     const ms = typeof answer === 'number' ? null : answer.ms
     const reason = typeof answer === 'number' ? '' : (answer.reason || '')
     named[name] = true
-    // Why it gave nothing beats how fast it gave nothing: an engine that
-    // CAPTCHAs answers in 3 ms, which reads like the fastest of the lot.
-    if (reason) parts.push(`${name}: ${reason}`)
-    else parts.push(`${name} ${rows}` + (ms === null || ms === undefined ? '' : ` in ${ms} ms`))
+    // The reason rides along with the count: an engine that CAPTCHAs answers in
+    // 3 ms with no rows, which on its own reads like the fastest of the lot.
+    const timed = `${name} ${rows}` + (ms === null || ms === undefined ? '' : ` in ${ms} ms`)
+    parts.push(reason ? `${timed} (${shortReason(reason)})` : timed)
   }
   const silent = test.unresponsive || []
   for (let i = 0; i < silent.length; i++) {
-    // An engine that answered nothing is already listed, with its own time.
+    // An engine that was asked is already listed, with its time and its reason.
     if (named[silent[i].engine]) continue
     parts.push(`${silent[i].engine}: ${silent[i].reason}`)
   }

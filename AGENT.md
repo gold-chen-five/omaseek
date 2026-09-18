@@ -108,8 +108,10 @@ Two rows report on them, because one number cannot. **Search speed**
 that wait: SearXNG queries engines together, so a keypress waits for the
 slowest, never the sum. **Test engines** (`--test`) asks each engine alone and
 in turn, for the rows and the time that a combined query cannot tell apart, and
-prints an engine's *reason* rather than its row count when it was refused: a
-CAPTCHA answers in 3 ms, which otherwise reads as the fastest engine of the lot.
+puts a refused engine's reason in brackets after its count and time
+(`google 0 in 3 ms (CAPTCHA)`): a CAPTCHA answers in 3 ms with no rows, which
+without the brackets reads as the fastest engine of the lot. SearXNG's own
+`Suspended: ` prefix is dropped there, since the brackets already say it.
 
 `bin/search --test` is the Settings → Test engines row: one real query with the
 configured engines and language, reported as its time, rows per engine and
