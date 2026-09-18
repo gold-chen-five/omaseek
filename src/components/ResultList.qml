@@ -27,8 +27,8 @@ ListView {
   signal appendRequested()               // a: back to the field, insert after the cursor
   signal settingsRequested()
   signal tabbed()                        // the panel switches search <-> ai
-  signal nextPageRequested()
-  signal previousPageRequested()
+  signal nextPageRequested(int pages)    // 5l: five pages on
+  signal previousPageRequested(int pages)
   signal pageJumpRequested(int page)     // 5gp: page five, fetching its way there
 
   readonly property string findPrompt: finder.prompt
@@ -120,9 +120,9 @@ ListView {
     case "halfPageUp":   moveCursor(-pageStep * times); break
     case "down":         moveCursor(times); break
     case "up":           moveCursor(-times); break
-    case "nextPage":     nextPageRequested(); break
+    case "nextPage":     nextPageRequested(times); break
     case "goToPage":     pageJumpRequested(times); break
-    case "previousPage": previousPageRequested(); break
+    case "previousPage": previousPageRequested(times); break
     case "top":          moveCursorTo(0); break
     case "bottom":       moveCursorTo(count - 1); break
     case "findForward":  finder.open(false, currentIndex); break

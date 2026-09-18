@@ -23,6 +23,7 @@ Item {
   property int pageTarget: 0
 
   readonly property var currentPage: pages.length > 0 ? pages[pageIndex] : null
+  readonly property int pageCount: pages.length
   readonly property bool hasNext: currentPage ? (pageIndex + 1 < pages.length || currentPage.next !== null) : false
   readonly property bool hasPrevious: pageIndex > 0
   readonly property alias results: resultsModel
@@ -40,8 +41,14 @@ Item {
     searchProcess.start([backendPath, query])
   }
 
-  // `l` — forward a page, from cache when we have already been there.
-  function nextPage () {
+  // `l` — forward a page, from cache when we have already been there. A count
+  // (`5l`) is the same walk as a jump, so it goes through goToPage.
+  function nextPage (count) {
+    const step = count === undefined ? 1 : Math.max(1, count)
+    if (step > 1) {
+      goToPage(pageIndex + 1 + step)
+      return
+    }
     if (loadingPage || status === "loading") return
     if (pageTarget > 0 && pages.length >= pageTarget) pageTarget = 0
     if (pageIndex + 1 < pages.length) {
@@ -54,10 +61,11 @@ Item {
     searchProcess.start([backendPath, "--next", JSON.stringify(currentPage.next)])
   }
 
-  // `h` — back a page. Always cached, so this never hits the network.
-  function previousPage () {
+  // `h` — back a page, `3h` three. Always cached, so this never hits the network.
+  function previousPage (count) {
+    const step = count === undefined ? 1 : Math.max(1, count)
     pageTarget = 0                             // stepping by hand ends a jump
-    if (hasPrevious) showPage(pageIndex - 1)
+    if (hasPrevious) showPage(Math.max(0, pageIndex - step))
   }
 
   // `5gp` — page five. Cached pages are instant; the rest are fetched in turn,

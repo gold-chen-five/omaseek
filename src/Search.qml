@@ -426,9 +426,12 @@ Item {
         id: content
 
         // The view below fills what the field, the strip and the status line
-        // leave; the strip is only there in AI mode, and takes a gap with it.
+        // leave; a strip is there in one mode or the other — pages in search,
+        // conversations in AI — and takes a gap with it.
         readonly property real viewHeight: Math.max(0, height - fieldRow.height - statusLine.height
-          - Style.spacing.md * 2 - (sessionTabs.visible ? sessionTabs.height + Style.spacing.md : 0))
+          - Style.spacing.md * 2
+          - (sessionTabs.visible ? sessionTabs.height + Style.spacing.md : 0)
+          - (pageTabs.visible ? pageTabs.height + Style.spacing.md : 0))
 
         anchors.fill: parent
         anchors.topMargin: card.contentTopInset
@@ -629,6 +632,23 @@ Item {
             })
         }
 
+        // The mouse's h, l and 5gp: one square a page, and a › for the page
+        // not fetched yet. Search's answer to the AI strip below.
+        PageTabs {
+          id: pageTabs
+
+          visible: root.view === States.VIEW.SEARCH && root.panelMode === States.PANEL.SEARCH
+            && session.status === "ok" && (session.pageCount > 1 || session.hasNext)
+          width: parent.width
+          pageCount: session.pageCount
+          current: session.pageIndex
+          hasNext: session.hasNext
+          loading: session.loadingPage
+
+          onPicked: page => session.goToPage(page)
+          onNextRequested: session.nextPage()
+        }
+
         SessionTabs {
           id: sessionTabs
 
@@ -733,8 +753,8 @@ Item {
           onInsertRequested: root.focusSearch("i")
           onAppendRequested: root.focusSearch("a")
           onSettingsRequested: root.openSettings()
-          onNextPageRequested: session.nextPage()
-          onPreviousPageRequested: session.previousPage()
+          onNextPageRequested: pages => session.nextPage(pages)
+          onPreviousPageRequested: pages => session.previousPage(pages)
           onPageJumpRequested: page => session.goToPage(page)
           onTabbed: root.toggleMode()
         }

@@ -64,6 +64,7 @@ merging and config parsing are all under test without a compositor.
 - `src/lib/urls.mjs` — the bare URL under the cursor for `gx`, and which links may open (http/https only)
 - `src/lib/sessions.mjs` — the ring of ten saved conversations: recording, walking, forgetting, and its file
 - `src/lib/popup.mjs` — where a settings dropdown's list opens so it stays on screen: below, above, or shrunk to scroll
+- `src/lib/pager.mjs` — which page squares the results strip shows: every page while they fit, then a window around the one being read
 
 `VimTextField.qml` is therefore only a mode machine and key dispatch — if you
 add a motion or an object, the logic goes in `src/lib` with tests and the QML
@@ -353,6 +354,11 @@ between search and AI with Tab; only an explicit mode-changing action changes it
   always opened below at eight rows with no window bound and ran off the screen
   for a row low on the page; this one places the list with `popup.mjs`. Keep
   its look in step with the original under `/usr/share/omarchy/shell/Ui`.
+- `PageTabs.qml` — the same squares for the pages of results, one per page held
+  plus a `›` for the one not fetched yet; `picked(page)` is `goToPage`, so the
+  mouse and `5gp` end in the same place. Only one strip shows at a time —
+  pages in search, conversations in AI — and `content.viewHeight` subtracts
+  whichever it is.
 - `SessionTabs.qml` — the numbered squares under the status line, one per saved
   conversation plus a `+`, with a pulsing dot on any whose answer is still
   coming; it raises `picked(index)` and `started()` and knows nothing else. It takes its room from the view below through

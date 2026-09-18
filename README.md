@@ -12,8 +12,8 @@ A web search and AI panel for [Omarchy](https://omarchy.org) 4, driven with vim 
 | `↑` `↓` | in the search field: the queries you searched before |
 | `j` `k` | through the results |
 | `enter` on a result | open it in the browser |
-| `h` `l` | previous and next page |
-| `5gp` | jump to page 5 of the results |
+| `h` `l` | previous and next page; `3h` `5l` walk several |
+| `5gp` | jump to page 5 of the results, or click its square |
 | `v` `V` then `y` | select in an answer, and yank |
 | `enter` on a selection | hand it to the agent in a terminal |
 | `/` `?` then `n` `N` | search the results or the answer |
@@ -39,6 +39,10 @@ The last twenty-five queries are kept in `~/.local/share/omaseek/queries.json`:
 the search field is one line, so `↑` and `↓` walk them the way a shell does, and
 `↓` past the newest puts back what you were typing before stepping into the
 results.
+
+Under the status line, the pages you have read are numbered squares — click one
+to go back to it, or the `›` to fetch the next. It is the same strip the saved
+conversations get in AI mode.
 
 The last ten conversations are kept in `~/.local/share/omaseek/sessions.json`
 and survive a shell restart. A strip of numbered squares under the status line

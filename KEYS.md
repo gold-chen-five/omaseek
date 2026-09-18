@@ -171,8 +171,8 @@ relative to the current row: `2j` moves down two results, `2k` moves up two.
 | `j` `k`, `down` `up` | move the cursor; a count repeats the move (`2j`, `10k`) |
 | `ctrl+d` `ctrl+u` | half a screen |
 | `gg` `G` | first, last |
-| `l` (Next page), `right` | next page; after `page failed` on the status line, it retries that page |
-| `h` (Previous page), `left` | previous page |
+| `l` (Next page), `right` | next page; after `page failed` on the status line, it retries that page. A count walks several: `5l` is five pages on |
+| `h` (Previous page), `left` | previous page; `3h` three back, never past the first |
 | `5gp` | jump to page 5; `gp` alone is page 1. Cached pages are instant, the rest are fetched one by one and the status line counts them (`page 4 of 7 · loading…`). A jump asks for at most ten new pages, so `500gp` goes ten on and another `gp` carries on |
 | `enter` (Open) | open in the browser and dismiss |
 | `ga` (Hand off to agent) | the selected result's URL on its own, as an editable draft in the agent |
@@ -184,6 +184,7 @@ relative to the current row: `2j` moves down two results, `2k` moves up two.
 | `/` `?` | search the rows — title, snippet and domain — forwards or backwards; the matched words are marked |
 | `n` `N` | the next match and the one before; a count repeats (`3n`) |
 | `esc` after a search | drop it and its marks, staying on the results |
+| the numbered squares | under the status line, one square a page and a `›` for the page not fetched yet: the mouse's `h`, `l` and `5gp`. Past ten pages the row is a window around the one being read |
 | `gi` (Back to the field) | back to the field, insert mode |
 | `gn` (Back to the field (normal)) | back to the field, normal mode |
 | `i` | back to the field, insert before the cursor, as in vim |
