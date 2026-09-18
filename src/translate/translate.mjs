@@ -1,7 +1,7 @@
 // Quick translation (gt, gT, the translate button): the languages it goes
 // into, and which one when none was chosen. Pure; under test. The language
-// names the agent is given live in bin/ask (TRANSLATE_LANGUAGES); the codes are
-// mirrored there — change both.
+// names the agent is given live in backend/omaseek/ask/prompts.py
+// (TRANSLATE_LANGUAGES); the codes are mirrored there — change both.
 
 // The code a setting stores, and how the page names it: in its own script, as
 // a reader who wants it would look for it.

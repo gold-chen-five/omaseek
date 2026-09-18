@@ -22,7 +22,7 @@ def build_prompt(question, history):
 
 
 # The languages the panel translates into, by the code its setting stores. Mirrored
-# as TRANSLATE_LANGUAGES in src/lib/translate.mjs; change both. The name is how
+# as TRANSLATE_LANGUAGES in src/translate/translate.mjs; change both. The name is how
 # the prompt says it, so zh-TW is not left for the agent to guess at.
 TRANSLATE_LANGUAGES = {
     "zh-TW": "Traditional Chinese (as written in Taiwan)",

@@ -2,7 +2,7 @@ import QtQuick
 import qs.Commons
 
 // The strip under the search field: editing mode on the left, what the search
-// is doing on the right. Both strings come from lib/search.mjs.
+// is doing on the right. Both strings come from search/search.mjs.
 Item {
   id: line
 

@@ -350,7 +350,7 @@ test('streaming is on unless it was deliberately turned off', async () => {
 })
 
 test('engines read as bin/search reads them: absent is the defaults, an explicit [] is kept', () => {
-  assert.deepEqual(DEFAULT_ENGINES, ['google cse', 'bing', 'brave', 'duckduckgo'], 'mirrors DEFAULT_ENGINES in bin/search')
+  assert.deepEqual(DEFAULT_ENGINES, ['google cse', 'bing', 'brave', 'duckduckgo'], 'mirrors DEFAULT_ENGINES in backend/omaseek/search/config.py')
   const google = settingsRows(readSettings(''), 'running').find(r => r.key === 'searxngEngine:google')
   assert.equal(google.value, false, 'plain google is offered, and off by default')
   assert.deepEqual(readSettings('').searxngEngines, DEFAULT_ENGINES)

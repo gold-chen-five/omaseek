@@ -9,7 +9,7 @@ import "popup.mjs" as PopupLib
 // outside it. Omarchy's list always opens below the trigger at up to eight
 // rows and is not kept inside the window, so a dropdown low on the page (Model,
 // on a 1536×864 logical screen) ran off the bottom of the screen. Here the list
-// opens where it fits (lib/popup.mjs) and scrolls to the chosen option.
+// opens where it fits (settings/popup.mjs) and scrolls to the chosen option.
 // Theirs lives under /usr/share, read-only; keep this close to it when it moves.
 Item {
   id: root

@@ -1,6 +1,7 @@
 // Every option the settings page offers, and what each setting is when nothing
 // was chosen. Declared once, here: the page reads them, and bin/search mirrors
-// the ones it needs (PAGE_SIZE_CHOICES, DEFAULT_ENGINES, LANGUAGE_PATTERN).
+// the ones it needs in backend/omaseek/search/config.py (PAGE_SIZE_CHOICES,
+// DEFAULT_ENGINES, LANGUAGE_PATTERN) — change both.
 
 import { DEFAULT_SEQUENCES, DEFAULT_TIMEOUT_MS } from '../vim/keymap.mjs'
 import { ACTIONS, settingKey } from '../vim/keybinds.mjs'
@@ -17,7 +18,7 @@ export const PAGE_NUMBER_CHOICES = ['absolute', 'relative']
 export const PAGE_SIZE_CHOICES = [5, 10, 15, 20]
 
 // The SearXNG engines the page switches, mirrored as DEFAULT_ENGINES in
-// bin/search. Measured to answer, and fast; the rest mostly answer with a
+// backend/omaseek/search/config.py. Measured to answer, and fast; the rest mostly answer with a
 // CAPTCHA or nothing. A name typed into searxng_engines by hand is kept.
 // Measured against a local instance on 2026-09-18, three queries each: the
 // defaults answer in 0.2-0.6 s, startpage brings the most rows but takes
@@ -35,7 +36,7 @@ export const ENGINE_LABELS = { 'google cse': 'Google CSE', duckduckgo: 'DuckDuck
 
 // SearXNG's language/region codes. 'default' sends none, leaving the instance's
 // own default; 'auto' asks SearXNG to guess from the query. Mirrored as the
-// LANGUAGE pattern in bin/search, which accepts any well-formed code.
+// LANGUAGE_PATTERN in backend/omaseek/search/config.py, which accepts any well-formed code.
 export const LANGUAGE_CHOICES = [
   'default', 'auto', 'all', 'en', 'en-US', 'en-GB', 'de', 'de-DE', 'fr', 'fr-FR',
   'es', 'es-ES', 'it-IT', 'nl-NL', 'pt-BR', 'pl-PL', 'sv-SE', 'ru-RU', 'ja-JP',

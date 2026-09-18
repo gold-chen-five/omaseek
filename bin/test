@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tests for the QML field, draft launcher, and src/lib/*.mjs.
+# Every test: the QML field, the Python helpers, and the pure .mjs modules.
 
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."

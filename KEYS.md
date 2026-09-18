@@ -315,10 +315,11 @@ selected row visible. Values are written as they change; there is no save.
 
 - `src/vim/keybinds.mjs` — `ACTIONS`, every rebindable key with its default, scope and label; binding text ↔ chord strings (`"ctrl+c"` ↔ `"C-c"`, `"gx"` ↔ `"g x"`)
 - `src/vim/keys.mjs` — the fixed keys of the two panes that are *read* (results, answer); `readerKeys` merges in the rebound ones, chord → command name; `bindingProblem` is the clash check the settings page runs
-- `src/settings/settings.mjs` — the Keys rows (one per action) and the Fixed keys rows (`FIXED_KEYS`)
+- `src/settings/rows.mjs` — the Keys rows (one per action); `src/settings/choices.mjs` — the Fixed keys rows (`FIXED_KEYS`)
 - `src/vim/chord.js` — Qt key events → chord strings
-- `src/field/VimTextField.qml` — the field's mode machine and everything vim
-- `src/search/ResultList.qml`, `AnswerView.qml`, `SettingsPage.qml`, `SetupPrompt.qml` — each view's own dispatch
+- `src/field/` — the field: `VimTextField.qml` routes each key to `FieldPanelKeys` (the panel's keys, every mode), `FieldInsert` (insert mode and `jk`), `FieldNormal` (normal and visual), `FieldPending` (the key after `f`/`t`, `r`, `i`/`a`, `g`) and `FieldEdits` (what they do to the text)
+- `src/ask/answer/AnswerKeys.qml` — the answer's dispatch; `src/search/ResultList.qml`, `src/settings/SettingsPage.qml`, `src/engine/SetupPrompt.qml` — each view's own
+- `src/panel/Commands.qml`, `src/ask/ChatCommands.qml` — what a key asks the panel to do
 - `src/ask/sessions.mjs` — the ring of saved conversations the session keys walk
 
 ## Translate

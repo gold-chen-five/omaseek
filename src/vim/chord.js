@@ -1,4 +1,4 @@
-// Qt key event -> chord string for lib/keys.mjs. A .js file so it can see Qt;
+// Qt key event -> chord string for vim/keys.mjs. A .js file so it can see Qt;
 // keys.mjs also runs under node. A bare modifier is "", which keeps a pending
 // sequence.
 

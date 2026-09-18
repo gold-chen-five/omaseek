@@ -1,6 +1,6 @@
 // The queries that were searched before: a ring of the last twenty-five, newest
 // first, and the rules for recording one and walking back through them. Pure and
-// under test; the file itself is read and written by components/HistoryStore.qml.
+// under test; the file itself is read and written by search/HistoryStore.qml.
 //
 // The shape of sessions.mjs, with one difference that matters: walking does not
 // wrap. Past the oldest it stops, and past the newest it lands back on the draft

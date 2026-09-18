@@ -1,6 +1,6 @@
 // Keypress -> command name for the two panes read with vim keys (results, answer);
 // each pane decides what a command does. A chord is "j", "Escape" or "C-d"; a
-// sequence joins chords with spaces ("g g"). components/chord.js builds chords
+// sequence joins chords with spaces ("g g"). vim/chord.js builds chords
 // from Qt events, separately, because this file also runs under node.
 //
 // A pane's table is its fixed keys — vim's own, spelled once below — plus the

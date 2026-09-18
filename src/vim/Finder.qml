@@ -5,7 +5,7 @@ import "chord.js" as Chord
 // The `/` prompt, shared by the two panes that are read. They differ only in
 // what a pattern matches — text offsets in the answer, row indices in the list —
 // so the pane supplies `matchesFor` and this holds everything else, the way
-// lib/keys.mjs holds one keymap for both rather than two that can drift.
+// vim/keys.mjs holds one keymap for both rather than two that can drift.
 Item {
   id: finder
 

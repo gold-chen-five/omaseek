@@ -29,7 +29,8 @@ omarchy-shell shell rescanPlugins       # re-reads the plugin list; will not rel
 quickshell log -p /usr/share/omarchy/shell -f   # QML errors and console.log (not journald)
 ```
 
-Run `./bin/test` after touching anything in `src/lib`. There is no linter.
+Run `./bin/test` after touching any `.mjs`, `.qml` or `backend/` module. There
+is no linter.
 The QML test drives `VimTextField` with real key events; its import stubs expose
 only the shell types needed to instantiate the field outside Quickshell.
 
@@ -43,33 +44,72 @@ existing, which is what makes `SUPER + D` look broken.
 
 ## Architecture
 
-### The pure/impure split
+### Layout: one folder per feature, no file much past 300 lines
 
-One rule governs the layout: **anything that is a pure function of its inputs
-lives in `src/lib` as an `.mjs` ES module; everything that needs Qt stays in
-QML.** The same file loads in both (`import "../lib/motions.mjs" as Motions` in
+Code is grouped by what it is about, not by what kind of file it is: each
+feature's folder holds its QML *and* its pure `.mjs` side by side.
+
+| folder | holds |
+|---|---|
+| `src/Search.qml`, `src/BarWidget.qml` | the entry points `manifest.json` names; they stay at `src/` |
+| `src/panel/` | the card and its layout: `PanelCard`, `FieldBar`, `StatusBar`/`StatusLine`, `ReadingArea`, and `Commands` — Enter, the arrows, and what crosses between the halves |
+| `src/field/` | `VimTextField` and its key parts |
+| `src/vim/` | vim itself, pure: motions, text objects, the answer's grammar, finds, key tables and bindings; `chord.js`, `measure.js`, `Finder`, `MatchHighlight` |
+| `src/search/` | searching: `SearchSession`, `ResultList`/`ResultRow`, `PageTabs`, `HistoryStore`, and `search`, `history`, `pager` |
+| `src/ask/` | asking: `AiSession` and its parts (`AskTurns`, `AgentCli`), `ChatCommands`, `SessionStore`/`SessionTabs`, `AnswerView` with its parts in `ask/answer/`, and `sessions`, `transcript`, `markdown` |
+| `src/translate/` | `Translator`, `TranslatePanel`, `translate.mjs` |
+| `src/settings/` | `SettingsPage`, `SettingRow`, `SettingsDropdown`, `SettingsRows`, `ConfigStore`, `SettingsActions`, and the settings modules |
+| `src/engine/` | the SearXNG instance: `Engine`, `SetupPrompt` |
+| `src/core/` | shared by everything: `JsonFile`, `JsonProcess`, `json`, `states`, `urls`, `thinking` |
+| `backend/omaseek/` | the Python behind `bin/ask` and `bin/search`, a package each |
+| `bin/` | entry points and shell scripts; `bin/ask` and `bin/search` only call `main()` |
+
+**The pure/impure rule still holds within a folder: anything that is a pure
+function of its inputs is an `.mjs` ES module; everything that needs Qt is
+QML.** The same file loads in both (`import "../vim/motions.mjs" as Motions` in
 QML, `import` in node), so cursor arithmetic, escape-sequence matching, page
 merging and config parsing are all under test without a compositor.
 
-- `src/core/json.mjs` — reading one of our own hand-editable JSON files: nothing here throws, so an unreadable file is an empty one
-- `src/vim/motions.mjs` — cursor motions (`w b e f t 0 ^ $`), `(text, pos) -> pos`
-- `src/vim/textobjects.mjs` — `iw aw i" a(` … `(text, pos) -> {start, end}`
-- `src/vim/keymap.mjs` — the insert-mode escape sequence (`jk`) and its config
-- `src/search/search.mjs` — result normalising, de-duplication, status/error strings
-- `src/settings/settings.mjs` — config text → settings, and the settings-page row list
-- `src/ask/markdown.mjs` — the agent's Markdown → the rich-text subset a TextEdit colours; the transcript layout
-- `src/vim/keybinds.mjs` — `ACTIONS`, every rebindable key; binding text ↔ chords (`gA` ↔ `g A`); `panelChords()` for the field's and the answer's table
-- `src/vim/keys.mjs` — chord → command name for the reading panes, the `gg`/`gv` prefix machine, and the clash check for a rebound key
-- `src/core/states.mjs` — the panel's `VIEW`, `PANEL` and `FOCUS` values; never write them as bare strings
-- `src/core/urls.mjs` — the bare URL under the cursor for `gx`, and which links may open (http/https only)
-- `src/ask/sessions.mjs` — the ring of ten saved conversations: recording, walking, forgetting, and its file
-- `src/settings/popup.mjs` — where a settings dropdown's list opens so it stays on screen: below, above, or shrunk to scroll
-- `src/translate/translate.mjs` — the languages a translation goes into, and which by default: the search language, else 繁體中文
-- `src/search/pager.mjs` — which page squares the results strip shows: every page while they fit, then a window around the one being read
+**A big component keeps its state; its work goes to parts.** A QML id is
+private to its file, so a part reaches the object it serves through one
+property — `host` for the panel's command objects, `view` for the answer's
+parts, `field` for the field's, `session` for AiSession's — and the parts reach
+each other through properties that object exposes (`view.mover`,
+`field.edits`, `session.turns`). The parts qualify every member of what they
+serve (`view.cursor`, `field.text`). When splitting further, move function by
+function and check the result by reading it: a mechanical rewrite of names
+has twice qualified a string literal (`setMode("field.insert")`) and missed a
+spread (`[...history]`).
 
-`VimTextField.qml` is therefore only a mode machine and key dispatch — if you
-add a motion or an object, the logic goes in `src/lib` with tests and the QML
-gains a dispatch case.
+**Front doors keep imports stable.** `settings/settings.mjs` re-exports its
+modules (`export * from` — tried in QML's engine before relying on it), so
+every `import "settings.mjs"` still works; `omaseek.ask` and `omaseek.search`
+re-export their modules' names for the tests. A module imports its siblings
+directly, never through a front door.
+
+The pure modules, by folder:
+
+- `core/json.mjs` — reading one of our own hand-editable JSON files: nothing here throws, so an unreadable file is an empty one
+- `core/states.mjs` — the panel's `VIEW`, `PANEL` and `FOCUS` values; never write them as bare strings
+- `core/urls.mjs` — the bare URL under the cursor for `gx`, and which links may open (http/https only)
+- `core/thinking.mjs` — the waiting dot's clock, shared by the answer and the translation panel
+- `vim/motions.mjs` — cursor motions (`w b e f t 0 ^ $ h l`), `(text, pos) -> pos`
+- `vim/textobjects.mjs` — `iw aw i" a(` … `(text, pos) -> {start, end}`
+- `vim/keymap.mjs` — the insert-mode escape sequence (`jk`) and its config
+- `vim/keybinds.mjs` — `ACTIONS`, every rebindable key; binding text ↔ chords (`gA` ↔ `g A`); `panelChords()` and `normalChords()`
+- `vim/keys.mjs` — chord → command name for the reading panes, the `gg`/`gv` prefix machine, and the clash check for a rebound key
+- `vim/grammar.mjs`, `vim/find.mjs` — the answer's key grammar, and `/` search
+- `search/search.mjs` — result normalising, de-duplication, status/error strings
+- `search/history.mjs`, `search/pager.mjs` — the query history walk; which page squares show
+- `ask/sessions.mjs` — the ring of ten saved conversations: recording, walking, forgetting, and its file
+- `ask/transcript.mjs`, `ask/markdown.mjs` — reading the transcript back; the agent's Markdown → the rich-text subset a TextEdit colours
+- `translate/translate.mjs` — the languages a translation goes into, and which by default
+- `settings/settings.mjs` — the front door over `choices`, `config`, `agents`, `reports` and `rows` (with `rows-search`, `rows-ask`)
+- `settings/popup.mjs` — where a settings dropdown's list opens so it stays on screen
+
+`VimTextField.qml` is therefore only the mode machine's state and a router — if
+you add a motion or an object, the logic goes in `vim/` with tests, and a part
+in `field/` gains a dispatch case.
 
 **QML's JS engine is not node.** `.mjs` modules must stay within the subset both
 understand: `Object.hasOwn` exists in node and not in QML, so a guard using it
@@ -97,7 +137,7 @@ asks, rather than showing an error the user cannot act on. A 403 is *not*
 marked `setup` — SearXNG ships `formats: [html]`, so the JSON API is off until
 `settings.yml` enables it, and the error message names that fix.
 
-**A failed page is not the end.** `grow_session` used to clear `next` when a
+**A failed page is not the end.** `grow_session` (`backend/omaseek/search/session.py`) used to clear `next` when a
 fetch failed, so a timeout on page 3 read as `· end` and could never be retried.
 It now keeps the continuation, saves the buffer, and `emit_page` fails the whole
 page with `retry: true` — a short page would be cached by the panel as final.
@@ -157,7 +197,7 @@ waits for every engine in the category, so `searxng_engines` in config.json
 that answer took a query from ~1.1 s to ~0.3 s locally. `outgoing.request_timeout`
 in its `settings.yml` is the backstop.
 
-`DEFAULT_ENGINES` in `bin/search` is what an install ships, because the
+`DEFAULT_ENGINES` in `backend/omaseek/search/config.py` is what an install ships, because the
 installer never writes a config and an unnamed list means *every* enabled
 engine — the slow path. Measured locally: **brave** (20 rows, pages),
 **bing** (10 rows, fastest, but `paging: false`, so brave carries `h`/`l`) and
@@ -192,6 +232,14 @@ engines answered in time. Rows are de-duplicated on URL *and* domain+title, in
 `absorb()` and again in `search.mjs`.
 
 ### bin/ask — the AI half
+
+The code is `backend/omaseek/ask/`: `agents.py` (the `AGENTS` table and
+presence), `models.py`, `prompts.py`, `outcome.py` (classifying a failure),
+`run.py` and `stream.py` (one turn, whole or streamed), `handoff.py`, and
+`main.py`. `bin/search` is the same shape in `backend/omaseek/search/`:
+`config.py`, `client.py`, `version.py`, `probe.py`, `session.py`, `main.py`. Its
+engines, language and page size are read through one shared `CURRENT` object
+that `main()` fills — module globals would each be a module's own copy.
 
 Same shape as `bin/search`: a separate stdlib-Python process, one JSON object
 out, exit 0 on handled failure. It speaks to **agent CLIs already installed**
@@ -241,7 +289,7 @@ front, so walking the ring stays predictable. The strip is the same three
 actions with a mouse: a square is `openSession(index)`, `+` is `newChat()`.
 `ctrl+shift+x` forgets the lot; since nothing here can be undone and the panel
 has no dialog, it arms on the first press and the status line says what the
-second one will do (`clearArmed` in `Search.qml`, `confirmClearText` in
+second one will do (`clearArmed` in `ChatCommands`, `confirmClearText` in
 `search.mjs`), with every other session key calling it off. Shift became a
 modifier for that binding: `chord.js` spells a ctrl chord with shift `C-S-x`,
 and `keybinds.mjs` parses `ctrl+shift+x` — shift alone is refused, because on
@@ -315,80 +363,91 @@ which can hit a neighboring paragraph. Bare domains also work with gx.
 Signing in is handed to the CLI through the same launcher. After login, a pending
 question also opens as a draft; the user submits it themselves.
 
-### Search.qml and the stores
+### Search.qml, the stores and the commands
 
-`Search.qml` is wiring: it decides which view shows (`view`: `search` |
-`settings` | `setup`) and which of the field and the list has the keyboard
-(`focusArea`, a two-state machine — Enter searches and focuses the first
-result when it arrives; `j`/Down also step into existing results). Everything else
-is held by non-visual `Item`s in `src/components`, the way first-party
-plugins keep state in a `Service.qml`:
+`Search.qml` decides which view shows (`view`: `search` | `settings` | `setup`)
+and which of the field and the reading pane has the keyboard (`focusArea` —
+Enter searches and focuses the first result when it arrives; `j`/Down also step
+into existing results), holds the stores, and lays out the window; the card's
+contents are `panel/PanelCard`. What a key *does* lives in a command object
+that the view's signals are connected to: `panel/Commands` (Enter, the arrows,
+translate, what crosses between the halves), `ask/ChatCommands` (the
+conversation keys and the agent switch), `settings/SettingsActions` (the
+page's switches and buttons). They reach the panel as `host`.
 
 The field's Vim mode survives closing and reopening the panel, and switching
 between search and AI with Tab; only an explicit mode-changing action changes it.
 
-- `JsonFile.qml` — one of our JSON files under an XDG base: read whole, written
-  whole, and the place the mkdir trap is settled — `setText` fails silently when
-  the directory is missing, the state a machine is in before its first write, so
-  every write waits for one. The three stores below differ only in where the
-  file lives, whether it is watched, and what the text means.
-- `JsonProcess.qml` — a `bin/` helper run for one answer. They all print one JSON
+The stores are non-visual `Item`s, the way first-party plugins keep state in a
+`Service.qml`:
+
+- `core/JsonFile.qml` — one of our JSON files under an XDG base: read whole,
+  written whole, and the place the mkdir trap is settled — `setText` fails
+  silently when the directory is missing, the state a machine is in before its
+  first write, so every write waits for one.
+- `core/JsonProcess.qml` — a `bin/` helper run for one answer. They all print one JSON
   object and exit 0, so `parsed(payload)` and `unreadable(raw)` is the whole
   protocol; `start(command)` stops first, because a running `Process` keeps its
   old command until it does.
-- `ConfigStore.qml` — the config file: watched, `reload()`,
+- `settings/ConfigStore.qml` — the config file: watched, `reload()`,
   `change(key, value)` written straight through.
-- `Engine.qml` — the SearXNG instance: `state` (`unknown`/`running`/`stopped`),
+- `engine/Engine.qml` — the SearXNG instance: `state` (`unknown`/`running`/`stopped`),
   `probe()` via `bin/search --status`, and start/stop/update via `bin/searxng-up`
   in a terminal. Paths come from `Qt.resolvedUrl` so the dev symlink works.
-- `SearchSession.qml` — the query, the page cache (`pages`/`pageIndex` — `h`
+- `search/SearchSession.qml` — the query, the page cache (`pages`/`pageIndex` — `h`
   never refetches), the `ListModel` the list paints, and the `JsonProcess` that
   runs the backend. Raises `engineDown`, `pageShown`. `5gp` jumps: a page's
   continuation only arrives with the page before it, so `goToPage` sets
   `pageTarget` and each answer asks for the next until it lands, `h` or a
   failure calls it off, and `pageJumpTarget` caps one jump at ten new requests
   so a stray `500gp` cannot spend five hundred.
-- `AiSession.qml` — the transcript, the agent list from `bin/ask --agents`,
-  `ask()`, `launch()`, and the ring of saved conversations (`nextSession()`,
-  `closeSession()`, `sessionIndex`). `AnswerView.qml` reads the transcript with
-  vim keys driven by the TextEdit's own layout (`positionAt`/`positionToRectangle`).
-- `SessionStore.qml` — the last ten conversations in
+- `ask/AiSession.qml` — the transcript and the ring of saved conversations
+  (`walkSessions()`, `closeSession()`, `sessionIndex`), and asking, stopping and
+  retrying. Its parts: `AskTurns` (one process per question, streamed and
+  delivered home) and `AgentCli` (discovery, models, and the terminal
+  hand-offs). `AnswerView.qml` reads the transcript with vim keys; its parts in
+  `ask/answer/` draw it (`AnswerLayer`), render it and find the marks
+  (`AnswerRender`), move the cursor through the TextEdit's own layout
+  (`AnswerMotion`), select and yank (`AnswerSelection`), hand text to the panel
+  (`AnswerActions`), and dispatch the keys (`AnswerKeys`).
+- `ask/SessionStore.qml` — the last ten conversations in
   `~/.local/share/omaseek/sessions.json`, written whole on every turn.
-- `HistoryStore.qml` — the last twenty-five queries, the same shape and read
+- `search/HistoryStore.qml` — the last twenty-five queries, the same shape and read
   once for the same reason. Ask mode walks its questions with the same keys
   (`↑`, `U`) but keeps no file of them: `Sessions.pastQuestions` reads them out
   of the saved conversations, so a question keeps its line breaks and
   forgetting a conversation forgets what was asked in it.
-- `SettingsDropdown.qml` — Omarchy's qs.Ui `Dropdown`, copied because its list
+- `settings/SettingsDropdown.qml` — Omarchy's qs.Ui `Dropdown`, copied because its list
   always opened below at eight rows with no window bound and ran off the screen
   for a row low on the page; this one places the list with `popup.mjs`. Keep
   its look in step with the original under `/usr/share/omarchy/shell/Ui`.
-- `Translator.qml` / `TranslatePanel.qml` — quick translation (`gt`, `gT`, the
+  `SettingRow.qml` is one row of the page, reaching it as `owner`.
+- `translate/Translator.qml` / `TranslatePanel.qml` — quick translation (`gt`, `gT`, the
   button): the store runs `bin/ask --translate` with **one process per
   request**, since a stopped `Process` still reports its empty stream as an
   unreadable answer and a replaced request must not land as an error; the view
-  sits split to the right of the reading pane while `translator.open`, and the
-  card widens with it. ctrl+x closes it first (`closeChat`). `--translate`
-  sends no history and no panel preamble, runs its own agent and model
-  (`translate_agent`, `translate_models`; 'same' is Ask's), and drops Claude's
-  web tools — a translation needs none, and a tool call only slows it.
-- `PageTabs.qml` — the same squares for the pages of results, numbered by its
+  sits split to the right of the reading pane (`panel/ReadingArea`) while
+  `translator.open`, and the card widens with it. ctrl+x closes it first
+  (`ChatCommands.closeChat`). `--translate` sends no history and no panel
+  preamble, runs its own agent and model (`translate_agent`,
+  `translate_models`; 'same' is Ask's), and drops Claude's web tools — a
+  translation needs none, and a tool call only slows it.
+- `search/PageTabs.qml` — the same squares for the pages of results, numbered by its
   own `page_numbers` setting rather than the lines', one per page held
   plus a `›` for the one not fetched yet; `picked(page)` is `goToPage`, so the
   mouse and `5gp` end in the same place. Only one strip shows at a time —
-  pages in search, conversations in AI — and `content.viewHeight` subtracts
+  pages in search, conversations in AI — and `PanelCard`'s `viewHeight` subtracts
   whichever it is.
-- `SessionTabs.qml` — the numbered squares under the status line, one per saved
+- `ask/SessionTabs.qml` — the numbered squares under the status line, one per saved
   conversation plus a `+`, with a pulsing dot on any whose answer is still
-  coming; it raises `picked(index)` and `started()` and knows nothing else. It takes its room from the view below through
-  `content.viewHeight`, which is why the two panes and the settings page share
-  one height rather than each subtracting the rows above.
+  coming; it raises `picked(index)` and `started()` and knows nothing else.
 
 Each view owns its own keys (`ResultList`, `AnswerView`, `SettingsPage`,
-`SetupPrompt`, `VimTextField`) and raises intent as signals — `escaped`, `settingsRequested`,
-`closed` — rather than reaching into the panel. Add a key to the view it
-belongs to, and a new piece of state to the store that owns it; `Search.qml`
-should only ever gain a signal connection.
+`SetupPrompt`, `VimTextField`) and raises intent as signals — `escaped`,
+`settingsRequested`, `closed` — rather than reaching into the panel. Add a key
+to the view it belongs to, a new piece of state to the store that owns it, and
+what the key does to the command object for its feature; `Search.qml` and
+`ReadingArea` only gain a connection.
 
 The two panes that are *read* with vim keys — the result list and the answer
 view — share their keymap rather than each spelling one out: `src/vim/keys.mjs`
@@ -419,11 +478,11 @@ The keys that belong to the *panel* rather than to a pane — search, the sessio
 keys, settings, the mode switch — travel as one object: `Keybinds.panelChords(settings)`
 maps action id → parsed chord, and the field and the answer both take it as
 `chords`. A new panel key is an entry in `ACTIONS` and a case in
-`VimTextField.panelCommand`, not a property threaded through `Search.qml`.
+`FieldPanelKeys.panelCommand`, not a property threaded through `Search.qml`.
 
 Settings live in `~/.config/omaseek/config.json`, shared by the panel and
-`bin/search` — **the option lists are declared once in `src/settings/settings.mjs`**
-and mirrored in `bin/search` (`PAGE_SIZE_CHOICES`, `DEFAULT_ENGINES`,
+`bin/search` — **the option lists are declared once in `src/settings/choices.mjs`**
+and mirrored in `backend/omaseek/search/config.py` (`PAGE_SIZE_CHOICES`, `DEFAULT_ENGINES`,
 `LANGUAGE_PATTERN`); change both. `searxng_url`
 is read by `bin/search` and never written by the panel, so `writeSettings` must
 keep preserving keys it does not own.

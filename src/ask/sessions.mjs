@@ -1,6 +1,6 @@
 // The saved AI conversations: a ring of at most ten, newest first, and the
 // rules for recording, walking and forgetting one. Pure and under test; the
-// file itself is read and written by components/SessionStore.qml.
+// file itself is read and written by ask/SessionStore.qml.
 //
 // A conversation keeps the place it was given, so that walking the ring with
 // the next-session key stays predictable while it is answered into; `updated`
