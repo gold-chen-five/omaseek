@@ -88,5 +88,37 @@ class CrushTests(unittest.TestCase):
         self.assertEqual(self.ask.fix_command(self.crush, "login"), ["crush"])
 
 
+class TranslateTests(unittest.TestCase):
+    """--translate's prompt and agent, in-process: nothing here runs an agent."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.ask = load_ask()
+
+    def test_the_prompt_names_the_target_and_asks_for_the_translation_alone(self):
+        prompt = self.ask.build_translation_prompt("ownership", "zh-TW")
+        self.assertIn("into Traditional Chinese (as written in Taiwan)", prompt)
+        self.assertIn("translate it into English instead", prompt)
+        self.assertIn("Reply with the translation only", prompt)
+        self.assertTrue(prompt.endswith("Text:\nownership"))
+        self.assertNotIn("desktop search panel", prompt, "no panel preamble, no conversation")
+
+    def test_english_as_the_target_turns_back_into_traditional_chinese(self):
+        prompt = self.ask.build_translation_prompt("所有權", "en")
+        self.assertIn("into English.", prompt)
+        self.assertIn("into Traditional Chinese (as written in Taiwan) instead", prompt)
+
+    def test_an_unknown_target_is_the_default_rather_than_a_guess(self):
+        self.assertEqual(self.ask.translate_target("klingon"), "zh-TW")
+        self.assertEqual(self.ask.translate_target("ja"), "ja")
+
+    def test_a_translation_asks_claude_without_its_web_tools(self):
+        claude = next(agent for agent in self.ask.AGENTS if agent["id"] == "claude")
+        chat = self.ask.without_web(claude)["chat"]
+        self.assertNotIn("WebSearch", chat)
+        self.assertNotIn("--allowedTools", chat)
+        self.assertIn("WebSearch", claude["chat"], "and Ask keeps them")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -78,6 +78,7 @@ TextArea {
   signal requestedSettings()                // Ctrl+S (or Ctrl+,) in any mode
   signal tabbed()                           // Tab in any mode: the panel switches search <-> ai
   signal agentSwitchRequested()             // shift+tab: the next installed agent answers
+  signal translateRequested(string text)    // gt on a selection, gT on the whole bar
   signal newSessionRequested()              // the new-session chord: start over
   signal nextSessionRequested()             // the next saved conversation
   signal sessionWalked(int delta)           // L / H in normal mode: through the ring
@@ -743,11 +744,23 @@ TextArea {
       return
     }
 
-    // g's only command here is gx; anything else after g means nothing.
+    // After g: gx, and the translate keys (gt, gT) bound in settings.
     if (pendingG) {
       pendingG = false
       pendingCount = 0
-      if (key === "x" && pendingOperator === "") openLinkUnderCursor()
+      if (pendingOperator !== "") return
+      const sequence = "g " + key
+      // gt: the selection, from visual mode; gT: everything in the bar.
+      if (sequence === normalChords.translate && mode === "visual") {
+        const range = visualRange()
+        const selected = text.substring(range.start, range.end)
+        setMode("normal")
+        field.translateRequested(selected)
+      } else if (sequence === normalChords.translateBar && mode !== "visual") {
+        field.translateRequested(text)
+      } else if (key === "x") {
+        openLinkUnderCursor()
+      }
       return
     }
     if (key === "g" && pendingOperator === "") {

@@ -10,6 +10,7 @@ import "lib/keybinds.mjs" as Keybinds
 import "lib/states.mjs" as States
 import "lib/history.mjs" as History
 import "lib/sessions.mjs" as Sessions
+import "lib/translate.mjs" as TranslateLib
 import "lib/urls.mjs" as Urls
 
 // Web search and AI overlay. The layer-shell setup and the open/close/dismiss/
@@ -28,7 +29,7 @@ Item {
   property string focusArea: States.FOCUS.FIELD  // who has the keyboard
   property string setupReason: ""              // what the backend said when the instance was down
 
-  readonly property var settingsRows: SettingsLib.settingsRows(config.settings, engine.state, ai.agents, ai.models, engine.test, engine.version, engine.speed)
+  readonly property var settingsRows: SettingsLib.settingsRows(config.settings, engine.state, ai.agents, ai.models, engine.test, engine.version, engine.speed, translator.models)
   readonly property string chatModel: SettingsLib.selectedModel(config.settings, ai.agents, ai.models)
 
   // Every panel key, parsed, by action id; each falls back to its default.
@@ -87,6 +88,22 @@ Item {
     walkChats(1)
   }
 
+  // gt, gT and the translate button: the text into the language set under
+  // Translate, in the panel split off to the right. A new one replaces what
+  // is there; the keyboard stays where it was.
+  function translateText (value) {
+    const target = TranslateLib.effectiveTarget(config.settings)
+    if (translator.translate(value, target)) say("translating into " + TranslateLib.targetLabel(target) + "…")
+  }
+
+  function translateBar () {
+    translateText(input.text.split(input.lineBreak).join("\n"))
+  }
+
+  function closeTranslation () {
+    translator.close()
+  }
+
   // Shift+tab: the next installed agent answers from now on. The conversation
   // does not change hands — every question already carries the turns before it
   // in its prompt, whoever wrote them — so the new agent picks it up as it is.
@@ -108,6 +125,11 @@ Item {
   }
 
   function closeChat () {
+    // ctrl+x closes an open translation first, and does nothing else.
+    if (translator.open) {
+      closeTranslation()
+      return
+    }
     if (panelMode !== States.PANEL.AI) return
     disarmClear()
     if (ai.closeSession()) showChat()
@@ -396,6 +418,13 @@ Item {
 
   HistoryStore { id: queries }
 
+  Translator {
+    id: translator
+
+    askPath: Qt.resolvedUrl("../bin/ask").toString().replace(/^file:\/\//, "")
+    modelAgent: SettingsLib.translateAgentOf(config.settings, ai.agents)
+  }
+
   Engine {
     id: engine
     onLaunching: root.dismiss()                // the terminal takes the screen
@@ -451,7 +480,7 @@ Item {
     BorderSurface {
       id: card
 
-      width: Math.min(Style.space(820), panel.width - Style.gapsOut * 2)
+      width: Math.min(Style.space(translator.open ? 1200 : 820), panel.width - Style.gapsOut * 2)
       height: Math.min(Style.space(560), panel.height - Style.gapsOut * 2)
       radius: Style.cornerRadius
       anchors.centerIn: parent
@@ -545,6 +574,7 @@ Item {
                 onRequestedSettings: root.openSettings()
                 onTabbed: root.toggleMode()
                 onAgentSwitchRequested: root.switchAgent()
+                onTranslateRequested: text => root.translateText(text)
                 onNewSessionRequested: root.newChat()
                 onNextSessionRequested: root.nextChat()
                 onSessionWalked: delta => root.walkChats(delta)
@@ -567,65 +597,85 @@ Item {
           }
 
           // Reserves the wider arrangement, so the field keeps its width across modes.
-          Item {
+          Row {
             id: actions
 
             anchors.right: parent.right
             anchors.top: parent.top                // the field grows down; the buttons stay a line
             height: fieldFrame.oneLineHeight
-            width: Math.max(searchButton.implicitWidth, askActions.implicitWidth)
+            spacing: Style.spacing.sm
 
+            // gT with a mouse: whatever is in the bar, into the panel beside
+            // the results or the answer.
             Button {
-              id: searchButton
-
-              visible: root.panelMode === States.PANEL.SEARCH
-              anchors.fill: parent
-              text: "search"
+              height: actions.height
+              text: "translate"
+              tooltipText: "translate the bar (gT)"
               active: true
               foreground: root.foreground
               accent: root.accent
               fontFamily: root.fontFamily
               fontSize: Style.font.body
 
-              onClicked: root.runSearch()
+              onClicked: root.translateBar()
             }
 
-            Row {
-              id: askActions
+            Item {
+              height: actions.height
+              width: Math.max(searchButton.implicitWidth, askActions.implicitWidth)
 
-              visible: root.panelMode === States.PANEL.AI
-              anchors.right: parent.right
-              height: parent.height
-              spacing: Style.spacing.sm
-
-              // While a reply is being written the button stops it, and after a
-              // failure or a stop it asks again — the keys, with a mouse.
               Button {
-                height: askActions.height
-                text: ai.status === "thinking" ? "stop" : ai.canRetry && input.text.trim() === "" ? "retry" : "chat"
+                id: searchButton
+
+                visible: root.panelMode === States.PANEL.SEARCH
+                anchors.fill: parent
+                text: "search"
                 active: true
                 foreground: root.foreground
                 accent: root.accent
                 fontFamily: root.fontFamily
                 fontSize: Style.font.body
 
-                onClicked: {
-                  if (ai.status === "thinking") root.stopAnswer()
-                  else if (ai.canRetry && input.text.trim() === "") root.retryAnswer()
-                  else root.runSearch()
-                }
+                onClicked: root.runSearch()
               }
 
-              Button {
-                height: askActions.height
-                text: "new session"
-                active: true
-                foreground: root.foreground
-                accent: root.accent
-                fontFamily: root.fontFamily
-                fontSize: Style.font.body
+              Row {
+                id: askActions
 
-                onClicked: root.newChat()
+                visible: root.panelMode === States.PANEL.AI
+                anchors.right: parent.right
+                height: parent.height
+                spacing: Style.spacing.sm
+
+                // While a reply is being written the button stops it, and after a
+                // failure or a stop it asks again — the keys, with a mouse.
+                Button {
+                  height: askActions.height
+                  text: ai.status === "thinking" ? "stop" : ai.canRetry && input.text.trim() === "" ? "retry" : "chat"
+                  active: true
+                  foreground: root.foreground
+                  accent: root.accent
+                  fontFamily: root.fontFamily
+                  fontSize: Style.font.body
+
+                  onClicked: {
+                    if (ai.status === "thinking") root.stopAnswer()
+                    else if (ai.canRetry && input.text.trim() === "") root.retryAnswer()
+                    else root.runSearch()
+                  }
+                }
+
+                Button {
+                  height: askActions.height
+                  text: "new session"
+                  active: true
+                  foreground: root.foreground
+                  accent: root.accent
+                  fontFamily: root.fontFamily
+                  fontSize: Style.font.body
+
+                  onClicked: root.newChat()
+                }
               }
             }
           }
@@ -735,74 +785,119 @@ Item {
           onEditingFinished: Qt.callLater(() => settingsPage.forceActiveFocus())
         }
 
-        AnswerView {
-          id: answerView
+        // The reading half: the answer or the results, and — while a
+        // translation is open — the panel split off to their right.
+        Item {
+          id: reading
 
-          binds: config.settings
-          chords: root.chords
-          lineNumbers: config.settings.lineNumbers
-
-          visible: root.view === States.VIEW.SEARCH && root.panelMode === States.PANEL.AI
+          visible: root.view === States.VIEW.SEARCH
           width: parent.width
           height: content.viewHeight
-          turns: ai.history
-          streamText: ai.liveStreamText
-          thinking: ai.status === "thinking"
-          agentName: ai.agentName
 
-          onHandedOff: context => ai.launch(context)
-          onLinkOpened: url => root.openUrl(url)
-          onSearchRequested: text => root.searchFor(text)
-          onEscaped: root.focusSearch("normal")
-          onNormalRequested: root.focusSearch("normal")
-          onInsertRequested: root.focusSearch("i")
-          onAppendRequested: root.focusSearch("a")
-          onSettingsRequested: root.openSettings()
-          onTabbed: root.toggleMode()
-          onAgentSwitchRequested: root.switchAgent()
-          onNewSessionRequested: root.newChat()
-          onSessionWalked: delta => root.walkChats(delta)
-          onCloseSessionRequested: root.closeChat()
-          onClearSessionsRequested: root.clearChats()
-          onStopRequested: root.stopAnswer()
-          onRetryRequested: root.retryAnswer()
-          onPutRequested: (text, after) => {
-            root.focusSearch("normal")
-            input.put(after, text)
+          Item {
+            id: readingPane
+
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: translator.open ? Math.round(parent.width * 0.58) : parent.width
+
+            AnswerView {
+              id: answerView
+
+              binds: config.settings
+              chords: root.chords
+              lineNumbers: config.settings.lineNumbers
+
+              visible: root.panelMode === States.PANEL.AI
+              anchors.fill: parent
+              turns: ai.history
+              streamText: ai.liveStreamText
+              thinking: ai.status === "thinking"
+              agentName: ai.agentName
+
+              onHandedOff: context => ai.launch(context)
+              onLinkOpened: url => root.openUrl(url)
+              onSearchRequested: text => root.searchFor(text)
+              onEscaped: root.focusSearch("normal")
+              onNormalRequested: root.focusSearch("normal")
+              onInsertRequested: root.focusSearch("i")
+              onAppendRequested: root.focusSearch("a")
+              onSettingsRequested: root.openSettings()
+              onTabbed: root.toggleMode()
+              onAgentSwitchRequested: root.switchAgent()
+              onTranslateRequested: text => root.translateText(text)
+              onNewSessionRequested: root.newChat()
+              onSessionWalked: delta => root.walkChats(delta)
+              onCloseSessionRequested: root.closeChat()
+              onClearSessionsRequested: root.clearChats()
+              onStopRequested: root.stopAnswer()
+              onRetryRequested: root.retryAnswer()
+              onPutRequested: (text, after) => {
+                root.focusSearch("normal")
+                input.put(after, text)
+              }
+              onAskRequested: text => root.askAboutText(text)
+            }
+
+            ResultList {
+              id: resultsList
+
+              binds: config.settings
+              lineNumbers: config.settings.lineNumbers
+
+              visible: root.panelMode === States.PANEL.SEARCH
+              anchors.fill: parent
+              model: session.results
+
+              onHandedOff: index => ai.launch(session.handoffText(index))
+              onPageHandedOff: ai.launch(session.handoffText(-1))
+              onYanked: (index, withTitle) => root.yankResult(index, withTitle)
+              onAskRequested: index => root.askAboutResult(index)
+              onSearchRequested: index => {
+                const row = session.rowAt(index)
+                if (row && row.title) root.searchFor(row.title)
+              }
+              onActivated: index => root.openResult(index)
+              onEscaped: root.focusSearch("normal")
+              onNormalRequested: root.focusSearch("normal")
+              onInsertRequested: root.focusSearch("i")
+              onAppendRequested: root.focusSearch("a")
+              onSettingsRequested: root.openSettings()
+              onNextPageRequested: pages => session.nextPage(pages)
+              onPreviousPageRequested: pages => session.previousPage(pages)
+              onPageJumpRequested: page => session.goToPage(page)
+              onTabbed: root.toggleMode()
+              onAgentSwitchRequested: root.switchAgent()
+              onCloseSessionRequested: root.closeChat()
+            }
           }
-          onAskRequested: text => root.askAboutText(text)
-        }
 
-        ResultList {
-          id: resultsList
+          TranslatePanel {
+            id: translatePanel
 
-          binds: config.settings
-          lineNumbers: config.settings.lineNumbers
+            visible: translator.open
+            anchors.left: readingPane.right
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            anchors.leftMargin: Style.spacing.md
+            source: translator.source
+            text: translator.text
+            status: translator.status
+            errorMessage: translator.errorMessage
+            targetLabel: translator.targetLabel
+            startedAt: translator.startedAt
+            foreground: root.foreground
+            accent: root.accent
+            fontFamily: root.fontFamily
 
-          visible: root.view === States.VIEW.SEARCH && root.panelMode === States.PANEL.SEARCH
-          width: parent.width
-          height: content.viewHeight
-          model: session.results
-
-          onHandedOff: index => ai.launch(session.handoffText(index))
-          onPageHandedOff: ai.launch(session.handoffText(-1))
-          onYanked: (index, withTitle) => root.yankResult(index, withTitle)
-          onAskRequested: index => root.askAboutResult(index)
-          onSearchRequested: index => {
-            const row = session.rowAt(index)
-            if (row && row.title) root.searchFor(row.title)
+            onClosed: root.closeTranslation()
+            onCopied: text => {
+              root.copyText(text)
+              root.say("translation copied")
+            }
           }
-          onActivated: index => root.openResult(index)
-          onEscaped: root.focusSearch("normal")
-          onNormalRequested: root.focusSearch("normal")
-          onInsertRequested: root.focusSearch("i")
-          onAppendRequested: root.focusSearch("a")
-          onSettingsRequested: root.openSettings()
-          onNextPageRequested: pages => session.nextPage(pages)
-          onPreviousPageRequested: pages => session.previousPage(pages)
-          onPageJumpRequested: page => session.goToPage(page)
-          onTabbed: root.toggleMode()
-          onAgentSwitchRequested: root.switchAgent()
         }
       }
     }

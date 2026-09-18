@@ -74,8 +74,9 @@ const FIXED = {
 const TAKEN_FIRST = { results: '123456789', answer: '123456789fFtT;,ya' }
 
 // The field's own vim commands in normal mode, which a key bound there must
-// leave alone. Counts are digits, and g is gx's prefix.
+// leave alone. Counts are digits, and g is a prefix: after it, x is gx's.
 const FIELD_NORMAL = 'hjklwWbBeE0^_$fFtT;,iIaAoOvVdcyDCYxXsSrpPugq123456789'
+const FIELD_AFTER_G = 'x'
 
 // What the field does with keys before any binding sees them.
 const FIELD_FIXED = {
@@ -86,7 +87,7 @@ const FIELD_FIXED = {
 // Names for the settings page when it refuses a key.
 const LABELS = {
   settings: 'settings', toggleMode: 'switch search / ask', switchAgent: 'switch agent', cancel: 'esc',
-  nextSession: 'the next session', previousSession: 'the session before', previousAsked: 'the query or question before', closeSession: 'close the session',
+  nextSession: 'the next session', previousSession: 'the session before', previousAsked: 'the query or question before', translate: 'translate', translateBar: 'translate the bar', closeSession: 'close the session',
   clearSessions: 'delete all sessions', stopAnswer: 'stop the answer', retryAnswer: 'retry the answer',
   halfPageDown: 'half a screen down', halfPageUp: 'half a screen up',
   down: 'move down', up: 'move up', right: 'move right', left: 'move left',
@@ -151,15 +152,17 @@ export function bindingProblem (id, raw, binds) {
     return action.scope === 'reader'
       ? 'not a key — try enter, ctrl+o, a letter, or two keys such as gx'
       : action.scope === 'normal'
-        ? 'one key — a letter such as U, or a named key'
+        ? 'one key such as U, or g and one more such as gT'
         : 'use a named key or a ctrl chord (enter, tab, ctrl+o) — a letter here could never be typed'
   }
   const text = chordText(sequence)
   const panes = ['field', 'normal'].concat(PANES)
   if (appliesTo(action, 'normal')) {
-    const first = keysOf(sequence)[0]
-    if (first.length === 1 && FIELD_NORMAL.indexOf(first) !== -1) {
-      return `${text} is taken in ${PANE_NAMES.normal}: ${first >= '1' && first <= '9' ? 'a count' : 'vim uses ' + first}`
+    const keys = keysOf(sequence)
+    if (keys.length === 2 && keys[0] === 'g') {
+      if (FIELD_AFTER_G.indexOf(keys[1]) !== -1) return `${text} is taken in ${PANE_NAMES.normal}: vim uses g${keys[1]}`
+    } else if (keys[0].length === 1 && FIELD_NORMAL.indexOf(keys[0]) !== -1) {
+      return `${text} is taken in ${PANE_NAMES.normal}: ${keys[0] >= '1' && keys[0] <= '9' ? 'a count' : 'vim uses ' + keys[0]}`
     }
   }
   for (let p = 0; p < panes.length; p++) {

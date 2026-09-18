@@ -4,7 +4,7 @@ import {
   readSettings, writeSettings, settingsRows, cycle, normalizeSequence, ENGINE_STATES,
   LAUNCHER_CHOICES, DEFAULT_AGENT,
   PAGE_SIZE_CHOICES, DEFAULTS, checkRow, FIXED_KEYS, changeSetting, selectedModel,
-  ENGINE_CHOICES, DEFAULT_ENGINES, LANGUAGE_CHOICES, toggleEngine, endpointTestText, searchSpeedText, versionText, nextAgent
+  ENGINE_CHOICES, DEFAULT_ENGINES, LANGUAGE_CHOICES, toggleEngine, endpointTestText, searchSpeedText, versionText, nextAgent, translateAgentOf, SAME_AS_ASK
 } from '../src/lib/settings.mjs'
 import { ACTIONS, settingKey } from '../src/lib/keybinds.mjs'
 import { DEFAULT_TIMEOUT_MS } from '../src/lib/keymap.mjs'
@@ -466,4 +466,35 @@ test('shift+tab hands the conversation to the next installed agent, wrapping', (
   assert.equal(nextAgent(null, 'default'), null, 'before discovery has answered')
   assert.equal(settingsRows(readSettings(''), 'running').find(r => r.key === 'switchAgentKey').value, 'shift+tab',
     'and the page lists it with the other keys')
+})
+
+test('Translate follows the search language and Ask’s agent until told otherwise', () => {
+  const found = { agents: [{ id: 'claude' }, { id: 'codex' }], default: 'claude' }
+  const settings = readSettings('{"searxng_language":"ja-JP","chat_agent":"codex"}')
+  assert.equal(settings.translateLanguage, 'search language')
+  assert.equal(settings.translateAgent, SAME_AS_ASK)
+  assert.equal(translateAgentOf(settings, found), 'codex', 'whoever Ask uses')
+  assert.equal(translateAgentOf({ ...settings, translateAgent: 'claude' }, found), 'claude')
+  assert.equal(translateAgentOf({ ...settings, chatAgent: 'default' }, found), 'claude', 'Ask on default: the stand-in')
+  const rows = settingsRows(settings, 'running', found)
+  assert.match(rows.find(r => r.key === 'translateLanguage').hint, /into 日本語/)
+  assert.equal(rows.find(r => r.key === 'translateModel:codex').value, 'default')
+})
+
+test('Translate settings round-trip through config.json, keeping what they do not own', () => {
+  let settings = readSettings('{"searxng_url":"http://x:1"}')
+  settings = changeSetting(settings, 'translateLanguage', 'ko')
+  settings = changeSetting(settings, 'translateAgent', 'codex')
+  settings = changeSetting(settings, 'translateModel:codex', 'gpt-5-mini')
+  const written = JSON.parse(writeSettings(settings, '{"searxng_url":"http://x:1"}'))
+  assert.equal(written.translate_language, 'ko')
+  assert.equal(written.translate_agent, 'codex')
+  assert.deepEqual(written.translate_models, { codex: 'gpt-5-mini' })
+  assert.equal(written.searxng_url, 'http://x:1')
+  const back = readSettings(JSON.stringify(written))
+  assert.equal(back.translateLanguage, 'ko')
+  assert.equal(back.translateAgent, 'codex')
+  const reset = JSON.parse(writeSettings(changeSetting(back, 'translateLanguage', 'search language'), JSON.stringify(written)))
+  assert.equal(reset.translate_language, undefined, 'following search is an absent key')
+  assert.equal(JSON.parse(writeSettings(readSettings(''), '')).translate_agent, 'same')
 })

@@ -22,6 +22,7 @@ Item {
   property int olderAsked: 0
   property int agentSwitches: 0
   property int tabs: 0
+  property var translated: []
   property int cancels: 0
   property var opened: []
 
@@ -37,6 +38,7 @@ Item {
     function onHistoryPrevRequested () { olderAsked++ }
     function onAgentSwitchRequested () { agentSwitches++ }
     function onTabbed () { tabs++ }
+    function onTranslateRequested (text) { translated = translated.concat([text]) }
   }
 
   TestCase {
@@ -359,6 +361,29 @@ Item {
       keyClick("d")
       keyClick("l")
       compare(field.text, "firs\nsecond")
+    }
+
+    function test_gt_translates_the_selection_and_gT_the_whole_bar() {
+      translated = []
+      field.normalChords = { translate: "g t", translateBar: "g T" }
+      setNormal("what is ownership", 8)
+
+      keyClick("v")                                   // select "ownership"
+      for (let i = 0; i < 8; i++) keyClick("l")
+      keyClick("g")
+      keyClick("t")
+      compare(translated, ["ownership"], "gt: the selection")
+      compare(field.mode, "normal", "and visual mode ends")
+
+      keyClick("g")
+      keyClick("T")
+      compare(translated, ["ownership", "what is ownership"], "gT: everything in the bar")
+
+      keyClick("g")
+      keyClick("t")
+      compare(translated.length, 2, "gt with nothing selected translates nothing")
+      compare(field.text, "what is ownership", "and neither edits the text")
+      field.normalChords = ({})
     }
   }
 }

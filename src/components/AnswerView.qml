@@ -159,6 +159,7 @@ FocusScope {
   signal tabbed()
   signal newSessionRequested()                 // the new-session chord, or the button
   signal agentSwitchRequested()                // shift+tab: the next installed agent answers
+  signal translateRequested(string text)       // gt: the selection, or the word under the cursor
   signal sessionWalked(int delta)              // L / H and ctrl+n: how far through the ring
   signal closeSessionRequested()               // forget this conversation
   signal clearSessionsRequested()              // forget all of them
@@ -623,6 +624,13 @@ FocusScope {
     if (text) searchRequested(text)
   }
 
+  // gt: the selection, else the word under the cursor — what gs would search.
+  function translate () {
+    const text = (selecting ? selection() : wordUnderCursor()).trim()
+    if (selecting) stopSelecting()
+    if (text) translateRequested(text)
+  }
+
   function wordUnderCursor () {
     const source = plain()
     const range = TextObjects.resolveInLine(source, cursor, "i", "w")
@@ -783,6 +791,7 @@ FocusScope {
     case "yank":        yank(); break
     case "openLink":    openLink(); break
     case "searchFor":   searchFor(); break
+    case "translate":   translate(); break
     case "askAbout":    askAbout(); break
     case "put":         put(true); break
     case "putBefore":   put(false); break

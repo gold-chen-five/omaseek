@@ -48,6 +48,7 @@ JSON API on.
 | `/` `?` `n` `N` | search the results or the answer |
 | `ga` `gA` | hand off to the agent in a terminal: this result, or everything |
 | `gc` `gs` | ask about a result or a selected passage, or search for a selection |
+| `gt` `gT` | translate the selection, or the whole bar, into a panel on the right; `ctrl+x` closes it |
 | `ctrl+c` `ctrl+n` `ctrl+x` | a new conversation, the next saved one, forget this one |
 | `L` `H` | in ask mode: the next saved conversation, or the one before |
 | `ctrl+s` | settings |
@@ -71,6 +72,8 @@ ten conversations, which survive a restart.
 - **Search** — start or stop SearXNG, update its image, language and region,
   results per page.
 - **Ask** — the agent, its model, streaming, and where a hand-off opens.
+- **Translate** — the language translations go into (the search language by
+  default, else 繁體中文), and the agent and model that translate them.
 - **Display** — line numbers and page numbers, relative or absolute.
 - **Keys** — every binding.
 - **Engines** — which engines SearXNG asks: Google CSE, Bing, Brave and

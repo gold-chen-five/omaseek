@@ -6,6 +6,7 @@ import { parseObject } from './json.mjs'
 import { readKeymap, DEFAULT_SEQUENCES, DEFAULT_TIMEOUT_MS } from './keymap.mjs'
 import { ACTIONS, settingKey, normalizeBinding, actionById } from './keybinds.mjs'
 import { bindingProblem } from './keys.mjs'
+import { TRANSLATE_LANGUAGES, FOLLOW_SEARCH, defaultTarget, targetLabel, readTarget } from './translate.mjs'
 
 export const LINE_NUMBER_CHOICES = ['relative', 'absolute', 'hide']
 
@@ -48,6 +49,8 @@ const LANGUAGE_PATTERN = /^(default|auto|all|[a-z]{2,3}(-[A-Z]{2})?)$/
 // (bin/ask --agents), so they are not declared here.
 export const LAUNCHER_CHOICES = ['terminal', 'tmux', 'herdr']
 export const DEFAULT_AGENT = 'default'
+// Translate with: the first option, stored as 'same' — whoever Ask uses.
+export const SAME_AS_ASK = 'same as Ask'
 
 export const DEFAULTS = {
   escapeSequence: DEFAULT_SEQUENCES[0],
@@ -60,6 +63,9 @@ export const DEFAULTS = {
   launcher: LAUNCHER_CHOICES[0],
   stream: true,
   searxngEngines: DEFAULT_ENGINES,
+  translateLanguage: FOLLOW_SEARCH,
+  translateAgent: SAME_AS_ASK,
+  translateModels: {},
   searxngLanguage: LANGUAGE_CHOICES[0]
 }
 for (let i = 0; i < ACTIONS.length; i++) DEFAULTS[settingKey(ACTIONS[i])] = ACTIONS[i].default
@@ -68,11 +74,12 @@ for (let i = 0; i < ACTIONS.length; i++) DEFAULTS[settingKey(ACTIONS[i])] = ACTI
 // "what can I press". KEYS.md has the long form.
 export const FIXED_KEYS = [
   { label: 'Anywhere', keys: 'esc cancels a pending/active find first · otherwise steps back: insert → normal → the field → closed · ctrl+, settings' },
-  { label: 'Field', keys: 'insert: ctrl+w ctrl+u delete back · ctrl+j new line (ask) · ↑ ↓ past queries (search), lines then past questions (ask) · normal: vim motions, U the query or question before, gx opens the URL under the cursor, q or esc stops a reply being written (ask), o O open line (ask), f{char} then f/F repeats, r{char}, d c y, text objects, v V, p P, u ctrl+r, counts' },
+  { label: 'Field', keys: 'insert: ctrl+w ctrl+u delete back · ctrl+j new line (ask) · ↑ ↓ past queries (search), lines then past questions (ask) · normal: vim motions, U the query or question before, gT translate the bar, gt the selection (visual), gx opens the URL under the cursor, q or esc stops a reply being written (ask), o O open line (ask), f{char} then f/F repeats, r{char}, d c y, text objects, v V, p P, u ctrl+r, counts' },
   { label: 'Results', keys: 'j k ↓ ↑ move · ctrl+d ctrl+u half a screen · gg G first, last · → ← page · 5gp jumps to page 5 · y Y copy the URL, the title too · counts (3j) · / ? n N search the rows · gn field normal · gi i a field insert' },
-  { label: 'Answer', keys: 'q stops a reply being written · h j k l w b e 0 ^ _ $ move · f t ; , find · v V select · gv reselect · y{motion} yy yank · gc the selection into the ask bar, to ask about · p P put in the ask bar · / ? n N search · * # the word under the cursor · gn field normal · gi i a field insert' },
+  { label: 'Answer', keys: 'q stops a reply being written · h j k l w b e 0 ^ _ $ move · f t ; , find · v V select · gv reselect · y{motion} yy yank · gc the selection into the ask bar, to ask about · gt translate the selection or the word under the cursor · p P put in the ask bar · / ? n N search · * # the word under the cursor · gn field normal · gi i a field insert' },
   { label: 'Sessions (ask)', keys: 'L and H above — the next saved conversation and the one before — are read in the answer and in the field’s normal mode · 3L walks three · the numbered squares under the status line do the same with a click' },
   { label: 'Pages (search)', keys: 'l h the next page and the one before · 5l 3h walk several · 5gp jumps to page 5 · the numbered squares do the same with a click, and › fetches the page after them' },
+  { label: 'Translate', keys: 'gt gT or the translate button open it on the right · ctrl+x or × close it, before ctrl+x forgets anything · copy takes the translation' },
   { label: 'Settings', keys: 'j k move · h l change · enter edit · / field normal · esc back' }
 ]
 
@@ -99,6 +106,10 @@ export function readSettings (source) {
     // falls back on its own, so this is only for turning the behaviour off.
     stream: config.stream !== false,
     searxngEngines: readEngines(config.searxng_engines),
+    translateLanguage: readTarget(config.translate_language),
+    translateAgent: config.translate_agent === undefined || config.translate_agent === 'same'
+      ? SAME_AS_ASK : agentId(config.translate_agent),
+    translateModels: readModels(config.translate_models),
     searxngLanguage: readLanguage(config.searxng_language),
     sequences: keymap.sequences
   }
@@ -176,14 +187,14 @@ function agentChoices (agents) {
   }
 }
 
-function modelSelection (settings, agent, catalog) {
+function modelSelection (settings, agent, catalog, stored = 'chatModels') {
   const options = ['default']
   const discovered = catalog && catalog.agent === agent && Array.isArray(catalog.models) ? catalog.models : []
   for (const choice of discovered) {
     const id = modelId(choice)
     if (id && options.indexOf(id) === -1) options.push(id)
   }
-  const saved = readModels(settings.chatModels)[agent] || ''
+  const saved = readModels(settings[stored])[agent] || ''
   return { options: options, value: options.indexOf(saved) !== -1 ? saved : 'default' }
 }
 
@@ -211,9 +222,31 @@ export function selectedModel (settings, agents = null, catalog = null) {
   return selected === 'default' ? '' : selected
 }
 
+/**
+ * Who translates: the agent chosen under Translate, or — as it is by default —
+ * whoever answers Ask. '' before discovery has found anyone.
+ */
+export function translateAgentOf (settings, agents = null) {
+  const choices = agentChoices(agents)
+  const chosen = settings ? settings.translateAgent : SAME_AS_ASK
+  if (chosen && chosen !== SAME_AS_ASK && choices.ids.indexOf(chosen) !== -1) return chosen
+  const ask = settings ? agentId(settings.chatAgent) : DEFAULT_AGENT
+  return ask !== DEFAULT_AGENT && choices.ids.indexOf(ask) !== -1 ? ask : choices.defaultId
+}
+
 /** A model row targets the resolved agent, even when Agent is set to default. */
 export function changeSetting (settings, key, value) {
   const next = Object.assign({}, settings)
+  if (key.indexOf('translateModel:') === 0) {
+    const id = key.slice('translateModel:'.length)
+    next.translateModels = readModels(settings.translateModels)
+    if (id && id !== '__proto__') {
+      const model = value === 'default' ? '' : modelId(value)
+      if (model) next.translateModels[id] = model
+      else delete next.translateModels[id]
+    }
+    return next
+  }
   if (key.indexOf('chatModel:') === 0) {
     const id = key.slice('chatModel:'.length)
     next.chatModels = readModels(settings.chatModels)
@@ -239,6 +272,12 @@ export function writeSettings (settings, source) {
   config.launcher = oneOf(settings.launcher, LAUNCHER_CHOICES, DEFAULTS.launcher)
   config.stream = settings.stream !== false
   config.searxng_engines = readEngines(settings.searxngEngines)
+  const target = readTarget(settings.translateLanguage)
+  if (target === FOLLOW_SEARCH) delete config.translate_language   // absent follows the search language
+  else config.translate_language = target
+  config.translate_agent = !settings.translateAgent || settings.translateAgent === SAME_AS_ASK
+    ? 'same' : agentId(settings.translateAgent)
+  config.translate_models = readModels(settings.translateModels)
   const language = readLanguage(settings.searxngLanguage)
   if (language === LANGUAGE_CHOICES[0]) delete config.searxng_language   // absent is the instance's default
   else config.searxng_language = language
@@ -329,7 +368,7 @@ export function versionText (version) {
  * instance answers, not a stored setting. `test` is the last endpoint test, and
  * `version` the last version check; null before either ran.
  */
-export function settingsRows (settings, engine = 'unknown', agents = null, catalog = null, test = null, version = null, speed = null) {
+export function settingsRows (settings, engine = 'unknown', agents = null, catalog = null, test = null, version = null, speed = null, translateCatalog = null) {
   const state = ENGINE_STATES.indexOf(engine) === -1 ? 'unknown' : engine
   const running = state === 'running'
   const { known, ids, defaultId } = agentChoices(agents)
@@ -338,6 +377,8 @@ export function settingsRows (settings, engine = 'unknown', agents = null, catal
     : DEFAULT_AGENT
   const modelAgent = chatAgent !== DEFAULT_AGENT ? chatAgent : defaultId
   const model = modelSelection(settings, modelAgent, catalog)
+  const translator = translateAgentOf(settings, agents)
+  const translateModel = modelSelection(settings, translator, translateCatalog, 'translateModels')
   const rows = [
     { type: 'section', label: 'Search' },
     {
@@ -424,6 +465,44 @@ export function settingsRows (settings, engine = 'unknown', agents = null, catal
       hint: 'where a hand-off opens the agent, with the text waiting unsent in its input',
       options: LAUNCHER_CHOICES,
       value: settings.launcher
+    },
+    { type: 'section', label: 'Translate' },
+    {
+      key: 'translateLanguage',
+      type: 'choice',
+      control: 'dropdown',
+      label: 'Translate into',
+      hint: settings.translateLanguage === FOLLOW_SEARCH || !settings.translateLanguage
+        ? 'into ' + targetLabel(defaultTarget(settings.searxngLanguage)) +
+          ' — the search language, or 繁體中文 when that names none. Text already in it goes into English'
+        : 'into ' + targetLabel(settings.translateLanguage) + '; text already in it goes into English',
+      options: [FOLLOW_SEARCH].concat(TRANSLATE_LANGUAGES.map(language => language.code)),
+      value: readTarget(settings.translateLanguage)
+    },
+    {
+      key: 'translateAgent',
+      type: 'choice',
+      control: 'dropdown',
+      label: 'Translate with',
+      hint: translator
+        ? (settings.translateAgent === SAME_AS_ASK || !settings.translateAgent
+            ? translator + ' — whoever Ask uses; choose a quick one to translate faster'
+            : translator + ' translates, whoever Ask uses')
+        : 'no agent installed',
+      options: [SAME_AS_ASK].concat(ids),
+      value: settings.translateAgent && (settings.translateAgent === SAME_AS_ASK || ids.indexOf(settings.translateAgent) !== -1)
+        ? settings.translateAgent : SAME_AS_ASK
+    },
+    {
+      key: 'translateModel:' + translator,
+      type: 'choice',
+      control: 'dropdown',
+      label: 'Translation model',
+      hint: translator ? `${translator} — default uses the CLI's choice; a small, quick model translates fastest`
+        + (translateCatalog && translateCatalog.agent === translator && translateCatalog.message ? ` · ${translateCatalog.message}` : '')
+        : 'choose an installed agent first',
+      options: translateModel.options,
+      value: translateModel.value
     },
     { type: 'section', label: 'Display' },
     {

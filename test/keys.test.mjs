@@ -80,9 +80,10 @@ test('L and H are the answer’s, rebindable, and the field walks the ring with 
   const moved = readerKeys('answer', { nextChatKey: 'gN' })
   assert.equal(moved['g N'], 'nextSession', 'rebinding moves it')
   assert.equal(moved['L'], undefined, 'and frees the old key')
-  assert.deepEqual(normalChords({}), { previousAsked: 'U', nextChat: 'L', previousChat: 'H' })
-  assert.deepEqual(normalChords({ nextChatKey: 'gN' }), { previousAsked: 'U', previousChat: 'H' },
-    'two keys in turn belong to the panes; the field takes single chords only')
+  const own = { translateBar: 'g T', previousAsked: 'U', translate: 'g t' }
+  assert.deepEqual(normalChords({}), { ...own, nextChat: 'L', previousChat: 'H' })
+  assert.deepEqual(normalChords({ nextChatKey: 'ctrl+l' }), { ...own, previousChat: 'H' },
+    'a ctrl chord is the panel’s; the field takes a key, or g and one more')
 })
 
 test('a count before gp says which page; the answer has no pages to jump to', () => {
@@ -185,11 +186,11 @@ test('result counts cancel on escape and unknown keys without leaking into the n
 })
 
 test('a rebound key moves its command in both panes and frees the old key', () => {
-  const binds = { ...DEFAULTS, handoffKey: 'ctrl+h', handoffAllKey: 'gt', openLinkKey: 'ctrl+o', nextPageKey: 'm' }
+  const binds = { ...DEFAULTS, handoffKey: 'ctrl+h', handoffAllKey: 'gz', openLinkKey: 'ctrl+o', nextPageKey: 'm' }
   for (const pane of ['results', 'answer']) {
     const keys = readerKeys(pane, binds)
     assert.equal(resolve(keys, '', 'C-h').command, 'handOff')
-    assert.equal(resolve(keys, 'g', 't').command, 'handOffPage')
+    assert.equal(resolve(keys, 'g', 'z').command, 'handOffPage')
     assert.equal(resolve(keys, 'g', 'a').command, '')
     assert.equal(resolve(keys, 'g', 'A').command, '')
   }
@@ -297,7 +298,19 @@ test('a key for the field’s normal mode cannot take a vim command, or another 
   assert.match(bindingProblem('previousAsked', '3', {}), /a count/)
   assert.match(bindingProblem('previousAsked', 'L', {}), /already Next conversation/, 'the field reads L too')
   assert.match(bindingProblem('nextChat', 'x', {}), /vim uses x/, 'the answer’s L is read in the field as well')
-  assert.match(bindingProblem('previousAsked', 'gx', {}), /one key/)
+  assert.match(bindingProblem('previousAsked', 'gx', {}), /vim uses gx/, 'after g, x is the field’s own')
+  assert.match(bindingProblem('previousAsked', 'gT', {}), /already Translate the bar/)
+  assert.equal(bindingProblem('previousAsked', 'gz', {}), '', 'g and one more is a field key')
+  assert.match(bindingProblem('previousAsked', 'ctrl+u', {}), /one key such as U/)
+})
+
+test('gt translates in the answer and is read in the field; gT is the field’s alone', () => {
+  assert.equal(ANSWER_KEYS['g t'], 'translate')
+  assert.equal(LIST_KEYS['g t'], undefined, 'the results have nothing selected to translate')
+  assert.equal(normalChords({}).translate, 'g t')
+  assert.equal(normalChords({}).translateBar, 'g T')
+  assert.equal(normalChords({ translateBarKey: 'gy' }).translateBar, 'g y', 'rebindable')
+  assert.equal(ANSWER_KEYS['g T'], undefined)
 })
 
 test('shift+tab switches the agent in every pane, and tab alone switches search and ask', () => {

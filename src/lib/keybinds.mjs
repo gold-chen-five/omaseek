@@ -30,6 +30,8 @@ const SPELLED = {
 export const ACTIONS = [
   { id: 'search', config: 'search_key', default: 'enter', scope: 'field',
     label: 'Search / ask', hint: 'field: runs the query or asks the question' },
+  { id: 'translateBar', config: 'translate_bar_key', default: 'gT', scope: 'normal',
+    label: 'Translate the bar', hint: 'field, normal mode: everything in the search or ask bar, into the language set under Translate' },
   { id: 'previousAsked', config: 'previous_asked_key', default: 'U', scope: 'normal',
     label: 'Previous query / question', hint: 'field, normal mode: what you searched or asked before, one step back each press (↑ on the first line too)' },
   { id: 'newSession', config: 'new_session_key', default: 'ctrl+c', scope: 'panel',
@@ -58,6 +60,8 @@ export const ACTIONS = [
     label: 'Ask about this', hint: 'results: the selected URL into the ask bar · answer: the selection, or the line under the cursor — unsent, to type a question under' },
   { id: 'searchFor', config: 'search_for_key', default: 'gs', scope: 'reader', panes: ['results', 'answer'], command: 'searchFor',
     label: 'Search for this', hint: 'results: search for the selected result’s title · answer: the selection, or the word under the cursor' },
+  { id: 'translate', config: 'translate_key', default: 'gt', scope: 'reader', panes: ['answer'], field: true, command: 'translate',
+    label: 'Translate', hint: 'answer: the selection, or the word under the cursor · field: the selection, in visual mode' },
   { id: 'openLink', config: 'open_link_key', default: 'gx', scope: 'reader', panes: ['answer'], command: 'openLink',
     label: 'Open link', hint: 'answer: the URL under the cursor or in the selection, as vim’s gx' },
   { id: 'nextPage', config: 'next_page_key', default: 'l', scope: 'reader', panes: ['results'], command: 'nextPage',
@@ -185,8 +189,10 @@ export function chordText (sequence) {
 export function parseBinding (action, raw) {
   if (action.scope === 'reader') return parseSequence(raw)
   if (action.scope === 'normal') {
-    const key = whole(parseKey(raw))
-    return key === null || key === ' ' ? null : key
+    // One key, or g and one more: the field has a g prefix (gx), so a second
+    // key after it can be read there, and nothing longer can.
+    const sequence = parseSequence(raw)
+    return fieldSequence(sequence) ? sequence : null
   }
   const chord = whole(parseKey(raw))
   if (chord === null) return null
@@ -202,9 +208,9 @@ export function normalizeBinding (action, raw) {
 
 /**
  * The keys the field reads in normal mode, by action id: its own ('normal'
- * scope) and the reader keys it borrows (`field: true`) — L and H, U. One
- * character each: the field compares them with what was typed, and a two-key
- * binding needs the pending prefix only the panes have.
+ * scope) and the reader keys it borrows (`field: true`) — L, H, U, gt, gT. One
+ * character, or g and one more (its g prefix waits for the second); anything
+ * else a binding can be belongs to the panes, and the field leaves it out.
  */
 export function normalChords (settings) {
   const chords = {}
@@ -213,9 +219,20 @@ export function normalChords (settings) {
     if (action.scope !== 'normal' && action.field !== true) continue
     const raw = settings && settings[settingKey(action)] ? settings[settingKey(action)] : action.default
     const chord = parseBinding(action, raw) || parseBinding(action, action.default)
-    if (chord && chord.length === 1) chords[action.id] = chord
+    if (fieldSequence(chord)) chords[action.id] = chord
   }
   return chords
+}
+
+/**
+ * Whether the field can read a sequence: one printable key ("U"), or g and one
+ * more ("g T"), which its g prefix waits for. Named keys arrive as no text, and
+ * ctrl chords are the panel's, caught before normal mode sees anything.
+ */
+export function fieldSequence (sequence) {
+  if (sequence === null || sequence === undefined || sequence === ' ') return false
+  if (sequence.length === 1) return true
+  return sequence.length === 3 && sequence[0] === 'g' && sequence[1] === ' ' && sequence[2] !== ' '
 }
 
 /**

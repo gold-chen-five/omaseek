@@ -12,6 +12,7 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 |---|---|---|---|
 | Leave insert with | `escape_sequence` | `jk` | typed within vim's timeoutlen, leaves insert |
 | Search / ask | `search_key` | `enter` | field: runs the query or asks the question |
+| Translate the bar | `translate_bar_key` | `gT` | field, normal mode: everything in the search or ask bar |
 | Previous query / question | `previous_asked_key` | `U` | field, normal mode: what you searched or asked before, one step back each press (`up` on the first line too) |
 | New session | `new_session_key` | `ctrl+c` | field and answer: forget the conversation and start one |
 | Next session | `next_session_key` | `ctrl+n` | ask: the next saved conversation, newest first, wrapping |
@@ -28,6 +29,7 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 | Hand off everything | `handoff_all_key` | `gA` | results: every URL on the page · answer: the whole conversation |
 | Ask about this | `ask_about_key` | `gc` | results: the selected URL over in the ask bar · answer: the selection, or the line under the cursor — unsent |
 | Search for this | `search_for_key` | `gs` | results: search for the selected result's title · answer: search the web for the selection, or the word under the cursor |
+| Translate | `translate_key` | `gt` | answer: the selection, or the word under the cursor · field: the selection, in visual mode |
 | Open link | `open_link_key` | `gx` | answer: the URL under the cursor or in the selection |
 | Next page | `next_page_key` | `l` | results (`right` always works too) |
 | Previous page | `previous_page_key` | `h` | results (`left` always works too) |
@@ -123,6 +125,8 @@ Insert mode:
 | `ctrl+shift+r` | AI mode: ask the last question again after a failure or a stop |
 | `up` `down` | search: the field is one line, so they walk the queries searched before — `up` an older one, `down` back toward what you had typed, then into the results |
 | `up` `down` | ask: a line up or down within a question of several lines; past the first line, `up` walks the questions asked before, and past the last, `down` comes back toward what you had typed, then into the transcript |
+| `gT` (Translate the bar) | normal mode: translate everything in the bar — search or ask — into the panel on the right |
+| `gt` (Translate) | visual mode: translate the selection |
 | `U` (Previous query / question) | normal mode: one step back through what was searched or asked before, as `up` is — in either half, a count stepping further (`3U`) |
 | `enter` (Search / ask) | search and focus the first result when it arrives — or, when the field holds an address, open it in the browser; asking moves you into the answer |
 
@@ -229,11 +233,12 @@ follow the layout when the panel width changes and are excluded from copied text
 | `enter` (Open) | open the link under the cursor or in the selection |
 | `ga` (Hand off to agent) | the selection; else the reply under the cursor and the question it answers, as the agent wrote them — an editable draft |
 | `gA` (Hand off everything) | the whole conversation, failures left out, as an editable draft |
+| `gt` (Translate) | the selection, or the word under the cursor, translated into the panel on the right |
 | `gc` (Ask about this) | the selection — or the line under the cursor — into the ask bar as written, with the cursor under it to type a follow-up. Not sent |
 | `ctrl+c` (New session) | start a new conversation, keeping this one in the ring |
 | `ctrl+n` (Next session) | the next saved conversation, wrapping |
 | `L` `H` (Next/Previous conversation) | the next saved conversation and the one before, wrapping — where search pages with `h` and `l`. Read in the answer and in the field's normal mode. A count walks several (`3L`), and the numbered squares below do the same with a click |
-| `ctrl+x` (Close session) | forget this conversation and show the one below it |
+| `ctrl+x` (Close session) | forget this conversation and show the one below it — or, while a translation is open, close that and nothing else |
 | `ctrl+shift+x` (Delete all sessions) | forget every saved conversation, on a second press |
 | `q` | stop the reply being written, keeping what arrived |
 | `ctrl+shift+r` (Retry answer) | ask the last question again after a failure or a stop |
@@ -313,3 +318,21 @@ selected row visible. Values are written as they change; there is no save.
 - `src/components/VimTextField.qml` — the field's mode machine and everything vim
 - `src/components/ResultList.qml`, `AnswerView.qml`, `SettingsPage.qml`, `SetupPrompt.qml` — each view's own dispatch
 - `src/lib/sessions.mjs` — the ring of saved conversations the session keys walk
+
+## Translate
+
+`gt` on a selection — in an answer, or in the field's visual mode — `gT` on the
+whole bar, or the **translate** button beside search and chat, translates into
+the panel split off to the right of the results or the answer. The keyboard
+stays where it was. A new translation replaces the one showing.
+
+| key | does |
+|---|---|
+| `ctrl+x` | closes the translation, from the field, the results or the answer; with none open it does what it always does |
+| `×`, `copy` | the panel's buttons: close it, or copy the translation |
+
+**Settings → Translate** chooses the language (**Translate into**, which by
+default follows Search → Language / region and falls back to 繁體中文 — text
+already in that language goes into English), and the agent and model that
+translate, apart from Ask's so a quick model can do it. Translations are
+`bin/ask --translate`: one question, no conversation, no web search.

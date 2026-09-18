@@ -64,6 +64,7 @@ merging and config parsing are all under test without a compositor.
 - `src/lib/urls.mjs` — the bare URL under the cursor for `gx`, and which links may open (http/https only)
 - `src/lib/sessions.mjs` — the ring of ten saved conversations: recording, walking, forgetting, and its file
 - `src/lib/popup.mjs` — where a settings dropdown's list opens so it stays on screen: below, above, or shrunk to scroll
+- `src/lib/translate.mjs` — the languages a translation goes into, and which by default: the search language, else 繁體中文
 - `src/lib/pager.mjs` — which page squares the results strip shows: every page while they fit, then a window around the one being read
 
 `VimTextField.qml` is therefore only a mode machine and key dispatch — if you
@@ -362,6 +363,15 @@ between search and AI with Tab; only an explicit mode-changing action changes it
   always opened below at eight rows with no window bound and ran off the screen
   for a row low on the page; this one places the list with `popup.mjs`. Keep
   its look in step with the original under `/usr/share/omarchy/shell/Ui`.
+- `Translator.qml` / `TranslatePanel.qml` — quick translation (`gt`, `gT`, the
+  button): the store runs `bin/ask --translate` with **one process per
+  request**, since a stopped `Process` still reports its empty stream as an
+  unreadable answer and a replaced request must not land as an error; the view
+  sits split to the right of the reading pane while `translator.open`, and the
+  card widens with it. ctrl+x closes it first (`closeChat`). `--translate`
+  sends no history and no panel preamble, runs its own agent and model
+  (`translate_agent`, `translate_models`; 'same' is Ask's), and drops Claude's
+  web tools — a translation needs none, and a tool call only slows it.
 - `PageTabs.qml` — the same squares for the pages of results, numbered by its
   own `page_numbers` setting rather than the lines', one per page held
   plus a `›` for the one not fetched yet; `picked(page)` is `goToPage`, so the

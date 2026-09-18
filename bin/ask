@@ -5,6 +5,7 @@
     ./bin/ask --models --json '{"agent":"codex"}'   model choices from the CLI or its cache
     ./bin/ask --json '{"question": "…"}'            one answer
     ./bin/ask --stream --json '{"question": "…"}'   the same answer, as it is written
+    ./bin/ask --translate --json '{"text": "…", "target": "zh-TW"}'   a translation, and nothing else
     ./bin/ask --launch --json '{"prompt": "…"}'     open an editable draft in the agent
     ./bin/ask --login --json '{"agent": "…"}'       hand its sign-in or setup to a terminal
 
@@ -16,6 +17,7 @@ not by PATH: Omarchy leaves a mise shim there for every agent, installed or not.
 Output is always one JSON object:
     {"ok": true, "agents": [...], "default": "claude"}
     {"ok": true, "text": "…", "agent": "claude"}
+    {"ok": true, "text": "…", "agent": "claude", "target": "zh-TW"}   (--translate)
 
 --stream instead writes newline-delimited events, flushed as they arrive:
     {"event": "delta", "text": "…"}          repeatedly, display only
@@ -418,6 +420,59 @@ def build_prompt(question, history):
     return "\n".join(lines)
 
 
+# The languages the panel translates into, by the code its setting stores. Mirrored
+# as TRANSLATE_LANGUAGES in src/lib/translate.mjs; change both. The name is how
+# the prompt says it, so zh-TW is not left for the agent to guess at.
+TRANSLATE_LANGUAGES = {
+    "zh-TW": "Traditional Chinese (as written in Taiwan)",
+    "zh-CN": "Simplified Chinese",
+    "en": "English",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "fr": "French",
+    "de": "German",
+    "es": "Spanish",
+    "it": "Italian",
+    "pt": "Portuguese",
+    "ru": "Russian",
+    "vi": "Vietnamese",
+    "th": "Thai",
+}
+DEFAULT_TRANSLATE_TARGET = "zh-TW"
+
+
+def translate_target(value):
+    """A code from the table, or the default: the prompt names a language it knows."""
+    code = str(value or "").strip()
+    return code if code in TRANSLATE_LANGUAGES else DEFAULT_TRANSLATE_TARGET
+
+
+def build_translation_prompt(text, target):
+    """A translation and nothing else — no panel preamble, no conversation. Text
+    already in the target language goes the other way, into English (or, when
+    English is the target, into Traditional Chinese), so one key serves both."""
+    language = TRANSLATE_LANGUAGES[translate_target(target)]
+    other = "Traditional Chinese (as written in Taiwan)" if translate_target(target) == "en" else "English"
+    return "\n".join([
+        f"Translate the text below into {language}.",
+        f"If it is already in {language}, translate it into {other} instead.",
+        "Reply with the translation only: no notes, no quotation marks, no",
+        "romanisation, no explanation. Keep line breaks, lists and code as they are.",
+        "",
+        "Text:",
+        text,
+    ])
+
+
+def without_web(agent):
+    """A translation needs no web search, and a tool call only slows it down:
+    the chat spelling with Claude's WebSearch and WebFetch left out."""
+    chat = [part for part in agent["chat"] if part not in ("--allowedTools", "WebSearch", "WebFetch")]
+    selected = dict(agent)
+    selected["chat"] = chat
+    return selected
+
+
 def chat_outcome(agent, returncode, out, err, text):
     """What a finished run amounts to: the answer, or why there is none.
 
@@ -717,6 +772,30 @@ def chosen_launcher(payload, config):
     return launcher
 
 
+def translate(payload, config, available):
+    """--translate: one translation through its own agent and model. The panel
+    names both; from the command line they fall back to Settings → Translate,
+    whose agent 'same' means the one Ask uses."""
+    text = str(payload.get("text") or "").strip()
+    if not text:
+        fail("usage", "--translate needs text")
+    target = translate_target(payload.get("target") or config.get("translate_language"))
+    chosen = str(config.get("translate_agent") or "same")
+    requested = payload.get("agent") or (config.get("chat_agent") if chosen == "same" else chosen) or "default"
+    agent, _is_default = resolve_agent(requested, available)
+    if "model" in payload:
+        model = chosen_model(payload, config, agent)
+    else:
+        models = config.get("translate_models")
+        model = chosen_model({"model": models.get(agent["id"], "") if isinstance(models, dict) else ""},
+                             config, agent)
+    agent = with_model(without_web(agent), model)
+    outcome = run_chat_outcome(agent, build_translation_prompt(text, target))
+    if outcome.get("ok"):
+        outcome.update({"agent": agent["id"], "model": model, "target": target})
+    emit(outcome)
+
+
 def main():
     argv = sys.argv[1:]
     config = read_config()
@@ -734,6 +813,9 @@ def main():
         return
 
     payload = read_payload(argv)
+    if argv and argv[0] == "--translate":
+        translate(payload, config, available)
+        return
     requested = payload.get("agent") or config.get("chat_agent") or "default"
     agent, _is_default = resolve_agent(requested, available)
     if argv and argv[0] == "--models":

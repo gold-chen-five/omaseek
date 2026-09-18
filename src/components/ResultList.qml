@@ -28,6 +28,7 @@ ListView {
   signal settingsRequested()
   signal tabbed()                        // the panel switches search <-> ai
   signal agentSwitchRequested()          // shift+tab: the next installed agent answers
+  signal closeSessionRequested()         // ctrl+x: close the translation beside the list
   signal nextPageRequested(int pages)    // 5l: five pages on
   signal previousPageRequested(int pages)
   signal pageJumpRequested(int page)     // 5gp: page five, fetching its way there
@@ -106,6 +107,9 @@ ListView {
     case "settings":     settingsRequested(); break
     case "toggleMode":   tabbed(); break
     case "switchAgent":  agentSwitchRequested(); break
+    // ctrl+x: the translation panel, when it is open — the list has no
+    // conversation of its own to forget.
+    case "closeSession": closeSessionRequested(); break
     case "accept":       activated(currentIndex); break
     case "handOff":      if (count > 0) handedOff(currentIndex); break
     case "handOffPage":  if (count > 0) pageHandedOff(); break
