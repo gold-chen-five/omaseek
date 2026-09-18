@@ -399,5 +399,51 @@ Item {
       keyClick(Qt.Key_T, Qt.ControlModifier)
       compare(translated.length, 2, "normal mode too")
     }
+
+    // Every path the key handling spans, one each: the key a command waits for
+    // (i/a objects, f and its repeats, r), the operators, the register and put.
+    function test_text_objects_finds_replace_and_put_through_the_parts() {
+      setNormal("say \"hello world\" now", 6)
+      keyClick("d"); keyClick("i"); keyClick("w")
+      compare(field.text, "say \" world\" now", "diw takes the word under the cursor")
+
+      setNormal("say \"hello world\" now", 6)
+      keyClick("c"); keyClick("i"); keyClick("\"")
+      compare(field.text, "say \"\" now", "ci\" empties the quotes")
+      compare(field.mode, "insert")
+
+      setNormal("a-b-c-d", 0)
+      keyClick("f"); keyClick("-")
+      compare(field.cursorPosition, 1)
+      keyClick(";")
+      compare(field.cursorPosition, 3, "; repeats the find")
+      keyClick(",")
+      compare(field.cursorPosition, 1, ", reverses it")
+
+      setNormal("abcd", 1)
+      keyClick("2"); keyClick("r"); keyClick("x")
+      compare(field.text, "axxd", "2rx replaces two")
+
+      setNormal("abcd", 0)
+      keyClick("x")
+      compare(field.text, "bcd")
+
+      setNormal("one two", 0)
+      keyClick("y"); keyClick("w")
+      compare(field.register, "one ", "yw fills the register")
+      keyClick("$")
+      field.put(true, "!")
+      compare(field.text, "one two!", "put after the cursor")
+
+      setNormal("first line", 3)
+      keyClick("c"); keyClick("c")
+      compare(field.text, "", "cc empties the line")
+      compare(field.mode, "insert")
+
+      setNormal("gone", 1)
+      keyClick("S")
+      compare(field.text, "")
+      compare(field.mode, "insert", "S clears and inserts")
+    }
   }
 }
