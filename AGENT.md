@@ -160,13 +160,17 @@ error, or nothing at all, and `wikipedia`/`wikidata` return *no rows by
 construction* — they answer in `infoboxes`, which `parse()` does not read.
 SearXNG ignores an engine name its instance lacks, so the list is safe to ship;
 an explicit `[]` is the escape hatch that hands the choice back to SearXNG.
-The settings page switches google cse, bing, brave, google and duckduckgo
-(`ENGINE_CHOICES`, with `ENGINE_LABELS` for the two whose SearXNG name
-capitalises wrong; `DEFAULT_ENGINES` is the first three), and
-shows any other name found in the list as a switch too, so a hand-typed engine
-survives a toggle. duckduckgo is offered on the same terms as plain google:
-measured here on 2026-09-18 it answered every query with a CAPTCHA and no rows,
-but another instance may fare better, and Test SearXNG is what says so. `searxng_language` is sent as `language=`; `default` is
+The settings page switches google cse, bing, brave, google, duckduckgo,
+startpage, yep, yandex and yahoo (`ENGINE_CHOICES`, with `ENGINE_LABELS` for the
+two whose SearXNG name capitalises wrong; `DEFAULT_ENGINES` is the first three),
+and shows any other name found in the list as a switch too, so a hand-typed
+engine survives a toggle. The four added on 2026-09-18 are what answered when
+28 of SearXNG's 58 general engines were each asked three queries here:
+**startpage** the most rows (33-37) but 1-2 s, **yep** a steady 20, **yandex**
+10, **yahoo** 7. mojeek and qwant refused every query, mwmbl suspended itself
+after one, and google and duckduckgo answered or CAPTCHAd depending on the hour
+— which is why neither is a default, and why the Test row sits at the top of
+the section. `searxng_language` is sent as `language=`; `default` is
 written as an absent key. Both are part of the buffer's cache key, or switching
 language would serve page 2 from the old language's buffer.
 

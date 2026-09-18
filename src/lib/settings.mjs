@@ -14,12 +14,16 @@ export const PAGE_SIZE_CHOICES = [5, 10, 15, 20]
 // The SearXNG engines the page switches, mirrored as DEFAULT_ENGINES in
 // bin/search. Measured to answer, and fast; the rest mostly answer with a
 // CAPTCHA or nothing. A name typed into searxng_engines by hand is kept.
-// Plain google is offered but off: it answers with a CAPTCHA where google cse,
-// Google through its embeddable search box, does not. DuckDuckGo is offered on
-// the same terms — measured 2026-09-18, it answered every query with a CAPTCHA
-// and no rows — because an instance with a different IP or settings may fare
-// better, and Test SearXNG is what says so.
-export const ENGINE_CHOICES = ['google cse', 'bing', 'brave', 'google', 'duckduckgo']
+// Measured against a local instance on 2026-09-18, three queries each: the
+// defaults answer in 0.2-0.6 s, startpage brings the most rows but takes
+// 1-2 s, yep 20 rows, yandex 10, yahoo 7. google and duckduckgo answer or
+// CAPTCHA depending on the hour, which is why they are switches rather than
+// defaults, and why Test SearXNG exists. mojeek and qwant refused every query
+// here, and mwmbl suspended itself after one, so none of them is offered —
+// SearXNG knows 58 general engines and any of them can still be named by hand
+// in searxng_engines, which keeps its own switch.
+export const ENGINE_CHOICES = ['google cse', 'bing', 'brave', 'google', 'duckduckgo',
+  'startpage', 'yep', 'yandex', 'yahoo']
 export const DEFAULT_ENGINES = ['google cse', 'bing', 'brave']
 // How a switch is labelled where capitalising the SearXNG name reads wrong.
 const ENGINE_LABELS = { 'google cse': 'Google CSE', duckduckgo: 'DuckDuckGo' }

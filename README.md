@@ -52,11 +52,13 @@ in normal mode stops a reply instead, keeping the conversation and the words so 
 `chat` button turns into `stop` and `retry` for the same.
 
 Each result names the SearXNG engines that found it. **Ctrl+S → Engines**
-switches Google CSE, Bing, Brave (the defaults), Google and DuckDuckGo on and
-off, and **Test SearXNG** runs a real query to show how long it took and which
-engines answered — the last two CAPTCHA rather than answer on some instances,
-which is what the test tells you. The language and region live under
-**Ctrl+S → Search**. A next
+switches Google CSE, Bing and Brave — the three a fresh install asks, chosen
+for answering fast — plus Google, DuckDuckGo, Startpage, Yep, Yandex and
+Yahoo, and **Test SearXNG** runs a real query to show how long it took and
+which engines answered. Some engines CAPTCHA or refuse depending on your IP and
+the hour, which is what the test tells you. Any other SearXNG engine can be
+named by hand in `searxng_engines`, and keeps a switch of its own. The language
+and region live under **Ctrl+S → Search**. A next
 page that fails to load says `page failed · l retries` rather than pretending
 the results ended.
 
