@@ -405,16 +405,26 @@ test('the endpoint test is an action row whose hint is what the test found', () 
   assert.equal(row({ running: true }).busy, true)
   assert.equal(row({
     ok: true,
+    ms: 686,
+    rows: 28,
+    apartMs: 1766,
+    engines: { brave: { rows: 20, ms: 630 }, bing: { rows: 10, ms: 194 } },
+    unresponsive: []
+  }).hint,
+  '686 ms for 28 rows, every engine at once — alone: brave 20 in 630 ms · bing 10 in 194 ms',
+  'what a search costs, then what each engine costs alone')
+  assert.equal(row({
+    ok: true,
     ms: 940,
     engines: { brave: { rows: 20, ms: 630 }, bing: { rows: 10, ms: 194 }, google: { rows: 0, ms: 12, reason: 'Suspended: CAPTCHA' } },
     unresponsive: [{ engine: 'google', reason: 'Suspended: CAPTCHA' }]
   }).hint,
-  '940 ms for all of them · brave 20 in 630 ms · bing 10 in 194 ms · google 0 in 12 ms',
+  '940 ms brave 20 in 630 ms · bing 10 in 194 ms · google 0 in 12 ms',
   'an engine that was asked has its own line, time and all')
   assert.equal(endpointTestText({ ok: true, ms: 312, engines: { brave: 20 }, unresponsive: [{ engine: 'google', reason: 'CAPTCHA' }] }),
-    '312 ms for all of them · brave 20 · google: CAPTCHA', 'counts alone, as an older --test printed them')
+    '312 ms brave 20 · google: CAPTCHA', 'counts alone, as an older --test printed them')
   assert.equal(endpointTestText({ ok: false, message: 'SearXNG is not reachable' }), 'SearXNG is not reachable')
-  assert.equal(endpointTestText({ ok: true, ms: 5, engines: {}, unresponsive: [] }), '5 ms for all of them · no rows')
+  assert.equal(endpointTestText({ ok: true, ms: 5, engines: {}, unresponsive: [] }), '5 ms no rows')
 })
 
 test('the update row says which version runs and whether a newer one exists', () => {

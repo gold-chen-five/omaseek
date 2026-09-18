@@ -4,14 +4,14 @@
     ./bin/search "python asyncio" | jq
     ./bin/search --next '<the next payload>'      the following page
     ./bin/search --status                          is the instance up?
-    ./bin/search --test                            one query per engine: each one's time and rows
+    ./bin/search --test                            a real search, then each engine timed alone
     ./bin/search --version                         the running version, and whether it is the latest
 
 Output is always one JSON object:
     {"ok": true,  "results": [...], "next": {...}|null, "backend": "searxng"}
     {"ok": false, "error": "network"|"http"|"usage", "message": "...", "setup": true}
     {"ok": true, "running": true|false, "url": "http://localhost:8888"}    (--status)
-    {"ok": true, "ms": 940, "engines": {"brave": {"rows": 20, "ms": 630}}, ...} (--test)
+    {"ok": true, "ms": 940, "rows": 30, "engines": {"brave": {"rows": 20, "ms": 630}}, ...}
     {"ok": true, "version": "2026.9.16+461f174b0", "latest": "2026.9.16-461f174b0", "current": true}
                                                                               (--version)
 
@@ -294,9 +294,10 @@ def ask_one(base, engine):
 
 
 def test_endpoint(base):
-    """What a search would send, but one engine at a time: every engine's own
-    time and row count, which asking them together cannot tell apart. Sequential
-    on purpose — engines running side by side would time each other's waiting."""
+    """A real search first — every engine at once, which is what a keypress
+    waits for — then each engine alone and in turn, for the row count and time
+    that asking them together cannot tell apart. In turn on purpose: side by
+    side they would time each other's waiting."""
     started = time.monotonic()
     if not ENGINES:
         # No list means SearXNG asks every engine it has enabled, and there is
@@ -316,9 +317,24 @@ def test_endpoint(base):
               "unresponsive": unresponsive, "asked": ENGINES, "language": LANGUAGE})
         return
 
+    # First the query a search actually sends: every engine at once, which is
+    # what a keypress waits for — roughly the slowest engine, never the sum of
+    # them. The per-engine times below say which engine that is.
+    try:
+        together = fetch_payload(base, TEST_QUERY, 1)
+    except SearchError as refused:
+        fail(refused.kind, refused.message, setup=refused.setup)
+    ms = int((time.monotonic() - started) * 1000)
+    rows = len(parse(together))
+
     engines = {}
     unresponsive = []
     seen = set()
+    for entry in silent_engines(together):
+        key = (entry["engine"], entry["reason"])
+        seen.add(key)
+        unresponsive.append(entry)
+    apart = time.monotonic()
     for engine in ENGINES:
         try:
             answer = ask_one(base, engine)
@@ -333,8 +349,9 @@ def test_endpoint(base):
             if key not in seen:
                 seen.add(key)
                 unresponsive.append(entry)
-    ms = int((time.monotonic() - started) * 1000)
-    emit({"ok": True, "url": base, "ms": ms, "engines": engines, "unresponsive": unresponsive,
+    emit({"ok": True, "url": base, "ms": ms, "rows": rows,
+          "apartMs": int((time.monotonic() - apart) * 1000),
+          "engines": engines, "unresponsive": unresponsive,
           "asked": ENGINES, "language": LANGUAGE})
 
 

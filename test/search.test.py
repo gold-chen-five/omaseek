@@ -154,7 +154,10 @@ class SearchBackendTests(unittest.TestCase):
         self.assertTrue(report["ok"])
         # One query per configured engine, so each one's time is its own.
         asked = [params.get("engines") for params in FakeSearxng.requests]
-        self.assertEqual(asked, ["google cse", "bing", "brave"])
+        # The search a keypress sends first, then one query per engine.
+        self.assertEqual(asked, ["google cse,bing,brave", "google cse", "bing", "brave"])
+        self.assertEqual(report["rows"], 10, "what that one search returned")
+        self.assertIsInstance(report["apartMs"], int)
         rows = {name: answer["rows"] for name, answer in report["engines"].items()}
         self.assertEqual(rows, {"google cse": 0, "bing": 5, "brave": 10})
         for answer in report["engines"].values():

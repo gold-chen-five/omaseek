@@ -236,7 +236,12 @@ export function endpointTestText (test) {
   if (!test) return ''
   if (test.running) return 'asking each engine in turn…'
   if (!test.ok) return test.message || 'SearXNG did not answer'
-  const parts = [`${test.ms} ms for all of them`]
+  // What a search costs is the query that asks every engine at once; the
+  // per-engine times that follow are each engine alone, and never add up to it.
+  const together = test.rows === undefined || test.rows === null
+    ? `${test.ms} ms`
+    : `${test.ms} ms for ${test.rows} rows, every engine at once — alone:`
+  const parts = []
   const answers = test.engines || {}
   const named = {}
   for (const name in answers) {
@@ -254,7 +259,7 @@ export function endpointTestText (test) {
     parts.push(`${silent[i].engine}: ${silent[i].reason}`)
   }
   if (Object.keys(answers).length === 0 && silent.length === 0) parts.push('no rows')
-  return parts.join(' · ')
+  return together + ' ' + parts.join(' · ')
 }
 
 /**
@@ -416,7 +421,7 @@ export function settingsRows (settings, engine = 'unknown', agents = null, catal
       type: 'action',
       label: 'Test SearXNG',
       hint: test ? endpointTestText(test)
-        : 'ask every engine below one real query, one at a time: who answers, with how many rows, and how long each takes',
+        : 'one real search, then every engine below asked alone: what a search costs, and which engine costs it',
       action: 'test',
       button: 'Test',
       busy: !!(test && test.running)
