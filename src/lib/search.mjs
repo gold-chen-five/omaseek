@@ -187,15 +187,11 @@ export function handoffText (rows, index = -1) {
 }
 
 /**
- * gc in the answer: the text quoted into the ask bar, Markdown-style, with a
+ * gc in the answer: the passage into the ask bar as it was written, with a
  * blank line under it for the question. Unsent, as the results' gc is: the
- * question still has to be written. Blank lines inside stay quoted, so the
- * quote reads as one block rather than several.
+ * question still has to be written. Only the whitespace around it goes.
  */
-export function quoteForQuestion (text) {
-  const lines = String(text || '').replace(/\s+$/, '').replace(/^\s*\n/, '').split('\n')
-  if (lines.length === 1 && lines[0].trim() === '') return ''
-  const quoted = []
-  for (let i = 0; i < lines.length; i++) quoted.push(lines[i].trim() === '' ? '>' : '> ' + lines[i])
-  return quoted.join('\n') + '\n\n'
+export function passageForQuestion (text) {
+  const passage = String(text || '').replace(/^\s*\n/, '').replace(/\s+$/, '')
+  return passage.trim() === '' ? '' : passage + '\n\n'
 }

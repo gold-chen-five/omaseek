@@ -160,7 +160,7 @@ FocusScope {
   signal stopRequested()                       // stop the reply being written
   signal retryRequested()                      // ask the last question again
   signal putRequested(string text, bool after) // p and P: the selection, or "" for the clipboard
-  signal askRequested(string text)             // gc: this text, quoted into the ask bar
+  signal askRequested(string text)             // gc: this text, into the ask bar
 
   onActiveFocusChanged: {
     grammar = Grammar.IDLE

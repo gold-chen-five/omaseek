@@ -48,7 +48,7 @@ export const ACTIONS = [
   { id: 'handoffAll', config: 'handoff_all_key', default: 'gA', scope: 'reader', command: 'handOffPage',
     label: 'Hand off everything', hint: 'every URL on the results page, or the whole conversation, as a draft' },
   { id: 'askAbout', config: 'ask_about_key', default: 'gc', scope: 'reader', panes: ['results', 'answer'], command: 'askAbout',
-    label: 'Ask about this', hint: 'results: the selected URL into the ask bar · answer: the selection, or the line under the cursor, quoted there — unsent, to type a question around' },
+    label: 'Ask about this', hint: 'results: the selected URL into the ask bar · answer: the selection, or the line under the cursor — unsent, to type a question under' },
   { id: 'searchFor', config: 'search_for_key', default: 'gs', scope: 'reader', panes: ['results', 'answer'], command: 'searchFor',
     label: 'Search for this', hint: 'results: search for the selected result’s title · answer: the selection, or the word under the cursor' },
   { id: 'openLink', config: 'open_link_key', default: 'gx', scope: 'reader', panes: ['answer'], command: 'openLink',

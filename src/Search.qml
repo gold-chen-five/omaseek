@@ -316,12 +316,12 @@ Item {
     focusSearch("insert")
   }
 
-  // gc in the answer: the text quoted in the ask bar, the cursor under it.
+  // gc in the answer: the passage in the ask bar, the cursor under it.
   // Unsent, as with a result: the question is the reader's to write.
   function askAboutText (text) {
-    const quoted = SearchLib.quoteForQuestion(text)
-    if (!quoted) return
-    input.setQuery(quoted)
+    const passage = SearchLib.passageForQuestion(text)
+    if (!passage) return
+    input.setQuery(passage)
     focusSearch("insert")
   }
 
