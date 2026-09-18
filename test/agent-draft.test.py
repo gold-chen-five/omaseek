@@ -9,7 +9,11 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 DRAFT = runpy.run_path(str(ROOT / 'bin/agent-draft'))
-ASK = runpy.run_path(str(ROOT / 'bin/ask'))
+# bin/ask's names, from its package's front door: run_chat.__globals__ is then
+# run.py's own, which is where the tests patch WORK_DIR.
+sys.path.insert(0, str(ROOT / 'backend'))
+import omaseek.ask  # noqa: E402
+ASK = vars(omaseek.ask)
 
 
 CLAUDE = next(a for a in ASK['AGENTS'] if a['id'] == 'claude')

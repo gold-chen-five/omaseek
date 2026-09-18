@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""bin/ask's Crush spellings, in-process: nothing here runs an agent."""
+"""bin/ask's modules, in-process: nothing here runs an agent."""
 
-import importlib.machinery
-import importlib.util
+import sys
 import json
 import os
 import pathlib
@@ -14,11 +13,10 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 def load_ask():
-    loader = importlib.machinery.SourceFileLoader("omaseek_ask", str(ROOT / "bin" / "ask"))
-    spec = importlib.util.spec_from_loader("omaseek_ask", loader)
-    module = importlib.util.module_from_spec(spec)
-    loader.exec_module(module)
-    return module
+    """bin/ask's modules, through the package's front door."""
+    sys.path.insert(0, str(ROOT / "backend"))
+    import omaseek.ask
+    return omaseek.ask
 
 
 # What crush v0.95.0 printed on stderr, exit 1, with a ChatGPT allowance spent.
