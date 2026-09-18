@@ -1,6 +1,6 @@
 import QtQuick
-import "../vim/motions.mjs" as Motions
-import "../vim/keymap.mjs" as Keymap
+import "../shared/vim/motions.mjs" as Motions
+import "../shared/vim/keymap.mjs" as Keymap
 
 // Insert mode: only what vim itself would intercept — esc, ctrl+w and ctrl+u,
 // ctrl+j for a line break, the arrows — and the escape sequence (jk), whose

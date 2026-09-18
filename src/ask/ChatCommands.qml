@@ -1,5 +1,5 @@
 import QtQuick
-import "../core/states.mjs" as States
+import "../shared/states.mjs" as States
 import "../settings/settings.mjs" as SettingsLib
 
 // What the conversation keys and the session strip do: a new conversation, a

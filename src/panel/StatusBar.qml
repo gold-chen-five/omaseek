@@ -1,7 +1,7 @@
 import QtQuick
 import "../search/search.mjs" as SearchLib
-import "../core/states.mjs" as States
-import "../core/urls.mjs" as Urls
+import "../shared/states.mjs" as States
+import "../shared/urls.mjs" as Urls
 
 // The status line, fed: which mode the keyboard is in, and on the right what
 // the panel is doing — a search typed after /, the second press forgetting

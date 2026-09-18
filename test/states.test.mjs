@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { VIEW, PANEL, FOCUS } from '../src/core/states.mjs'
+import { VIEW, PANEL, FOCUS } from '../src/shared/states.mjs'
 import { modeLabel, statusText } from '../src/search/search.mjs'
 
 test('the state tables cannot be changed from outside', () => {

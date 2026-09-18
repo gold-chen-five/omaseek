@@ -1,7 +1,7 @@
 import QtQuick
-import "../vim/motions.mjs" as Motions
-import "../vim/textobjects.mjs" as TextObjects
-import "../core/urls.mjs" as Urls
+import "../shared/vim/motions.mjs" as Motions
+import "../shared/vim/textobjects.mjs" as TextObjects
+import "../shared/urls.mjs" as Urls
 
 // The key a command was waiting for: the target after f/F/t/T and the ; and ,
 // that repeat it, the character after r, the object after i/a, and gx's link.

@@ -1,5 +1,5 @@
 import QtQuick
-import "../vim/motions.mjs" as Motions
+import "../shared/vim/motions.mjs" as Motions
 
 // Normal and visual mode: a press sorted into what it is — esc, redo, an
 // arrow, the key a pending f/r/i/g waits for, a count — and then vim's own

@@ -1,6 +1,6 @@
 import QtQuick
 import "translate.mjs" as TranslateLib
-import "../core"
+import "../shared"
 
 // Quick translation: what was asked to be translated, the translation, and the
 // bin/ask --translate run that makes it. The shape of SearchSession, with one

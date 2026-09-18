@@ -9,8 +9,8 @@ import {
   PAGE_SIZE_CHOICES, DEFAULTS, checkRow, FIXED_KEYS, changeSetting, selectedModel,
   ENGINE_CHOICES, DEFAULT_ENGINES, LANGUAGE_CHOICES, toggleEngine, endpointTestText, searchSpeedText, versionText, nextAgent, translateAgentOf, SAME_AS_ASK
 } from '../src/settings/settings.mjs'
-import { ACTIONS, settingKey } from '../src/vim/keybinds.mjs'
-import { DEFAULT_TIMEOUT_MS } from '../src/vim/keymap.mjs'
+import { ACTIONS, settingKey } from '../src/shared/vim/keybinds.mjs'
+import { DEFAULT_TIMEOUT_MS } from '../src/shared/vim/keymap.mjs'
 
 test('model edits follow the resolved agent and preserve other agents through saving', () => {
   const agents = { agents: [{ id: 'codex' }, { id: 'opencode' }], default: 'codex' }

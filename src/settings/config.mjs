@@ -2,9 +2,9 @@
 // or unknown value falling back to its default, and written back preserving
 // the keys this does not own, so the file stays hand-editable.
 
-import { parseObject } from '../core/json.mjs'
-import { readKeymap } from '../vim/keymap.mjs'
-import { ACTIONS, settingKey, normalizeBinding } from '../vim/keybinds.mjs'
+import { parseObject } from '../shared/json.mjs'
+import { readKeymap } from '../shared/vim/keymap.mjs'
+import { ACTIONS, settingKey, normalizeBinding } from '../shared/vim/keybinds.mjs'
 import { FOLLOW_SEARCH, readTarget } from '../translate/translate.mjs'
 import {
   LINE_NUMBER_CHOICES, PAGE_NUMBER_CHOICES, PAGE_SIZE_CHOICES, DEFAULT_ENGINES, LANGUAGE_CHOICES,

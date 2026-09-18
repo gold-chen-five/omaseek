@@ -1,6 +1,6 @@
 import QtQuick
 import qs.Commons
-import "../core/states.mjs" as States
+import "../shared/states.mjs" as States
 import "../ask"
 import "../search"
 import "../translate"

@@ -1,8 +1,8 @@
 import QtQuick
 import Quickshell
 import "../transcript.mjs" as Transcript
-import "../../vim/grammar.mjs" as Grammar
-import "../../vim/textobjects.mjs" as TextObjects
+import "../../shared/vim/grammar.mjs" as Grammar
+import "../../shared/vim/textobjects.mjs" as TextObjects
 
 // Visual mode and every yank: starting, stretching and dropping a selection,
 // reading it back as the agent wrote it, and copying a selection, a motion, a

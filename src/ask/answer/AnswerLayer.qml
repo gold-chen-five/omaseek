@@ -1,8 +1,8 @@
 import QtQuick
 import qs.Commons
-import "../../core/thinking.mjs" as Thinking
-import "../../vim/measure.js" as Measure
-import "../../vim"
+import "../../shared/thinking.mjs" as Thinking
+import "../../shared/vim/measure.js" as Measure
+import "../../shared/vim"
 
 // What the answer draws: the transcript's TextEdit, and around it the line
 // numbers in their gutter, a bar behind each question, each reply's dot, the

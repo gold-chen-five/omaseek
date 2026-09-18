@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { PULSE_MS, CLOCK_MS, elapsedText, thinkingLabel } from '../src/core/thinking.mjs'
+import { PULSE_MS, CLOCK_MS, elapsedText, thinkingLabel } from '../src/shared/thinking.mjs'
 
 test('the clock reads like a clock', () => {
   assert.equal(elapsedText(0), '0s')

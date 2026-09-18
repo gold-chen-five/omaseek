@@ -1,8 +1,8 @@
 // The settings page, row by row: each section built by its own module, in the
 // order the page lists them, and the checks a typed row runs before it is kept.
 
-import { ACTIONS, settingKey, normalizeBinding, actionById } from '../vim/keybinds.mjs'
-import { bindingProblem } from '../vim/keys.mjs'
+import { ACTIONS, settingKey, normalizeBinding, actionById } from '../shared/vim/keybinds.mjs'
+import { bindingProblem } from '../shared/vim/keys.mjs'
 import { ENGINE_STATES, FIXED_KEYS } from './choices.mjs'
 import { normalizeSequence } from './config.mjs'
 import { searchRows, engineRows } from './rows-search.mjs'

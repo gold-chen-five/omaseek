@@ -1,6 +1,6 @@
 import QtQuick
 import "sessions.mjs" as SessionsLib
-import "../core"
+import "../shared"
 
 // The saved conversations on disk, ~/.local/share/omaseek/sessions.json.
 //

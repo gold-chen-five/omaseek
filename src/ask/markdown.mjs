@@ -2,13 +2,7 @@
 // only way to colour ranges (question bright, reply quiet). Stays within the JS
 // QML shares with node: indexed loops, indexOf, no regex lookbehind.
 
-export function escapeHtml (text) {
-  return String(text)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
+import { escapeHtml } from '../shared/html.mjs'
 
 /** Inline marks: code, bold, italic, links. Code first, so its contents are left alone. */
 // `link` colours anchors, which a TextEdit otherwise paints Qt's link blue.

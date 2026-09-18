@@ -1,13 +1,13 @@
 import QtQuick
 import qs.Commons
-import "../vim/keys.mjs" as KeysLib
-import "../vim/find.mjs" as Find
-import "../vim/motions.mjs" as Motions
-import "../vim/grammar.mjs" as Grammar
-import "../vim/keybinds.mjs" as Keybinds
-import "../core/thinking.mjs" as Thinking
-import "../core/urls.mjs" as Urls
-import "../vim"
+import "../shared/vim/keys.mjs" as KeysLib
+import "../shared/vim/find.mjs" as Find
+import "../shared/vim/motions.mjs" as Motions
+import "../shared/vim/grammar.mjs" as Grammar
+import "../shared/vim/keybinds.mjs" as Keybinds
+import "../shared/thinking.mjs" as Thinking
+import "../shared/urls.mjs" as Urls
+import "../shared/vim"
 import "answer"
 
 // The transcript, read with vim keys. One read-only rich-text TextEdit holds

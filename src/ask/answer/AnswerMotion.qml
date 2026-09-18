@@ -1,5 +1,5 @@
 import QtQuick
-import "../../vim/motions.mjs" as Motions
+import "../../shared/vim/motions.mjs" as Motions
 
 // Where a key takes the cursor. Every motion answers where it lands rather
 // than moving, so one target moves the cursor, stretches a selection, or

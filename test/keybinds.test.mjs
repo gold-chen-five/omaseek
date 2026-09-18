@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   ACTIONS, parseChord, parseSequence, chordText, parseBinding, normalizeBinding, actionById
-} from '../src/vim/keybinds.mjs'
+} from '../src/shared/vim/keybinds.mjs'
 
 test('a binding is written the way a person says it', () => {
   assert.equal(parseChord('ctrl+c'), 'C-c')

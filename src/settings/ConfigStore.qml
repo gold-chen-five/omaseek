@@ -1,7 +1,7 @@
 import QtQuick
 import "settings.mjs" as SettingsLib
-import "../vim/keymap.mjs" as KeymapLib
-import "../core"
+import "../shared/vim/keymap.mjs" as KeymapLib
+import "../shared"
 
 // ~/.config/omaseek/config.json. Writes only the keys the settings page owns;
 // everything else (searxng_url above all) passes through untouched.

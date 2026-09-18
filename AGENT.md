@@ -56,19 +56,19 @@ feature's folder holds its QML *and* its pure `.mjs` side by side.
 | `src/Search.qml`, `src/BarWidget.qml` | the entry points `manifest.json` names; they stay at `src/` |
 | `src/panel/` | the card and its layout: `PanelCard`, `FieldBar`, `StatusBar`/`StatusLine`, `ReadingArea`, and `Commands` — Enter, the arrows, and what crosses between the halves |
 | `src/field/` | `VimTextField` and its key parts |
-| `src/vim/` | vim itself, pure: motions, text objects, the answer's grammar, finds, key tables and bindings; `chord.js`, `measure.js`, `Finder`, `MatchHighlight` |
 | `src/search/` | searching: `SearchSession`, `ResultList`/`ResultRow`, `PageTabs`, `HistoryStore`, and `search`, `history`, `pager` |
 | `src/ask/` | asking: `AiSession` and its parts (`AskTurns`, `AgentCli`), `ChatCommands`, `SessionStore`/`SessionTabs`, `AnswerView` with its parts in `ask/answer/`, and `sessions`, `transcript`, `markdown` |
 | `src/translate/` | `Translator`, `TranslatePanel`, `translate.mjs` |
 | `src/settings/` | `SettingsPage`, `SettingRow`, `SettingsDropdown`, `SettingsRows`, `ConfigStore`, `SettingsActions`, and the settings modules |
 | `src/engine/` | the SearXNG instance: `Engine`, `SetupPrompt` |
-| `src/core/` | shared by everything: `JsonFile`, `JsonProcess`, `json`, `states`, `urls`, `thinking` |
+| `src/shared/` | what more than one feature uses: `JsonFile`, `JsonProcess`, `TabSquare`, `json`, `html`, `states`, `urls`, `thinking` |
+| `src/shared/vim/` | vim itself, pure, used by the field and both reading panes: motions, text objects, the answer's grammar, finds, key tables and bindings; `chord.js`, `measure.js`, `Finder`, `MatchHighlight` |
 | `backend/omaseek/` | the Python behind `bin/ask` and `bin/search`, a package each |
 | `bin/` | entry points and shell scripts; `bin/ask` and `bin/search` only call `main()` |
 
 **The pure/impure rule still holds within a folder: anything that is a pure
 function of its inputs is an `.mjs` ES module; everything that needs Qt is
-QML.** The same file loads in both (`import "../vim/motions.mjs" as Motions` in
+QML.** The same file loads in both (`import "../shared/vim/motions.mjs" as Motions` in
 QML, `import` in node), so cursor arithmetic, escape-sequence matching, page
 merging and config parsing are all under test without a compositor.
 
@@ -83,6 +83,15 @@ function and check the result by reading it: a mechanical rewrite of names
 has twice qualified a string literal (`setMode("field.insert")`) and missed a
 spread (`[...history]`).
 
+**Shared code goes down, never sideways.** A feature imports `shared/`, not
+another feature. Two folders are the exceptions because gathering is their
+job: `panel/` assembles the card from the features, and `settings/` holds every
+feature's options (translate's languages), which is also why a feature may read
+the settings modules (`ChatCommands` asks them who answers next). A piece starts in the feature that uses it and moves to
+`shared/` when a second one needs it — `escapeHtml` left `ask/markdown.mjs`
+when `/` search lit matches with it, and the page and conversation strips
+share `TabSquare`. `shared/` imports no feature.
+
 **Front doors keep imports stable.** `settings/settings.mjs` re-exports its
 modules (`export * from` — tried in QML's engine before relying on it), so
 every `import "settings.mjs"` still works; `omaseek.ask` and `omaseek.search`
@@ -91,16 +100,17 @@ directly, never through a front door.
 
 The pure modules, by folder:
 
-- `core/json.mjs` — reading one of our own hand-editable JSON files: nothing here throws, so an unreadable file is an empty one
-- `core/states.mjs` — the panel's `VIEW`, `PANEL` and `FOCUS` values; never write them as bare strings
-- `core/urls.mjs` — the bare URL under the cursor for `gx`, and which links may open (http/https only)
-- `core/thinking.mjs` — the waiting dot's clock, shared by the answer and the translation panel
-- `vim/motions.mjs` — cursor motions (`w b e f t 0 ^ $ h l`), `(text, pos) -> pos`
-- `vim/textobjects.mjs` — `iw aw i" a(` … `(text, pos) -> {start, end}`
-- `vim/keymap.mjs` — the insert-mode escape sequence (`jk`) and its config
-- `vim/keybinds.mjs` — `ACTIONS`, every rebindable key; binding text ↔ chords (`gA` ↔ `g A`); `panelChords()` and `normalChords()`
-- `vim/keys.mjs` — chord → command name for the reading panes, the `gg`/`gv` prefix machine, and the clash check for a rebound key
-- `vim/grammar.mjs`, `vim/find.mjs` — the answer's key grammar, and `/` search
+- `shared/html.mjs` — escaping text into the rich-text HTML a TextEdit renders
+- `shared/json.mjs` — reading one of our own hand-editable JSON files: nothing here throws, so an unreadable file is an empty one
+- `shared/states.mjs` — the panel's `VIEW`, `PANEL` and `FOCUS` values; never write them as bare strings
+- `shared/urls.mjs` — the bare URL under the cursor for `gx`, and which links may open (http/https only)
+- `shared/thinking.mjs` — the waiting dot's clock, shared by the answer and the translation panel
+- `shared/vim/motions.mjs` — cursor motions (`w b e f t 0 ^ $ h l`), `(text, pos) -> pos`
+- `shared/vim/textobjects.mjs` — `iw aw i" a(` … `(text, pos) -> {start, end}`
+- `shared/vim/keymap.mjs` — the insert-mode escape sequence (`jk`) and its config
+- `shared/vim/keybinds.mjs` — `ACTIONS`, every rebindable key; binding text ↔ chords (`gA` ↔ `g A`); `panelChords()` and `normalChords()`
+- `shared/vim/keys.mjs` — chord → command name for the reading panes, the `gg`/`gv` prefix machine, and the clash check for a rebound key
+- `shared/vim/grammar.mjs`, `shared/vim/find.mjs` — the answer's key grammar, and `/` search
 - `search/search.mjs` — result normalising, de-duplication, status/error strings
 - `search/history.mjs`, `search/pager.mjs` — the query history walk; which page squares show
 - `ask/sessions.mjs` — the ring of ten saved conversations: recording, walking, forgetting, and its file
@@ -110,7 +120,7 @@ The pure modules, by folder:
 - `settings/popup.mjs` — where a settings dropdown's list opens so it stays on screen
 
 `VimTextField.qml` is therefore only the mode machine's state and a router — if
-you add a motion or an object, the logic goes in `vim/` with tests, and a part
+you add a motion or an object, the logic goes in `shared/vim/` with tests, and a part
 in `field/` gains a dispatch case.
 
 **QML's JS engine is not node.** `.mjs` modules must stay within the subset both
@@ -355,7 +365,7 @@ title and snippet in front of it only get in the way of the question being typed
 around it — or the selection / the reply under the cursor with its question;
 `gA` every URL on the page one per line, or the whole conversation, built from
 the turns (`transcript.mjs`), never the rendered text with its placeholder dots.
-Every panel key is one entry in `ACTIONS` (`src/vim/keybinds.mjs`): its
+Every panel key is one entry in `ACTIONS` (`src/shared/vim/keybinds.mjs`): its
 default, where it is read, and its Settings → Keys row. `bindingProblem` in
 `keys.mjs` refuses a key another action or a fixed vim key already holds —
 including a prefix, since `g` alone would swallow `gg`. Link lookup reads
@@ -383,11 +393,11 @@ between search and AI with Tab; only an explicit mode-changing action changes it
 The stores are non-visual `Item`s, the way first-party plugins keep state in a
 `Service.qml`:
 
-- `core/JsonFile.qml` — one of our JSON files under an XDG base: read whole,
+- `shared/JsonFile.qml` — one of our JSON files under an XDG base: read whole,
   written whole, and the place the mkdir trap is settled — `setText` fails
   silently when the directory is missing, the state a machine is in before its
   first write, so every write waits for one.
-- `core/JsonProcess.qml` — a `bin/` helper run for one answer. They all print one JSON
+- `shared/JsonProcess.qml` — a `bin/` helper run for one answer. They all print one JSON
   object and exit 0, so `parsed(payload)` and `unreadable(raw)` is the whole
   protocol; `start(command)` stops first, because a running `Process` keeps its
   old command until it does.
@@ -452,11 +462,11 @@ what the key does to the command object for its feature; `Search.qml` and
 `ReadingArea` only gain a connection.
 
 The two panes that are *read* with vim keys — the result list and the answer
-view — share their keymap rather than each spelling one out: `src/vim/keys.mjs`
+view — share their keymap rather than each spelling one out: `src/shared/vim/keys.mjs`
 holds the tables and turns a chord plus whatever is pending into a command
 name, and each pane switches on that name. `j`/`k`/`gg`/`G`/Enter therefore
 cannot drift apart between them, and the `g` prefix is written once. Qt's key
-enums become chord strings in `src/vim/chord.js`, which is a plain
+enums become chord strings in `src/shared/vim/chord.js`, which is a plain
 (non-`.pragma library`) JS import precisely so it can see `Qt` — the `.mjs`
 next door cannot, because node loads it too. `measure.js` is a plain import for
 the same reason: both panes light a character, and `positionToRectangle` gives a
@@ -467,7 +477,7 @@ counts, operators and pending finds make it a different machine, and flattening
 it into a table would hide that rather than simplify it.
 
 The answer view needs that machine too (`3w`, `yiw`, `viw`, `fx`), so it runs
-its keys through `src/vim/grammar.mjs` first: counts, the `y` operator, the key
+its keys through `src/shared/vim/grammar.mjs` first: counts, the `y` operator, the key
 after `f`/`t` and after `i`/`a`, then the table for everything else. Every
 motion there answers *where it lands* (`motionTarget`) rather than moving, so
 one target moves the cursor, stretches a selection, or bounds a yank. Finds and

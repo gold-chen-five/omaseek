@@ -1,6 +1,6 @@
 import QtQuick
 import Quickshell
-import "../vim/motions.mjs" as Motions
+import "../shared/vim/motions.mjs" as Motions
 
 // What the keys do to the text: an operator over a range, a whole line, a
 // motion applied (moving, stretching the selection, or feeding the operator

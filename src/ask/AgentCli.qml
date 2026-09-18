@@ -1,5 +1,5 @@
 import QtQuick
-import "../core"
+import "../shared"
 
 // The agent CLIs through bin/ask: which are installed, the models the chosen
 // one offers, and the two hand-offs to a terminal — a draft to the agent, and

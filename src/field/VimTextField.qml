@@ -1,11 +1,11 @@
 import QtQuick
 import QtQuick.Controls
 import qs.Commons
-import "../vim/motions.mjs" as Motions
-import "../vim/keybinds.mjs" as Keybinds
-import "../vim/chord.js" as Chord
-import "../vim/measure.js" as Measure
-import "../vim"
+import "../shared/vim/motions.mjs" as Motions
+import "../shared/vim/keybinds.mjs" as Keybinds
+import "../shared/vim/chord.js" as Chord
+import "../shared/vim/measure.js" as Measure
+import "../shared/vim"
 
 // The search field with a vim editing model. This file holds the mode machine's
 // state and routes each key: the panel's keys first (FieldPanelKeys), then

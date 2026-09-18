@@ -4,7 +4,7 @@ import {
   charClass, wordForward, wordBackward, wordEnd,
   firstNonBlank, linesDown, charStep, find, findInLine, findMatchPosition, matchingCharsInLine,
   flipFind, clampToLine, insertExit, repeat, BLANK, WORD, PUNCT
-} from '../src/vim/motions.mjs'
+} from '../src/shared/vim/motions.mjs'
 
 test('charClass separates blanks, word characters and punctuation', () => {
   assert.equal(charClass('a b', 0), WORD)

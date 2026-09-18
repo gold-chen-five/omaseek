@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { resolve, resolveInLine, isTextObject } from '../src/vim/textobjects.mjs'
+import { resolve, resolveInLine, isTextObject } from '../src/shared/vim/textobjects.mjs'
 
 // Reads a range back as text, so the assertions say what the user would see.
 const cut = (text, pos, scope, object) => {

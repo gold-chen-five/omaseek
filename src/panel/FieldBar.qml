@@ -1,7 +1,7 @@
 import QtQuick
 import qs.Commons
 import qs.Ui
-import "../core/states.mjs" as States
+import "../shared/states.mjs" as States
 import "../field"
 
 // The field in its frame, and the buttons beside it: translate, then search —

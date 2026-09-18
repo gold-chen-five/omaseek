@@ -4,8 +4,8 @@ import QtQuick
 import qs.Commons
 import qs.Ui
 import "settings/settings.mjs" as SettingsLib
-import "vim/keybinds.mjs" as Keybinds
-import "core/states.mjs" as States
+import "shared/vim/keybinds.mjs" as Keybinds
+import "shared/states.mjs" as States
 import "ask"
 import "engine"
 import "panel"

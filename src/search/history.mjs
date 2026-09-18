@@ -6,7 +6,7 @@
 // wrap. Past the oldest it stops, and past the newest it lands back on the draft
 // the reader had typed — readline's behaviour, and wrapping would lose that draft.
 
-import { asText, listUnder } from '../core/json.mjs'
+import { asText, listUnder } from '../shared/json.mjs'
 
 export const MAX_QUERIES = 25
 

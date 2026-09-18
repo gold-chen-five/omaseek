@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { toHtml, inline, escapeHtml, renderTranscript } from '../src/ask/markdown.mjs'
+import { toHtml, inline, renderTranscript } from '../src/ask/markdown.mjs'
+import { escapeHtml } from '../src/shared/html.mjs'
 
 test('inline marks become tags and html is escaped', () => {
   assert.equal(inline('a **b** c'), 'a <b>b</b> c')

@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { LIST_KEYS, ANSWER_KEYS, resolve, resolveCounted, readerKeys, bindingProblem } from '../src/vim/keys.mjs'
-import { ACTIONS, settingKey, normalChords, panelChords } from '../src/vim/keybinds.mjs'
+import { LIST_KEYS, ANSWER_KEYS, resolve, resolveCounted, readerKeys, bindingProblem } from '../src/shared/vim/keys.mjs'
+import { ACTIONS, settingKey, normalChords, panelChords } from '../src/shared/vim/keybinds.mjs'
 import { DEFAULTS } from '../src/settings/settings.mjs'
 
 test('a bound chord is its command', () => {

@@ -1,7 +1,7 @@
 // Result normalising, page merging, and the status line's strings. Pure, under test.
 
-import { VIEW, PANEL, FOCUS } from '../core/states.mjs'
-import { hostOf } from '../core/urls.mjs'
+import { VIEW, PANEL, FOCUS } from '../shared/states.mjs'
+import { hostOf } from '../shared/urls.mjs'
 
 const ERROR_MESSAGES = {
   network: 'No network connection'

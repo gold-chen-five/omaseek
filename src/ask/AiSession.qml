@@ -1,7 +1,7 @@
 import QtQuick
 import Quickshell.Io
 import "sessions.mjs" as Sessions
-import "../core"
+import "../shared"
 
 // The conversation with an agent, one print-mode process per turn. The CLI
 // remembers nothing, so the transcript lives here and travels in each prompt.

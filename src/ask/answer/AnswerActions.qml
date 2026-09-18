@@ -1,7 +1,7 @@
 import QtQuick
 import "../transcript.mjs" as Transcript
-import "../../core/urls.mjs" as Urls
-import "../../vim/textobjects.mjs" as TextObjects
+import "../../shared/urls.mjs" as Urls
+import "../../shared/vim/textobjects.mjs" as TextObjects
 
 // What the answer hands to the rest of the panel: text into the ask bar (p,
 // gc), a search (gs), a translation (gt), a link to open (gx), or the reply and

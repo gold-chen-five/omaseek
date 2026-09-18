@@ -1,6 +1,6 @@
 import QtQuick
 import qs.Commons
-import qs.Ui
+import "../shared"
 import "pager.mjs" as Pager
 
 // The pages of results as numbered squares, the one on screen filled — the
@@ -17,9 +17,6 @@ Item {
   // Follows the line-numbers setting: relative counts the squares from the page
   // being read, anything else numbers them plainly.
   property string numbering: "absolute"
-  property color foreground: Color.menu.text
-  property color accent: Color.menu.selectedText
-  property string fontFamily: Style.font.menuFamily
 
   readonly property real squareSize: Math.round(Style.font.body * 2)
   readonly property var window: Pager.pageWindow(current, pageCount, 10)
@@ -39,40 +36,26 @@ Item {
     Repeater {
       model: tabs.shown
 
-      Button {
+      TabSquare {
         id: square
 
         required property int index
 
         readonly property int page: tabs.window.start + index + 1
 
-        width: tabs.squareSize
-        height: tabs.squareSize
         text: Pager.pageLabel(page, tabs.current + 1, tabs.numbering)
         tooltipText: "page " + page
-        bordered: true
         selected: page === tabs.current + 1
-        foreground: tabs.foreground
-        accent: tabs.accent
-        fontFamily: tabs.fontFamily
-        fontSize: Style.font.caption
 
         onClicked: tabs.picked(square.page)
       }
     }
 
     // The page not fetched yet: the same request `l` makes at the end.
-    Button {
+    TabSquare {
       visible: tabs.hasNext
-      width: tabs.squareSize
-      height: tabs.squareSize
       text: "›"
       tooltipText: tabs.loading ? "fetching the next page…" : "next page"
-      bordered: true
-      foreground: tabs.foreground
-      accent: tabs.accent
-      fontFamily: tabs.fontFamily
-      fontSize: Style.font.caption
       opacity: tabs.loading ? 0.5 : 1
 
       onClicked: if (!tabs.loading) tabs.nextRequested()

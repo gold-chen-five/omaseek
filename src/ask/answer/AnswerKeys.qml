@@ -1,7 +1,7 @@
 import QtQuick
-import "../../vim/chord.js" as Chord
-import "../../vim/grammar.mjs" as Grammar
-import "../../vim/motions.mjs" as Motions
+import "../../shared/vim/chord.js" as Chord
+import "../../shared/vim/grammar.mjs" as Grammar
+import "../../shared/vim/motions.mjs" as Motions
 
 // The answer's keys: a press through the grammar (counts, y, the key after f
 // or i/a) into an action, then the action done — a motion taken with or

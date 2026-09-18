@@ -1,10 +1,10 @@
 import QtQuick
 import qs.Commons
 import qs.Ui
-import "../vim/keys.mjs" as KeysLib
-import "../vim/find.mjs" as Find
-import "../vim/chord.js" as Chord
-import "../vim"
+import "../shared/vim/keys.mjs" as KeysLib
+import "../shared/vim/find.mjs" as Find
+import "../shared/vim/chord.js" as Chord
+import "../shared/vim"
 
 // Result rows and the vim cursor that walks them; anything that changes the view
 // is raised as a signal.

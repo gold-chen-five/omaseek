@@ -1,7 +1,7 @@
 import QtQuick
 import qs.Commons
 import qs.Ui
-import "../core/thinking.mjs" as Thinking
+import "../shared/thinking.mjs" as Thinking
 
 // The translation, split to the right of the results or the answer: what was
 // asked about, dimmed, and what it says in the target language below. Read

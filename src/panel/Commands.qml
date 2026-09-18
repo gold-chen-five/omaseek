@@ -3,8 +3,8 @@ import Quickshell
 import "../search/search.mjs" as SearchLib
 import "../search/history.mjs" as History
 import "../ask/sessions.mjs" as Sessions
-import "../core/states.mjs" as States
-import "../core/urls.mjs" as Urls
+import "../shared/states.mjs" as States
+import "../shared/urls.mjs" as Urls
 
 // What the field does with Enter and the arrows, and the actions that carry
 // something from one half of the panel to the other: a result asked about, a

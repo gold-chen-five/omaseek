@@ -1,6 +1,6 @@
 import QtQuick
 import "search.mjs" as SearchLib
-import "../core"
+import "../shared"
 
 // One query and its pages. `pages` caches each fetched page as { rows, next },
 // so l fetches at most once per page and h never fetches.

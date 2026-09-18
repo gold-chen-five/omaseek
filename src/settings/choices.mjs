@@ -3,8 +3,8 @@
 // the ones it needs in backend/omaseek/search/config.py (PAGE_SIZE_CHOICES,
 // DEFAULT_ENGINES, LANGUAGE_PATTERN) — change both.
 
-import { DEFAULT_SEQUENCES, DEFAULT_TIMEOUT_MS } from '../vim/keymap.mjs'
-import { ACTIONS, settingKey } from '../vim/keybinds.mjs'
+import { DEFAULT_SEQUENCES, DEFAULT_TIMEOUT_MS } from '../shared/vim/keymap.mjs'
+import { ACTIONS, settingKey } from '../shared/vim/keybinds.mjs'
 import { FOLLOW_SEARCH } from '../translate/translate.mjs'
 
 export const LINE_NUMBER_CHOICES = ['relative', 'absolute', 'hide']

@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { describeError, normalizeRow, mergeResults, statusText, modeLabel, confirmClearText, pageJumpTarget, passageForQuestion, cleanQuery } from '../src/search/search.mjs'
-import { VIEW, PANEL, FOCUS } from '../src/core/states.mjs'
+import { VIEW, PANEL, FOCUS } from '../src/shared/states.mjs'
 
 test('the status line counts a jump’s pages as they land', () => {
   const line = extra => statusText({ status: 'ok', count: 10, page: 3, hasNext: true, ...extra })
