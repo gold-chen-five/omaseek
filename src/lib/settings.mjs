@@ -9,9 +9,11 @@ import { bindingProblem } from './keys.mjs'
 
 export const LINE_NUMBER_CHOICES = ['relative', 'absolute', 'hide']
 
-// The page squares under the results. No 'hide': a square with no number on it
-// would say nothing at all, and the strip is how the mouse pages.
-export const PAGE_NUMBER_CHOICES = ['relative', 'absolute']
+// The page squares under the results, absolute first: a page number is what the
+// status line says and what 5gp asks for, so that is what a square shows until
+// told otherwise. No 'hide': a square with no number on it would say nothing at
+// all, and the strip is how the mouse pages.
+export const PAGE_NUMBER_CHOICES = ['absolute', 'relative']
 
 export const PAGE_SIZE_CHOICES = [5, 10, 15, 20]
 

@@ -184,7 +184,7 @@ relative to the current row: `2j` moves down two results, `2k` moves up two.
 | `/` `?` | search the rows — title, snippet and domain — forwards or backwards; the matched words are marked |
 | `n` `N` | the next match and the one before; a count repeats (`3n`) |
 | `esc` after a search | drop it and its marks, staying on the results |
-| the numbered squares | under the status line, one square a page and a `›` for the page not fetched yet: the mouse's `h`, `l` and `5gp`. Past ten pages the row is a window around the one being read. **Ctrl+S → Display → Page numbers** decides what they say: `relative` counts from the page on screen (`2 1 0 1 2`), so `3h` and `5l` read straight off the row; `absolute` gives each square its own page number |
+| the numbered squares | under the status line, one square a page and a `›` for the page not fetched yet: the mouse's `h`, `l` and `5gp`. Past ten pages the row is a window around the one being read. **Ctrl+S → Display → Page numbers** decides what they say: `absolute` (the default) gives each square its own page number; `relative` counts from the page on screen (`2 1 0 1 2`), so `3h` and `5l` read straight off the row |
 | `gi` (Back to the field) | back to the field, insert mode |
 | `gn` (Back to the field (normal)) | back to the field, normal mode |
 | `i` | back to the field, insert before the cursor, as in vim |
