@@ -316,6 +316,15 @@ Item {
     focusSearch("insert")
   }
 
+  // gc in the answer: the text quoted in the ask bar, the cursor under it.
+  // Unsent, as with a result: the question is the reader's to write.
+  function askAboutText (text) {
+    const quoted = SearchLib.quoteForQuestion(text)
+    if (!quoted) return
+    input.setQuery(quoted)
+    focusSearch("insert")
+  }
+
   // gs: the other way. A selection is already a whole query, so this one runs.
   function searchFor (text) {
     if (!text) return
@@ -736,6 +745,7 @@ Item {
             root.focusSearch("normal")
             input.put(after, text)
           }
+          onAskRequested: text => root.askAboutText(text)
         }
 
         ResultList {

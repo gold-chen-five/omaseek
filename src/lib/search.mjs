@@ -185,3 +185,17 @@ export function handoffText (rows, index = -1) {
   }
   return urls.join('\n')
 }
+
+/**
+ * gc in the answer: the text quoted into the ask bar, Markdown-style, with a
+ * blank line under it for the question. Unsent, as the results' gc is: the
+ * question still has to be written. Blank lines inside stay quoted, so the
+ * quote reads as one block rather than several.
+ */
+export function quoteForQuestion (text) {
+  const lines = String(text || '').replace(/\s+$/, '').replace(/^\s*\n/, '').split('\n')
+  if (lines.length === 1 && lines[0].trim() === '') return ''
+  const quoted = []
+  for (let i = 0; i < lines.length; i++) quoted.push(lines[i].trim() === '' ? '>' : '> ' + lines[i])
+  return quoted.join('\n') + '\n\n'
+}

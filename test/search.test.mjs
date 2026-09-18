@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { describeError, normalizeRow, mergeResults, statusText, modeLabel, confirmClearText, pageJumpTarget } from '../src/lib/search.mjs'
+import { describeError, normalizeRow, mergeResults, statusText, modeLabel, confirmClearText, pageJumpTarget, quoteForQuestion } from '../src/lib/search.mjs'
 import { VIEW, PANEL, FOCUS } from '../src/lib/states.mjs'
 
 test('the status line counts a jump’s pages as they land', () => {
@@ -235,4 +235,12 @@ test('while the field holds an address the status line says Enter opens it', () 
   assert.match(statusText({ status: 'idle', address: '' }), /enter searches/)
   assert.doesNotMatch(statusText({ panelMode: PANEL.AI, status: 'idle', address: 'https://x.org' }), /enter opens/,
     'asking about a URL is not opening it')
+})
+
+test('gc in the answer quotes the text into the ask bar, with room for the question', () => {
+  assert.equal(quoteForQuestion('Rust has no garbage collector.'), '> Rust has no garbage collector.\n\n')
+  assert.equal(quoteForQuestion('first line\nsecond line\n'), '> first line\n> second line\n\n')
+  assert.equal(quoteForQuestion('a\n\nb'), '> a\n>\n> b\n\n', 'a blank line inside stays part of the quote')
+  assert.equal(quoteForQuestion('   \n  '), '', 'nothing to quote is nothing to put')
+  assert.equal(quoteForQuestion(''), '')
 })

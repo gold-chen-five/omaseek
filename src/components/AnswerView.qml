@@ -160,6 +160,7 @@ FocusScope {
   signal stopRequested()                       // stop the reply being written
   signal retryRequested()                      // ask the last question again
   signal putRequested(string text, bool after) // p and P: the selection, or "" for the clipboard
+  signal askRequested(string text)             // gc: this text, quoted into the ask bar
 
   onActiveFocusChanged: {
     grammar = Grammar.IDLE
@@ -573,6 +574,22 @@ FocusScope {
     putRequested(value, after)
   }
 
+  // gc: the selection, else the displayed line under the cursor — the same unit
+  // yy takes — over in the ask bar to ask a question about.
+  function askAbout () {
+    let text = ""
+    if (selecting) {
+      text = selection()
+      stopSelecting()
+    } else {
+      const from = lineStartAt(cursor)
+      const next = lineFrom(cursor, 1, 0)
+      const to = next < 0 ? answer.length : lineStartAt(next)
+      text = Transcript.cut(plain().substring(from, to), from, leadRanges())
+    }
+    if (text.trim()) askRequested(text)
+  }
+
   // gs: the selection, else the word under the cursor, the way vim's * takes one.
   // A selection is already a whole query, so Search.qml runs it rather than
   // leaving it in the field.
@@ -741,6 +758,7 @@ FocusScope {
     case "yank":        yank(); break
     case "openLink":    openLink(); break
     case "searchFor":   searchFor(); break
+    case "askAbout":    askAbout(); break
     case "put":         put(true); break
     case "putBefore":   put(false); break
     case "findForward":  finder.open(false, cursor); break

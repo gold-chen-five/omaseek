@@ -46,7 +46,7 @@ JSON API on.
 | `v` `V` then `y` | select in an answer and copy |
 | `/` `?` `n` `N` | search the results or the answer |
 | `ga` `gA` | hand off to the agent in a terminal: this result, or everything |
-| `gc` `gs` | ask about a result, or search for a selection |
+| `gc` `gs` | ask about a result or a selected passage, or search for a selection |
 | `ctrl+c` `ctrl+n` `ctrl+x` | a new conversation, the next saved one, forget this one |
 | `L` `H` | in ask mode: the next saved conversation, or the one before |
 | `ctrl+s` | settings |

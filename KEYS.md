@@ -24,7 +24,7 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 | Open | `open_key` | `enter` | results: open the result and dismiss · answer: the link under the cursor or in the selection |
 | Hand off to agent | `handoff_key` | `ga` | results: the selected result's URL, alone · answer: the selection, else the reply under the cursor with its question |
 | Hand off everything | `handoff_all_key` | `gA` | results: every URL on the page · answer: the whole conversation |
-| Ask about this | `ask_about_key` | `gc` | results: the selected URL over in the ask bar, unsent |
+| Ask about this | `ask_about_key` | `gc` | results: the selected URL over in the ask bar · answer: the selection, or the line under the cursor, quoted there — unsent |
 | Search for this | `search_for_key` | `gs` | results: search for the selected result's title · answer: search the web for the selection, or the word under the cursor |
 | Open link | `open_link_key` | `gx` | answer: the URL under the cursor or in the selection |
 | Next page | `next_page_key` | `l` | results (`right` always works too) |
@@ -35,10 +35,11 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 A hand-off opens the agent (Settings → Ask → Hand off to) with the text
 pasted into its input and not sent: edit it, then submit it yourself.
 
-`gc` and `gs` stay inside the panel instead, one for each direction. `gc` puts
-the result under the cursor in the ask bar and leaves it there — a question
-still has to be typed around the URL. `gs` goes the other way and *does* run:
-the words you selected are already a whole query. Either way `tab` returns to
+`gc` and `gs` stay inside the panel instead. `gc` puts something in the ask bar
+and leaves it there, unsent — from the results, the URL under the cursor; from
+an answer, the selection or the line under the cursor, quoted, so a follow-up
+question can be typed beneath it. `gs` goes the other way and *does* run: the
+words you selected are already a whole query. Either way `tab` returns to
 the half you came from, with what was there still there.
 
 The last ten AI conversations are kept, newest first, in
@@ -222,6 +223,7 @@ follow the layout when the panel width changes and are excluded from copied text
 | `enter` (Open) | open the link under the cursor or in the selection |
 | `ga` (Hand off to agent) | the selection; else the reply under the cursor and the question it answers, as the agent wrote them — an editable draft |
 | `gA` (Hand off everything) | the whole conversation, failures left out, as an editable draft |
+| `gc` (Ask about this) | the selection — or the line under the cursor — quoted into the ask bar (`> …`), with the cursor under it to type a follow-up. Not sent |
 | `ctrl+c` (New session) | start a new conversation, keeping this one in the ring |
 | `ctrl+n` (Next session) | the next saved conversation, wrapping |
 | `L` `H` (Next/Previous conversation) | the next saved conversation and the one before, wrapping — where search pages with `h` and `l`. Read in the answer and in the field's normal mode. A count walks several (`3L`), and the numbered squares below do the same with a click |

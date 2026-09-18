@@ -60,7 +60,7 @@ test('q stops the reply being written in the answer, and means nothing in the re
 // The list's own, each for a reason: h and l page where the answer moves by
 // character, and a row is one URL where a reply is text to operate on — so y
 // there copies at once rather than waiting for a motion.
-const LIST_ONLY = ['nextPage', 'previousPage', 'goToPage', 'yankUrl', 'yankCitation', 'askAbout']
+const LIST_ONLY = ['nextPage', 'previousPage', 'goToPage', 'yankUrl', 'yankCitation']
 
 test('both panes agree on the keys they share; the rest are the list’s own', () => {
   for (const chord of Object.keys(LIST_KEYS)) {
@@ -110,9 +110,9 @@ test('y copies a result at once, but still opens a yank in the answer', () => {
   assert.equal(ANSWER_KEYS['Y'], undefined, 'the answer leaves Y alone')
 })
 
-test('each half reaches the other: gc asks about a result, gs searches for a reply or a result', () => {
+test('each half reaches the other: gc asks about a result or a passage, gs searches for either', () => {
   assert.equal(resolve(LIST_KEYS, 'g', 'c').command, 'askAbout')
-  assert.equal(resolve(ANSWER_KEYS, 'g', 'c').command, '', 'the answer has no result to ask about')
+  assert.equal(resolve(ANSWER_KEYS, 'g', 'c').command, 'askAbout', 'a passage of a reply is worth asking about too')
   assert.equal(resolve(ANSWER_KEYS, 'g', 's').command, 'searchFor')
   assert.equal(resolve(LIST_KEYS, 'g', 's').command, 'searchFor', 'a result’s title, searched in its own right')
 })
