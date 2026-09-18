@@ -244,7 +244,10 @@ Item {
     if (panelMode === States.PANEL.AI) {
       ai.ask(query.split(input.lineBreak).join("\n"))
       input.clear()                            // the question now lives in the transcript
-      focusSearch("insert")                    // ready for the next one; esc then q or esc stops this one
+      // Straight into the answer, as Enter in search goes to the results: the
+      // reply is what is read next, and q there stops it. i, a or gi go back to
+      // the field for the next question.
+      focusResults()
       return
     }
     const flat = query.split(input.lineBreak).join(" ")

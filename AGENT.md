@@ -268,7 +268,9 @@ in a stop, which was a decision to come back and retry.
 **Stop and retry**. Stop is fixed, not an `ACTIONS` entry: `q` in the answer's
 table, and in the field's normal mode `q`, or `esc` while `stoppable` — where it
 would otherwise close the panel. A letter could never be a field/panel binding.
-Asking leaves the field in insert, so from there it is `esc` twice. Retry is
+Asking moves the reader into the answer, as Enter in search moves them to the
+results, so `q` is at hand there; from the field it is `esc`, twice if still in
+insert. Retry is
 `ctrl+shift+r`, shift because `ctrl+r` is the field's redo. `AiSession.stop()` cancels the live turn and appends
 `Sessions.stoppedTurn(partial)`: the words streamed so far as an assistant turn
 marked `stopped: true`, or an error turn when nothing had arrived. `stopped`

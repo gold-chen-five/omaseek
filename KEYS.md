@@ -134,9 +134,11 @@ that could be a file or a version — `vue.js`, `README.md`, `main.rs`,
 `python3.12` — is still searched. `gs` on a result always searches, even for
 a title that looks like a domain.
 
-In AI mode, while a reply is being written, `q` or `esc` in normal mode stops it
-(`esc` closes the panel again once nothing is being written); `q` otherwise does
-nothing, since macros are absent.
+In AI mode, Enter asks and moves you into the answer, where the reply is
+written as you watch; `i`, `a` or `gi` go back to the field for the next
+question. While a reply is being written, `q` in the answer stops it — and in
+the field, `q` or `esc` in normal mode (`esc` closes the panel again once
+nothing is being written); `q` otherwise does nothing, since macros are absent.
 
 Normal mode uses vim editing: `h l w W b B e 0 ^ _ $` (on the line under the cursor, in a question of several), `f F t T{char}`;
 after a find, `f`/`F` keep walking that character forward/backward, and `;`/`,`
