@@ -1,0 +1,138 @@
+import QtQuick
+import Quickshell
+import "../search/search.mjs" as SearchLib
+import "../search/history.mjs" as History
+import "../ask/sessions.mjs" as Sessions
+import "../core/states.mjs" as States
+import "../core/urls.mjs" as Urls
+
+// What the field does with Enter and the arrows, and the actions that carry
+// something from one half of the panel to the other: a result asked about, a
+// passage searched for, a link opened. Each touches more than one store and
+// then moves the keyboard, so they live beside the panel (`host`) rather than
+// in any one store.
+Item {
+  id: commands
+
+  property var host: null                      // Search.qml: panelMode, the field, focus, say, dismiss
+  property var session: null
+  property var queries: null
+  property var ai: null
+  property var translator: null
+  property var config: null
+
+  property int historyIndex: -1                // where the walk sits; -1 is what was typed
+  property string historyDraft: ""             // what was typed, kept while the walk is away from it
+  property bool applyingHistory: false         // a walk writing the field, not the reader typing
+
+  // `searching` forces a search: gs on a title that happens to look like a
+  // domain means "find this", not "go there".
+  function runSearch (searching) {
+    const input = host.input
+    const query = input.text.trim()
+    if (!query) return
+    if (host.panelMode === States.PANEL.AI) {
+      ai.ask(query.split(input.lineBreak).join("\n"))
+      resetHistoryWalk()                       // ↑ starts again from the question just asked
+      input.clear()                            // the question now lives in the transcript
+      // Straight into the answer, as Enter in search goes to the results: the
+      // reply is what is read next, and q there stops it. i, a or gi go back to
+      // the field for the next question.
+      host.focusResults()
+      return
+    }
+    const flat = SearchLib.cleanQuery(query.split(input.lineBreak).join(" "))
+    // The field shows what is searched: stray spaces at either end, or a run of
+    // them inside, are gone once Enter has read it.
+    if (input.text !== flat) input.setQuery(flat)
+    queries.remember(flat)                     // the arrows walk back to it next time
+    resetHistoryWalk()
+    // A pasted address is opened, as a browser's address bar would; anything
+    // that is not unmistakably one (vue.js, README.md) is still searched.
+    const address = searching === true ? "" : Urls.queryUrl(flat)
+    if (address) {
+      openUrl(address)
+      return
+    }
+    session.search(flat)
+    host.focusSearch("normal")                 // keep the query readable while results load
+  }
+
+  // ↑ ↓ past the field's first or last line, and U. The draft is what the reader
+  // had typed: kept aside on the first step away and put back on the last step
+  // home. An unchanged index means the walk had nowhere to go, which is how Down
+  // at the draft still steps into the results. Search walks the queries it
+  // searched; ask, the questions in its saved conversations.
+  function walkHistory (delta) {
+    const past = host.panelMode === States.PANEL.AI ? Sessions.pastQuestions(ai.sessions) : queries.queries
+    if (historyIndex === -1) historyDraft = host.input.text
+    const step = History.stepQuery(past, historyIndex, delta, historyDraft)
+    if (step.index === historyIndex) return false
+    historyIndex = step.index
+    applyingHistory = true
+    host.input.setQuery(step.text)
+    applyingHistory = false
+    return true
+  }
+
+  function resetHistoryWalk () {
+    historyIndex = -1
+    historyDraft = ""
+  }
+
+  // gt, gT, ctrl+t and the translate button: into the language set under
+  // Translate, in the panel split off to the right; the keyboard stays put.
+  function translateText (value) {
+    const target = translator.targetFor(config.settings)
+    if (translator.translate(value, target)) host.say("translating into " + translator.labelFor(target) + "…")
+  }
+
+  function translateBar () {
+    translateText(host.input.text.split(host.input.lineBreak).join("\n"))
+  }
+
+  function yankResult (index, withTitle) {
+    const text = session.yankText(index, withTitle)
+    if (!text) return
+    host.copyText(text)
+    host.say(SearchLib.yankNotice(withTitle))
+  }
+
+  // gc: the result over in the ask bar. Deliberately unsent — a question still
+  // has to be typed around the URL.
+  function askAboutResult (index) {
+    const url = session.yankText(index, false)
+    if (!url) return
+    if (host.panelMode !== States.PANEL.AI) host.toggleMode()
+    host.input.setQuery(url + " ")
+    host.focusSearch("insert")
+  }
+
+  // gc in the answer: the passage in the ask bar, the cursor under it.
+  function askAboutText (text) {
+    const passage = SearchLib.passageForQuestion(text)
+    if (!passage) return
+    host.input.setQuery(passage)
+    host.focusSearch("insert")
+  }
+
+  // gs: the other way. A selection is already a whole query, so this one runs.
+  function searchFor (text) {
+    if (!text) return
+    if (host.panelMode !== States.PANEL.SEARCH) host.toggleMode()
+    host.input.setQuery(text)
+    runSearch(true)
+  }
+
+  function openResult (index) {
+    if (index < 0 || index >= session.results.count) return
+    openUrl(session.results.get(index).url)
+  }
+
+  // The browser takes the screen, so the panel steps aside.
+  function openUrl (url) {
+    if (!url) return
+    host.dismiss()
+    Quickshell.execDetached(["omarchy-launch-browser", url])
+  }
+}

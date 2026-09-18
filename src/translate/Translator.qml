@@ -28,6 +28,10 @@ Item {
 
   readonly property string targetLabel: TranslateLib.targetLabel(target)
 
+  // The language a translation goes into under these settings, and its name.
+  function targetFor (settings) { return TranslateLib.effectiveTarget(settings) }
+  function labelFor (code) { return TranslateLib.targetLabel(code) }
+
   function translate (value, into) {
     const clean = String(value || "").trim()
     if (!clean || !askPath) return false
