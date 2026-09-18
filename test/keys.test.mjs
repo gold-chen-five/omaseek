@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { LIST_KEYS, ANSWER_KEYS, resolve, resolveCounted, readerKeys, bindingProblem } from '../src/lib/keys.mjs'
-import { ACTIONS, settingKey, chatChords } from '../src/lib/keybinds.mjs'
+import { ACTIONS, settingKey, normalChords, panelChords } from '../src/lib/keybinds.mjs'
 import { DEFAULTS } from '../src/lib/settings.mjs'
 
 test('a bound chord is its command', () => {
@@ -80,8 +80,8 @@ test('L and H are the answer’s, rebindable, and the field walks the ring with 
   const moved = readerKeys('answer', { nextChatKey: 'gN' })
   assert.equal(moved['g N'], 'nextSession', 'rebinding moves it')
   assert.equal(moved['L'], undefined, 'and frees the old key')
-  assert.deepEqual(chatChords({}), { nextChat: 'L', previousChat: 'H' })
-  assert.deepEqual(chatChords({ nextChatKey: 'gN' }), { previousChat: 'H' },
+  assert.deepEqual(normalChords({}), { previousAsked: 'U', nextChat: 'L', previousChat: 'H' })
+  assert.deepEqual(normalChords({ nextChatKey: 'gN' }), { previousAsked: 'U', previousChat: 'H' },
     'two keys in turn belong to the panes; the field takes single chords only')
 })
 
@@ -279,4 +279,23 @@ test('gs searches from the results too, and gx stays the answer pane’s', () =>
   assert.equal(resolve(LIST_KEYS, 'g', 's').command, 'searchFor')
   assert.equal(resolve(ANSWER_KEYS, 'g', 's').command, 'searchFor')
   assert.equal(resolve(LIST_KEYS, 'g', 'x').command, '')
+})
+
+test('U walks back through what was asked, read in the field’s normal mode only', () => {
+  assert.equal(normalChords({}).previousAsked, 'U')
+  assert.equal(normalChords({ previousAskedKey: 'K' }).previousAsked, 'K', 'rebindable')
+  assert.equal(panelChords({}).previousAsked, undefined,
+    'never a panel chord, or typing a capital U in insert mode would walk history instead')
+  assert.equal(LIST_KEYS['U'], undefined)
+  assert.equal(ANSWER_KEYS['U'], undefined)
+})
+
+test('a key for the field’s normal mode cannot take a vim command, or another of its keys', () => {
+  assert.equal(bindingProblem('previousAsked', 'U', {}), '')
+  assert.match(bindingProblem('previousAsked', 'u', {}), /vim uses u/, 'u is undo')
+  assert.match(bindingProblem('previousAsked', 'j', {}), /vim uses j/)
+  assert.match(bindingProblem('previousAsked', '3', {}), /a count/)
+  assert.match(bindingProblem('previousAsked', 'L', {}), /already Next conversation/, 'the field reads L too')
+  assert.match(bindingProblem('nextChat', 'x', {}), /vim uses x/, 'the answer’s L is read in the field as well')
+  assert.match(bindingProblem('previousAsked', 'gx', {}), /one key/)
 })

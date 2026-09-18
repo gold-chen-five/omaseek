@@ -23,10 +23,15 @@ const SPELLED = {
 // types anything, so they must be a named key or a ctrl chord (a letter there
 // could never be typed); 'panel' keys also work in the two reading panes.
 // 'reader' keys belong to those panes, `panes` narrowing them to one, and may
-// be two keys in turn. `command` is the name the panes switch on.
+// be two keys in turn; `field: true` says the field reads one in normal mode as
+// well. 'normal' keys are the field's alone, in normal mode, as a vim command
+// is — one key, and a letter is fine, since insert mode never sees it.
+// `command` is the name the panes switch on.
 export const ACTIONS = [
   { id: 'search', config: 'search_key', default: 'enter', scope: 'field',
     label: 'Search / ask', hint: 'field: runs the query or asks the question' },
+  { id: 'previousAsked', config: 'previous_asked_key', default: 'U', scope: 'normal',
+    label: 'Previous query / question', hint: 'field, normal mode: what you searched or asked before, one step back each press (↑ on the first line too)' },
   { id: 'newSession', config: 'new_session_key', default: 'ctrl+c', scope: 'panel',
     label: 'New session', hint: 'field and answer: forget the conversation and start one' },
   { id: 'nextSession', config: 'next_session_key', default: 'ctrl+n', scope: 'panel', command: 'nextSession',
@@ -57,9 +62,9 @@ export const ACTIONS = [
     label: 'Next page', hint: 'results: the next page (→ too)' },
   { id: 'previousPage', config: 'previous_page_key', default: 'h', scope: 'reader', panes: ['results'], command: 'previousPage',
     label: 'Previous page', hint: 'results: the page before, from the cache (← too)' },
-  { id: 'nextChat', config: 'next_chat_key', default: 'L', scope: 'reader', panes: ['answer'], command: 'nextSession',
+  { id: 'nextChat', config: 'next_chat_key', default: 'L', scope: 'reader', panes: ['answer'], field: true, command: 'nextSession',
     label: 'Next conversation', hint: 'ask: the next saved conversation, wrapping — 3L walks three' },
-  { id: 'previousChat', config: 'previous_chat_key', default: 'H', scope: 'reader', panes: ['answer'], command: 'previousSession',
+  { id: 'previousChat', config: 'previous_chat_key', default: 'H', scope: 'reader', panes: ['answer'], field: true, command: 'previousSession',
     label: 'Previous conversation', hint: 'ask: the conversation before, wrapping' },
   { id: 'insert', config: 'insert_key', default: 'gi', scope: 'reader', command: 'insert',
     label: 'Back to the field', hint: 'results and answer: return to the field in insert mode (i and a do too)' },
@@ -80,6 +85,10 @@ export function actionById (id) {
 }
 
 export function appliesTo (action, pane) {
+  // 'normal' is the field in normal mode: its own keys, and the reader keys it
+  // borrows. A clash there would take a vim command from the field.
+  if (pane === 'normal') return action.scope === 'normal' || action.field === true
+  if (action.scope === 'normal') return false
   if (action.scope === 'field') return pane === 'field'
   if (action.scope === 'panel') return true
   if (pane === 'field') return false
@@ -171,6 +180,10 @@ export function chordText (sequence) {
  */
 export function parseBinding (action, raw) {
   if (action.scope === 'reader') return parseSequence(raw)
+  if (action.scope === 'normal') {
+    const key = whole(parseKey(raw))
+    return key === null || key === ' ' ? null : key
+  }
   const chord = whole(parseKey(raw))
   if (chord === null) return null
   const named = SPELLED[chord] !== undefined && chord !== ' '
@@ -184,33 +197,34 @@ export function normalizeBinding (action, raw) {
 }
 
 /**
+ * The keys the field reads in normal mode, by action id: its own ('normal'
+ * scope) and the reader keys it borrows (`field: true`) — L and H, U. One
+ * character each: the field compares them with what was typed, and a two-key
+ * binding needs the pending prefix only the panes have.
+ */
+export function normalChords (settings) {
+  const chords = {}
+  for (let i = 0; i < ACTIONS.length; i++) {
+    const action = ACTIONS[i]
+    if (action.scope !== 'normal' && action.field !== true) continue
+    const raw = settings && settings[settingKey(action)] ? settings[settingKey(action)] : action.default
+    const chord = parseBinding(action, raw) || parseBinding(action, action.default)
+    if (chord && chord.length === 1) chords[action.id] = chord
+  }
+  return chords
+}
+
+/**
  * The keys the field and the panel are read with, by action id: `{ search:
  * 'Return', newSession: 'C-c', … }`. One object rather than a property per key,
  * so adding an action is an entry in ACTIONS and nothing else. Null settings —
  * or an unparseable one — give that key its default.
  */
-/**
- * The two conversation keys as chords, for the field: it walks the ring in
- * normal mode as the answer does, so it has to know what they are bound to.
- * Single-character chords only — a two-key binding belongs to the panes, where
- * a pending prefix exists.
- */
-export function chatChords (settings) {
-  const chords = {}
-  for (const id of ['nextChat', 'previousChat']) {
-    const action = actionById(id)
-    const raw = settings && settings[settingKey(action)] ? settings[settingKey(action)] : action.default
-    const chord = parseBinding(action, raw) || parseBinding(action, action.default)
-    if (chord && chord.length === 1) chords[id] = chord
-  }
-  return chords
-}
-
 export function panelChords (settings) {
   const chords = {}
   for (let i = 0; i < ACTIONS.length; i++) {
     const action = ACTIONS[i]
-    if (action.scope === 'reader') continue
+    if (action.scope === 'reader' || action.scope === 'normal') continue
     const raw = settings ? settings[settingKey(action)] : ''
     chords[action.id] = parseChord(raw) || parseChord(action.default)
   }

@@ -74,6 +74,10 @@ const FIXED = {
 // answer the grammar's finds, y, and the a of a text object.
 const TAKEN_FIRST = { results: '123456789', answer: '123456789fFtT;,ya' }
 
+// The field's own vim commands in normal mode, which a key bound there must
+// leave alone. Counts are digits, and g is gx's prefix.
+const FIELD_NORMAL = 'hjklwWbBeE0^_$fFtT;,iIaAoOvVdcyDCYxXsSrpPugq123456789'
+
 // What the field does with keys before any binding sees them.
 const FIELD_FIXED = {
   'Escape': 'cancel', 'C-w': 'deleteWord', 'C-u': 'deleteLine', 'C-j': 'lineBreak',
@@ -83,7 +87,7 @@ const FIELD_FIXED = {
 // Names for the settings page when it refuses a key.
 const LABELS = {
   settings: 'settings', toggleMode: 'switch search / ask', cancel: 'esc',
-  nextSession: 'the next session', previousSession: 'the session before', closeSession: 'close the session',
+  nextSession: 'the next session', previousSession: 'the session before', previousAsked: 'the query or question before', closeSession: 'close the session',
   clearSessions: 'delete all sessions', stopAnswer: 'stop the answer', retryAnswer: 'retry the answer',
   halfPageDown: 'half a screen down', halfPageUp: 'half a screen up',
   down: 'move down', up: 'move up', right: 'move right', left: 'move left',
@@ -102,7 +106,7 @@ const LABELS = {
   deleteWord: 'delete a word', deleteLine: 'delete to the line start', lineBreak: 'a line break', redo: 'redo'
 }
 
-const PANE_NAMES = { field: 'the field', results: 'the results', answer: 'the answer' }
+const PANE_NAMES = { field: 'the field', normal: 'the field’s normal mode', results: 'the results', answer: 'the answer' }
 
 /** A pane's keymap: its fixed keys plus the rebindable ones, as `binds` (the settings) has them. */
 export function readerKeys (pane, binds) {
@@ -147,13 +151,21 @@ export function bindingProblem (id, raw, binds) {
   if (sequence === null) {
     return action.scope === 'reader'
       ? 'not a key — try enter, ctrl+o, a letter, or two keys such as gx'
-      : 'use a named key or a ctrl chord (enter, tab, ctrl+o) — a letter here could never be typed'
+      : action.scope === 'normal'
+        ? 'one key — a letter such as U, or a named key'
+        : 'use a named key or a ctrl chord (enter, tab, ctrl+o) — a letter here could never be typed'
   }
   const text = chordText(sequence)
-  const panes = ['field'].concat(PANES)
+  const panes = ['field', 'normal'].concat(PANES)
+  if (appliesTo(action, 'normal')) {
+    const first = keysOf(sequence)[0]
+    if (first.length === 1 && FIELD_NORMAL.indexOf(first) !== -1) {
+      return `${text} is taken in ${PANE_NAMES.normal}: ${first >= '1' && first <= '9' ? 'a count' : 'vim uses ' + first}`
+    }
+  }
   for (let p = 0; p < panes.length; p++) {
     const pane = panes[p]
-    if (!appliesTo(action, pane)) continue
+    if (pane === 'normal' || !appliesTo(action, pane)) continue
     const fixed = pane === 'field' ? FIELD_FIXED : FIXED[pane]
     for (const chord in fixed) {
       if (collides(sequence, chord)) return `${text} is taken in ${PANE_NAMES[pane]}: ${LABELS[fixed[chord]] || fixed[chord]}`

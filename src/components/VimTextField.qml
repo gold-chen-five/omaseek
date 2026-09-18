@@ -81,8 +81,9 @@ TextArea {
   signal nextSessionRequested()             // the next saved conversation
   signal sessionWalked(int delta)           // L / H in normal mode: through the ring
 
-  // The answer's two conversation keys, so normal mode here walks the ring too.
-  property var chatChords: ({})
+  // The keys normal mode reads beyond vim's own, by action id: the answer's L and
+  // H, and U for what was searched or asked before.
+  property var normalChords: ({})
   signal closeSessionRequested()            // forget this conversation
   signal clearSessionsRequested()           // forget all of them
   signal linkOpened(string url)             // gx: the URL under the cursor, or selected
@@ -174,6 +175,7 @@ TextArea {
   //
   // In search mode the field is one line, so the arrows have no line to reach:
   // there they walk the queries searched before, the way a shell's history does.
+  // In ask mode they reach the questions asked before once past the first line.
   // j and k never do — j into the results is how the reader gets to them.
   function moveLine (down, arrow) {
     const pos = mode === "visual" && visualLinewise ? visualCursor : cursorPosition
@@ -183,7 +185,11 @@ TextArea {
       return
     }
     if (mode === "visual") return
-    if (arrow && !multiline) {
+    // Past the first or last line the arrows walk what was asked or searched
+    // before, as a shell's history does; in the one-line search field that is
+    // every arrow press. The panel turns a Down with nothing newer to show into
+    // a step down to the results, as j always is.
+    if (arrow) {
       if (down) field.historyNextRequested()
       else field.historyPrevRequested()
       return
@@ -485,8 +491,14 @@ TextArea {
     // The conversation keys, as the answer reads them: only ask mode has a ring,
     // so the panel ignores these while it is searching. Vim's H and L jump to
     // the top and bottom of the screen, which one line has no use for.
-    if (key === chatChords.nextChat) { field.sessionWalked(count); return }
-    if (key === chatChords.previousChat) { field.sessionWalked(-count); return }
+    if (key === normalChords.nextChat) { field.sessionWalked(count); return }
+    if (key === normalChords.previousChat) { field.sessionWalked(-count); return }
+    // U: one step back through what was searched or asked, as ↑ is on the
+    // first line. Vim's U undoes a whole line, which u already covers here.
+    if (key === normalChords.previousAsked) {
+      for (let i = 0; i < count; i++) field.historyPrevRequested()
+      return
+    }
     const pos = mode === "visual" && visualLinewise ? visualCursor : cursorPosition
     const step = (motion, big) => Motions.repeat(at => motion(text, at, big), count, pos)
     if ("fFtT;,".indexOf(key) === -1) repeatFindReady = false

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {
   MAX_SESSIONS, readSessions, writeSessions, record, removeSession, stepSession,
   sessionTitle, sessionLabel, isAnswered, indexOfSession, newId,
-  stoppedTurn, endsStopped, retryPoint, promptTurns
+  stoppedTurn, endsStopped, retryPoint, promptTurns, pastQuestions
 } from '../src/lib/sessions.mjs'
 
 const turns = question => [{ role: 'user', text: question }, { role: 'assistant', text: 'because.' }]
@@ -176,4 +176,25 @@ test('a prompt carries answered turns only, never a stopped half-reply', () => {
     { role: 'user', text: '3' }, { role: 'error', text: 'boom' }
   ]
   assert.deepEqual(promptTurns(turns), [{ role: 'user', text: '1' }, { role: 'assistant', text: 'one' }])
+})
+
+test('the questions asked before come newest first, from the newest conversation down', () => {
+  const ring = [
+    { id: 'b', turns: [{ role: 'user', text: 'what is go?' }, { role: 'assistant', text: '…' },
+                       { role: 'user', text: 'and its garbage collector?' }, { role: 'assistant', text: '…' }] },
+    { id: 'a', turns: [{ role: 'user', text: 'what is rust?' }, { role: 'assistant', text: '…' }] }
+  ]
+  assert.deepEqual(pastQuestions(ring).map(q => q.text),
+    ['and its garbage collector?', 'what is go?', 'what is rust?'])
+})
+
+test('a question keeps its line breaks, a repeat is kept once, and the list is capped', () => {
+  const ring = [
+    { turns: [{ role: 'user', text: 'first line\nsecond line' }, { role: 'user', text: 'same' }] },
+    { turns: [{ role: 'user', text: 'same' }, { role: 'user', text: '   ' }] }
+  ]
+  assert.deepEqual(pastQuestions(ring).map(q => q.text), ['same', 'first line\nsecond line'])
+  const many = [{ turns: Array.from({ length: 40 }, (_, i) => ({ role: 'user', text: 'q' + i })) }]
+  assert.equal(pastQuestions(many).length, 25)
+  assert.deepEqual(pastQuestions(null), [])
 })

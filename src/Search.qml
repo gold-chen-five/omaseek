@@ -9,6 +9,7 @@ import "lib/settings.mjs" as SettingsLib
 import "lib/keybinds.mjs" as Keybinds
 import "lib/states.mjs" as States
 import "lib/history.mjs" as History
+import "lib/sessions.mjs" as Sessions
 import "lib/urls.mjs" as Urls
 
 // Web search and AI overlay. The layer-shell setup and the open/close/dismiss/
@@ -32,8 +33,8 @@ Item {
 
   // Every panel key, parsed, by action id; each falls back to its default.
   readonly property var chords: Keybinds.panelChords(config.settings)
-  // The answer's conversation keys; the field walks the ring with them too.
-  readonly property var chatChords: Keybinds.chatChords(config.settings)
+  // The keys the field reads in normal mode beyond vim's: L, H and U.
+  readonly property var normalChords: Keybinds.normalChords(config.settings)
   readonly property string clearSessionsKeyText: config.settings.clearSessionsKey || "ctrl+shift+x"
   property bool clearArmed: false              // the first press; the second forgets them
   property int historyIndex: -1                // where the query walk sits; -1 is what was typed
@@ -243,6 +244,7 @@ Item {
     if (!query) return
     if (panelMode === States.PANEL.AI) {
       ai.ask(query.split(input.lineBreak).join("\n"))
+      resetHistoryWalk()                       // ↑ starts again from the question just asked
       input.clear()                            // the question now lives in the transcript
       // Straight into the answer, as Enter in search goes to the results: the
       // reply is what is read next, and q there stops it. i, a or gi go back to
@@ -271,9 +273,11 @@ Item {
   // home. An unchanged index means the walk had nowhere to go, which is how Down
   // at the draft still steps into the results.
   function walkHistory (delta) {
-    if (panelMode !== States.PANEL.SEARCH) return false
+    // Search walks the queries it searched; ask, the questions in its saved
+    // conversations — the same walk over a different list.
+    const past = panelMode === States.PANEL.AI ? Sessions.pastQuestions(ai.sessions) : queries.queries
     if (historyIndex === -1) historyDraft = input.text
-    const step = History.stepQuery(queries.queries, historyIndex, delta, historyDraft)
+    const step = History.stepQuery(past, historyIndex, delta, historyDraft)
     if (step.index === historyIndex) return false
     historyIndex = step.index
     applyingHistory = true
@@ -511,7 +515,7 @@ Item {
                 escapeSequences: config.keymap.sequences
                 escapeTimeout: config.keymap.timeoutMs
                 chords: root.chords
-                chatChords: root.chatChords
+                normalChords: root.normalChords
 
                 onSubmitted: root.runSearch()
                 onCancelled: root.dismiss()

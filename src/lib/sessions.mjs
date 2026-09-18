@@ -201,3 +201,28 @@ export function sessionLabel (index, count) {
   if (index < 0 || index >= count) return count === 1 ? '1 saved' : count + ' saved'
   return 'session ' + (index + 1) + '/' + count
 }
+
+/**
+ * The questions asked before, newest first, for ↑ in the ask bar: every
+ * question in the saved conversations, the newest conversation first and its
+ * latest question first within it. Taken from the ring rather than a file of
+ * its own, so a question keeps its line breaks, and forgetting a conversation
+ * forgets what was asked in it. A repeat is kept once, where it was newest.
+ */
+export function pastQuestions (sessions, max = 25) {
+  const list = sessions && Array.isArray(sessions) ? sessions : []
+  const questions = []
+  const seen = {}
+  for (let i = 0; i < list.length && questions.length < max; i++) {
+    const turns = list[i] && Array.isArray(list[i].turns) ? list[i].turns : []
+    for (let j = turns.length - 1; j >= 0 && questions.length < max; j--) {
+      const turn = turns[j]
+      if (!turn || turn.role !== 'user') continue
+      const text = String(turn.text == null ? '' : turn.text).trim()
+      if (!text || seen[' ' + text]) continue      // the space keeps __proto__ out of the way
+      seen[' ' + text] = true
+      questions.push({ text: text })
+    }
+  }
+  return questions
+}

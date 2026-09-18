@@ -12,6 +12,7 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 |---|---|---|---|
 | Leave insert with | `escape_sequence` | `jk` | typed within vim's timeoutlen, leaves insert |
 | Search / ask | `search_key` | `enter` | field: runs the query or asks the question |
+| Previous query / question | `previous_asked_key` | `U` | field, normal mode: what you searched or asked before, one step back each press (`up` on the first line too) |
 | New session | `new_session_key` | `ctrl+c` | field and answer: forget the conversation and start one |
 | Next session | `next_session_key` | `ctrl+n` | ask: the next saved conversation, newest first, wrapping |
 | Next conversation | `next_chat_key` | `L` | ask: the next saved conversation, wrapping (`3L` walks three) |
@@ -118,9 +119,10 @@ Insert mode:
 | `ctrl+c` `ctrl+n` `ctrl+x` | AI mode: a new conversation, the next saved one, forget this one |
 | `ctrl+shift+x` | AI mode: forget every saved conversation (twice) |
 | `ctrl+shift+r` | AI mode: ask the last question again after a failure or a stop |
-| `down` `up` | ask: a line down or up within a question of several lines; down from the last, into the transcript |
 | `up` `down` | search: the field is one line, so they walk the queries searched before — `up` an older one, `down` back toward what you had typed, then into the results |
-| `enter` (Search / ask) | search and focus the first result when it arrives — or, when the field holds an address, open it in the browser; asking keeps the field in insert mode, ready for the next question |
+| `up` `down` | ask: a line up or down within a question of several lines; past the first line, `up` walks the questions asked before, and past the last, `down` comes back toward what you had typed, then into the transcript |
+| `U` (Previous query / question) | normal mode: one step back through what was searched or asked before, as `up` is — in either half, a count stepping further (`3U`) |
+| `enter` (Search / ask) | search and focus the first result when it arrives — or, when the field holds an address, open it in the browser; asking moves you into the answer |
 
 `gx` in normal mode opens the URL or bare domain under the cursor in the browser,
 as vim's does; in visual mode, the selected one.

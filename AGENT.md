@@ -351,7 +351,10 @@ between search and AI with Tab; only an explicit mode-changing action changes it
 - `SessionStore.qml` — the last ten conversations in
   `~/.local/share/omaseek/sessions.json`, written whole on every turn.
 - `HistoryStore.qml` — the last twenty-five queries, the same shape and read
-  once for the same reason.
+  once for the same reason. Ask mode walks its questions with the same keys
+  (`↑`, `U`) but keeps no file of them: `Sessions.pastQuestions` reads them out
+  of the saved conversations, so a question keeps its line breaks and
+  forgetting a conversation forgets what was asked in it.
 - `SettingsDropdown.qml` — Omarchy's qs.Ui `Dropdown`, copied because its list
   always opened below at eight rows with no window bound and ran off the screen
   for a row low on the page; this one places the list with `popup.mjs`. Keep

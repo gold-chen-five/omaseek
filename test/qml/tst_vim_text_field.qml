@@ -19,6 +19,7 @@ Item {
   property int clearedSessions: 0
   property int stops: 0
   property int retries: 0
+  property int olderAsked: 0
   property int cancels: 0
   property var opened: []
 
@@ -31,6 +32,7 @@ Item {
     function onCancelled () { cancels++ }
     function onLinkOpened (url) { opened = opened.concat([url]) }
     function onRetryRequested () { retries++ }
+    function onHistoryPrevRequested () { olderAsked++ }
   }
 
   TestCase {
@@ -288,6 +290,36 @@ Item {
       field.cursorPosition = 1
       keyClick("A")
       compare(field.cursorPosition, 5)
+    }
+
+    function test_up_on_the_first_line_walks_back_through_what_was_asked() {
+      olderAsked = 0
+      setNormal("first line\nsecond line", 15)       // on the second line
+
+      keyClick(Qt.Key_Up)
+      compare(olderAsked, 0, "a line above: the arrow moves to it")
+      verify(field.cursorPosition < 11)
+
+      keyClick(Qt.Key_Up)
+      compare(olderAsked, 1, "none above: the arrow reaches for the question before")
+    }
+
+    function test_U_in_normal_mode_steps_back_and_a_capital_U_still_types() {
+      olderAsked = 0
+      field.normalChords = { previousAsked: "U" }
+      setNormal("draft", 2)
+
+      keyClick("U")
+      compare(olderAsked, 1)
+      keyClick("3")
+      keyClick("U")
+      compare(olderAsked, 4, "a count steps further back")
+
+      field.setMode("insert")
+      keyClick("U")
+      compare(olderAsked, 4, "insert mode types it")
+      verify(field.text.indexOf("U") !== -1)
+      field.normalChords = ({})
     }
   }
 }

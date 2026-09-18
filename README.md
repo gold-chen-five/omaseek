@@ -53,8 +53,9 @@ JSON API on.
 | `esc` | back, then out |
 
 The field is vim on one line — motions, operators, counts, text objects
-(`diw`, `ci"`, `da(`), and `jk` to leave insert. `↑` `↓` walk the last
-twenty-five queries. Paste an address and `enter` opens it.
+(`diw`, `ci"`, `da(`), and `jk` to leave insert. `↑` — or `U` in normal
+mode — brings back what you searched or asked before. Paste an address and
+`enter` opens it.
 
 Under the status line, numbered squares are the pages you have read: click one
 to go back, or `›` to fetch the next. Ask mode gets the same strip for its last
