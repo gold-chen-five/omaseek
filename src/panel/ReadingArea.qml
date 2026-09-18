@@ -58,6 +58,7 @@ Item {
       onLinkOpened: url => area.commands.openUrl(url)
       onSearchRequested: text => area.commands.searchFor(text)
       onAskRequested: text => area.commands.askAboutText(text)
+      onAskNowRequested: text => area.commands.askNow(text)
       onTranslateRequested: text => area.commands.translateText(text)
       onEscaped: area.host.focusSearch("normal")
       onNormalRequested: area.host.focusSearch("normal")
@@ -93,6 +94,7 @@ Item {
       onPageHandedOff: area.ai.launch(area.session.handoffText(-1))
       onYanked: (index, withTitle) => area.commands.yankResult(index, withTitle)
       onAskRequested: index => area.commands.askAboutResult(index)
+      onAskNowRequested: index => area.commands.askNowResult(index)
       onSearchRequested: index => {
         const row = area.session.rowAt(index)
         if (row && row.title) area.commands.searchFor(row.title)
@@ -165,6 +167,7 @@ Item {
     onLinkOpened: url => area.commands.openUrl(url)
     onSearchRequested: text => area.commands.searchFor(text)
     onAskRequested: text => area.commands.askAboutText(text)
+    onAskNowRequested: text => area.commands.askNow(text)
     onTranslateRequested: text => area.commands.translateText(text)
     onEscaped: area.host.focusReading()
     onPaneLeftRequested: area.host.focusReading()

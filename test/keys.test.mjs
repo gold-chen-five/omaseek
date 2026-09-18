@@ -111,9 +111,12 @@ test('y copies a result at once, but still opens a yank in the answer', () => {
   assert.equal(ANSWER_KEYS['Y'], undefined, 'the answer leaves Y alone')
 })
 
-test('each half reaches the other: gc asks about a result or a passage, gs searches for either', () => {
-  assert.equal(resolve(LIST_KEYS, 'g', 'c').command, 'askAbout')
-  assert.equal(resolve(ANSWER_KEYS, 'g', 'c').command, 'askAbout', 'a passage of a reply is worth asking about too')
+test('each half reaches the other: gd asks about a result or a passage, gf puts it in the ask bar, gs searches for either', () => {
+  for (const keys of [LIST_KEYS, ANSWER_KEYS, readerKeys('translation', null)]) {
+    assert.equal(resolve(keys, 'g', 'd').command, 'askNow')
+    assert.equal(resolve(keys, 'g', 'f').command, 'askAbout')
+    assert.equal(resolve(keys, 'g', 'c').command, '', 'gc is gone')
+  }
   assert.equal(resolve(ANSWER_KEYS, 'g', 's').command, 'searchFor')
   assert.equal(resolve(LIST_KEYS, 'g', 's').command, 'searchFor', 'a result’s title, searched in its own right')
 })

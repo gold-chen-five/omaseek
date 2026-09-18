@@ -98,7 +98,7 @@ Item {
     host.say(SearchLib.yankNotice(withTitle))
   }
 
-  // gc: the result over in the ask bar. Deliberately unsent — a question still
+  // gf: the result over in the ask bar. Deliberately unsent — a question still
   // has to be typed around the URL.
   function askAboutResult (index) {
     const url = session.yankText(index, false)
@@ -108,12 +108,29 @@ Item {
     host.focusSearch("insert")
   }
 
-  // gc in the answer: the passage in the ask bar, the cursor under it.
+  // gf in the answer or the translation: the passage in the ask bar, the
+  // cursor under it.
   function askAboutText (text) {
     const passage = SearchLib.passageForQuestion(text)
     if (!passage) return
+    if (host.panelMode !== States.PANEL.AI) host.toggleMode()
     host.input.setQuery(passage)
     host.focusSearch("insert")
+  }
+
+  // gd: asked straight away, as Enter in the ask bar would — a draft typed
+  // there stays where it is — and into the answer to read the reply.
+  function askNow (text) {
+    const question = String(text || "").trim()
+    if (!question) return
+    if (host.panelMode !== States.PANEL.AI) host.toggleMode()
+    ai.ask(question)
+    host.focusResults()
+  }
+
+  // gd on a result: its title and URL, the way Y copies them.
+  function askNowResult (index) {
+    askNow(session.yankText(index, true))
   }
 
   // gs: the other way. A selection is already a whole query, so this one runs.

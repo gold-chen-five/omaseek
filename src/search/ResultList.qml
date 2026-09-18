@@ -19,7 +19,8 @@ ListView {
   signal handedOff(int index)
   signal pageHandedOff()
   signal yanked(int index, bool withTitle)   // y / Y: the URL, or the title above it
-  signal askRequested(int index)             // gc: this result, over in the ask bar
+  signal askRequested(int index)             // gf: this result, over in the ask bar
+  signal askNowRequested(int index)          // gd: asked about straight away
   signal searchRequested(int index)          // gs: search for this result's title
   signal activated(int index)
   signal escaped()                       // esc: back to the field, normal mode
@@ -119,6 +120,7 @@ ListView {
     case "yankUrl":      if (count > 0) yanked(currentIndex, false); break
     case "yankCitation": if (count > 0) yanked(currentIndex, true); break
     case "askAbout":     if (count > 0) askRequested(currentIndex); break
+    case "askNow":       if (count > 0) askNowRequested(currentIndex); break
     case "searchFor":    if (count > 0) searchRequested(currentIndex); break
     // As in the answer: the search goes before the pane does.
     case "cancel":       if (finder.lastPattern) finder.forget(); else escaped(); break
@@ -152,7 +154,9 @@ ListView {
     highlight: list.findPattern
     cursorIndex: list.currentIndex
     numberDigits: String(Math.max(1, list.count)).length
-    hasCursor: rowItem.index === list.currentIndex
+    // Lit only while the list has the keyboard, so typing in the field does not
+    // look like it would act on a row.
+    hasCursor: rowItem.index === list.currentIndex && list.activeFocus
 
     onHovered: mouse => {
       if (pointerGate.moved(rowItem, mouse)) list.currentIndex = rowItem.index

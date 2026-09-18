@@ -28,7 +28,8 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 | Open | `open_key` | `enter` | results: open the result and dismiss · answer: the link under the cursor or in the selection |
 | Hand off to agent | `handoff_key` | `ga` | results: the selected result's URL, alone · answer: the selection, else the reply under the cursor with its question |
 | Hand off everything | `handoff_all_key` | `gA` | results: every URL on the page · answer: the whole conversation |
-| Ask about this | `ask_about_key` | `gc` | results: the selected URL over in the ask bar · answer: the selection, or the line under the cursor — unsent |
+| Ask about this | `ask_now_key` | `gd` | results: the selected result's title and URL · answer and translation: the selection, or the line under the cursor — asked straight away, and you land in the answer |
+| Put in the ask bar | `ask_about_key` | `gf` | results: the selected URL over in the ask bar · answer and translation: the selection, or the line under the cursor — unsent |
 | Search for this | `search_for_key` | `gs` | results: search for the selected result's title · answer: search the web for the selection, or the word under the cursor |
 | Translate | `translate_key` | `gt` | answer: the selection, or the word under the cursor · field: the selection, in visual mode |
 | Open link | `open_link_key` | `gx` | answer: the URL under the cursor or in the selection |
@@ -40,10 +41,12 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 A hand-off opens the agent (Settings → Ask → Hand off to) with the text
 pasted into its input and not sent: edit it, then submit it yourself.
 
-`gc` and `gs` stay inside the panel instead. `gc` puts something in the ask bar
-and leaves it there, unsent — from the results, the URL under the cursor; from
-an answer, the selection or the line under the cursor, so a follow-up question
-can be typed beneath it. `gs` goes the other way and *does* run: the
+`gd`, `gf` and `gs` stay inside the panel instead. `gd` asks the AI about
+something straight away — from the results, the result's title and URL; from an
+answer or a translation, the selection or the line under the cursor — and moves
+you into the answer, as Enter in the ask bar does; a draft half-typed there is
+left alone. `gf` puts the same thing in the ask bar and leaves it there, unsent,
+so a question can be typed beneath it. `gs` goes the other way and *does* run: the
 words you selected are already a whole query. Either way `tab` returns to
 the half you came from, with what was there still there.
 
@@ -113,6 +116,9 @@ empty value restores the default.
 
 ## The field
 
+The bar's cursor shows only while the field has the keyboard: once Enter
+moves you into the answer or the results, the cursor is there alone.
+
 Insert mode:
 
 | key | does |
@@ -181,6 +187,9 @@ Settings → Display → Line numbers selects `relative` (default), `absolute`, 
 current row); absolute result numbers start at 1 on each page. Counts move
 relative to the current row: `2j` moves down two results, `2k` moves up two.
 
+The row under the cursor is lit only while the results have the keyboard, so
+typing in the field never looks like it would act on a row.
+
 | key | does |
 |---|---|
 | `j` `k`, `down` `up` | move the cursor; a count repeats the move (`2j`, `10k`) |
@@ -194,7 +203,8 @@ relative to the current row: `2j` moves down two results, `2k` moves up two.
 | `gA` (Hand off everything) | every URL on the current page, one per line, as an editable draft |
 | `y` | copy the selected result's URL |
 | `Y` | copy its title and URL, on two lines |
-| `gc` (Ask about this) | the selected URL over in the ask bar, to type a question around — it is not sent |
+| `gd` (Ask about this) | ask the AI about the selected result — its title and URL — straight away |
+| `gf` (Put in the ask bar) | the selected URL over in the ask bar, to type a question around — it is not sent |
 | `gs` (Search for this) | search for the selected result's title |
 | `ctrl+l` | into the translation beside the results, while one is open |
 | `ctrl+x` (Close session) | close the translation beside the results — there is no conversation here to forget |
@@ -238,7 +248,8 @@ follow the layout when the panel width changes and are excluded from copied text
 | `ga` (Hand off to agent) | the selection; else the reply under the cursor and the question it answers, as the agent wrote them — an editable draft |
 | `gA` (Hand off everything) | the whole conversation, failures left out, as an editable draft |
 | `gt` (Translate) | the selection, or the word under the cursor, translated into the panel on the right |
-| `gc` (Ask about this) | the selection — or the line under the cursor — into the ask bar as written, with the cursor under it to type a follow-up. Not sent |
+| `gd` (Ask about this) | ask the AI about the selection — or the line under the cursor — straight away |
+| `gf` (Put in the ask bar) | the selection — or the line under the cursor — into the ask bar as written, with the cursor under it to type a follow-up. Not sent |
 | `ctrl+c` (New session) | start a new conversation, keeping this one in the ring |
 | `ctrl+n` (Next session) | the next saved conversation, wrapping |
 | `L` `H` (Next/Previous conversation) | the next saved conversation and the one before, wrapping — where search pages with `h` and `l`. Read in the answer and in the field's normal mode. A count walks several (`3L`), and the numbered squares below do the same with a click |
@@ -341,7 +352,7 @@ field or the results closes the translation too.
 
 In the translation, every key of [the answer](#the-answer) works, since it is
 read with the same view: `h j k l w b e 0 ^ $ gg G`, `f t ; ,`, counts, `v V`,
-`y{motion}` `yy` `yiw`, `/ ? n N * #`, `p P` into the ask bar, `gs` `gc` `gx`,
+`y{motion}` `yy` `yiw`, `/ ? n N * #`, `p P` into the ask bar, `gd` `gf` `gs` `gx`,
 `ga` `gA` (the selection, or the whole translation), and `gt` to translate a
 word of it again. Only `q` is missing — nothing is being written there. Beyond
 those:

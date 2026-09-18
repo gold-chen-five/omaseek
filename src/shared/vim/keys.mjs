@@ -109,7 +109,7 @@ const LABELS = {
   lineStart: 'line start', lineEnd: 'line end', selectChars: 'visual mode', selectLines: 'linewise visual',
   reselect: 'reselect', yank: 'yank', put: 'put', putBefore: 'put',
   yankUrl: 'yank the URL', yankCitation: 'yank the title and URL',
-  askAbout: 'ask about this result', searchFor: 'search the web for this',
+  askAbout: 'put in the ask bar', askNow: 'ask about this', searchFor: 'search the web for this',
   paneRight: 'into the translation', paneLeft: 'back from the translation',
   deleteWord: 'delete a word', deleteLine: 'delete to the line start', lineBreak: 'a line break', redo: 'redo'
 }

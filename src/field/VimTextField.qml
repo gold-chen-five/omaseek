@@ -174,7 +174,9 @@ TextArea {
   cursorDelegate: Rectangle {
     width: field.normalish ? Math.max(2, metrics.averageCharacterWidth) : Math.max(1, Style.space(1))
     color: field.normalish ? Color.menu.selectedText : field.foreground
-    opacity: field.normalish ? 0.55 : 1.0
+    // Only where the keyboard is: after Enter moves it into the answer or the
+    // results, a block still sitting in the bar read as two cursors.
+    opacity: !field.activeFocus ? 0 : field.normalish ? 0.55 : 1.0
     radius: 1
 
   }

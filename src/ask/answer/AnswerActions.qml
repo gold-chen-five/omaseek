@@ -4,7 +4,7 @@ import "../../shared/urls.mjs" as Urls
 import "../../shared/vim/textobjects.mjs" as TextObjects
 
 // What the answer hands to the rest of the panel: text into the ask bar (p,
-// gc), a search (gs), a translation (gt), a link to open (gx), or the reply and
+// gf), a question asked (gd), a search (gs), a translation (gt), a link to open (gx), or the reply and
 // its question to the agent (ga, gA). Each takes the selection when there is
 // one, drops it, and raises the view's signal.
 Item {
@@ -21,20 +21,29 @@ Item {
     view.putRequested(value, after)
   }
 
-  // gc: the selection, else the displayed line under the cursor — the same unit
-  // yy takes — over in the ask bar to ask a question about.
+  // gf and gd: the selection, else the displayed line under the cursor — the
+  // same unit yy takes. gf puts it in the ask bar to type a question about; gd
+  // asks about it straight away.
   function askAbout () {
-    let text = ""
-    if (view.selecting) {
-      text = view.selector.selection()
-      view.selector.stopSelecting()
-    } else {
-      const from = view.mover.lineStartAt(view.cursor)
-      const next = view.mover.lineFrom(view.cursor, 1, 0)
-      const to = next < 0 ? view.answer.length : view.mover.lineStartAt(next)
-      text = Transcript.cut(view.plain().substring(from, to), from, view.selector.leadRanges())
-    }
+    const text = passage()
     if (text.trim()) view.askRequested(text)
+  }
+
+  function askNow () {
+    const text = passage()
+    if (text.trim()) view.askNowRequested(text)
+  }
+
+  function passage () {
+    if (view.selecting) {
+      const text = view.selector.selection()
+      view.selector.stopSelecting()
+      return text
+    }
+    const from = view.mover.lineStartAt(view.cursor)
+    const next = view.mover.lineFrom(view.cursor, 1, 0)
+    const to = next < 0 ? view.answer.length : view.mover.lineStartAt(next)
+    return Transcript.cut(view.plain().substring(from, to), from, view.selector.leadRanges())
   }
 
   // gs: the selection, else the word under the cursor, the way vim's * takes one.

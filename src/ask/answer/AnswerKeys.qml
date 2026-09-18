@@ -112,6 +112,7 @@ Item {
     case "searchFor":   view.actions.searchFor(); break
     case "translate":   view.actions.translate(); break
     case "askAbout":    view.actions.askAbout(); break
+    case "askNow":      view.actions.askNow(); break
     case "put":         view.actions.put(true); break
     case "putBefore":   view.actions.put(false); break
     case "findForward":  view.finder.open(false, view.cursor); break

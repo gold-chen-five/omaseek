@@ -237,7 +237,7 @@ test('while the field holds an address the status line says Enter opens it', () 
     'asking about a URL is not opening it')
 })
 
-test('gc in the answer puts the passage into the ask bar as written, with room for the question', () => {
+test('gf in the answer puts the passage into the ask bar as written, with room for the question', () => {
   assert.equal(passageForQuestion('Rust has no garbage collector.'), 'Rust has no garbage collector.\n\n')
   assert.equal(passageForQuestion('first line\nsecond line\n'), 'first line\nsecond line\n\n', 'no marker in front of any line')
   assert.equal(passageForQuestion('\n  indented code\n\n'), '  indented code\n\n', 'leading indentation of the text itself is kept')
