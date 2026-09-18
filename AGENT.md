@@ -354,7 +354,8 @@ between search and AI with Tab; only an explicit mode-changing action changes it
   always opened below at eight rows with no window bound and ran off the screen
   for a row low on the page; this one places the list with `popup.mjs`. Keep
   its look in step with the original under `/usr/share/omarchy/shell/Ui`.
-- `PageTabs.qml` — the same squares for the pages of results, one per page held
+- `PageTabs.qml` — the same squares for the pages of results, numbered by its
+  own `page_numbers` setting rather than the lines', one per page held
   plus a `›` for the one not fetched yet; `picked(page)` is `goToPage`, so the
   mouse and `5gp` end in the same place. Only one strip shows at a time —
   pages in search, conversations in AI — and `content.viewHeight` subtracts

@@ -650,7 +650,7 @@ Item {
           current: session.pageIndex
           hasNext: session.hasNext
           loading: session.loadingPage
-          numbering: config.settings.lineNumbers
+          numbering: config.settings.pageNumbers
 
           onPicked: page => session.goToPage(page)
           onNextRequested: session.nextPage()

@@ -9,6 +9,10 @@ import { bindingProblem } from './keys.mjs'
 
 export const LINE_NUMBER_CHOICES = ['relative', 'absolute', 'hide']
 
+// The page squares under the results. No 'hide': a square with no number on it
+// would say nothing at all, and the strip is how the mouse pages.
+export const PAGE_NUMBER_CHOICES = ['relative', 'absolute']
+
 export const PAGE_SIZE_CHOICES = [5, 10, 15, 20]
 
 // The SearXNG engines the page switches, mirrored as DEFAULT_ENGINES in
@@ -48,6 +52,7 @@ export const DEFAULTS = {
   escapeTimeoutMs: DEFAULT_TIMEOUT_MS,
   resultsPerPage: 10,
   lineNumbers: LINE_NUMBER_CHOICES[0],
+  pageNumbers: PAGE_NUMBER_CHOICES[0],
   chatAgent: DEFAULT_AGENT,
   chatModels: {},
   launcher: LAUNCHER_CHOICES[0],
@@ -82,6 +87,7 @@ export function readSettings (source) {
     escapeTimeoutMs: keymap.timeoutMs,
     resultsPerPage: oneOf(config.resultsPerPage ?? config.results_per_page, PAGE_SIZE_CHOICES, DEFAULTS.resultsPerPage),
     lineNumbers: oneOf(config.line_numbers, LINE_NUMBER_CHOICES, DEFAULTS.lineNumbers),
+    pageNumbers: oneOf(config.page_numbers, PAGE_NUMBER_CHOICES, DEFAULTS.pageNumbers),
     chatAgent: agentId(config.chat_agent),
     chatModels: readModels(config.chat_models),
     launcher: oneOf(config.launcher, LAUNCHER_CHOICES, DEFAULTS.launcher),
@@ -209,6 +215,7 @@ export function writeSettings (settings, source) {
   config.escape_sequence = normalizeSequence(settings.escapeSequence) ?? DEFAULTS.escapeSequence
   config.results_per_page = oneOf(settings.resultsPerPage, PAGE_SIZE_CHOICES, DEFAULTS.resultsPerPage)
   config.line_numbers = oneOf(settings.lineNumbers, LINE_NUMBER_CHOICES, DEFAULTS.lineNumbers)
+  config.page_numbers = oneOf(settings.pageNumbers, PAGE_NUMBER_CHOICES, DEFAULTS.pageNumbers)
   config.chat_agent = agentId(settings.chatAgent)
   config.chat_models = readModels(settings.chatModels)
   config.launcher = oneOf(settings.launcher, LAUNCHER_CHOICES, DEFAULTS.launcher)
@@ -405,9 +412,19 @@ export function settingsRows (settings, engine = 'unknown', agents = null, catal
       key: 'lineNumbers',
       type: 'choice',
       label: 'Line numbers',
-      hint: 'numbering in search results and AI responses; relative also counts the page squares from the page on screen',
+      hint: 'numbering in search results and AI responses',
       options: LINE_NUMBER_CHOICES,
       value: settings.lineNumbers
+    },
+    {
+      key: 'pageNumbers',
+      type: 'choice',
+      label: 'Page numbers',
+      hint: settings.pageNumbers === 'relative'
+        ? 'the page squares count from the page on screen, so 3h and 5l read off the row'
+        : 'the page squares carry their own page number',
+      options: PAGE_NUMBER_CHOICES,
+      value: settings.pageNumbers
     },
     { type: 'section', label: 'Keys' },
     {

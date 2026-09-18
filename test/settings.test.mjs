@@ -417,6 +417,17 @@ test('the endpoint test is an action row whose hint is what the test found', () 
   assert.equal(endpointTestText({ ok: true, ms: 5, engines: {}, unresponsive: [] }), 'no rows')
 })
 
+test('the page squares have a numbering of their own, apart from the lines', () => {
+  const row = source => settingsRows(readSettings(source), 'running').find(r => r.key === 'pageNumbers')
+  assert.equal(readSettings('').pageNumbers, 'relative', 'counting from the page on screen by default')
+  assert.deepEqual(row('').options, ['relative', 'absolute'], 'no hide: a square with no number says nothing')
+  assert.equal(row('{"page_numbers":"absolute"}').value, 'absolute')
+  assert.equal(row('{"page_numbers":"nonsense"}').value, 'relative', 'a typo costs one setting, not the strip')
+  assert.equal(readSettings('{"line_numbers":"absolute"}').pageNumbers, 'relative', 'the two are set apart')
+  const written = JSON.parse(writeSettings(changeSetting(readSettings(''), 'pageNumbers', 'absolute'), ''))
+  assert.equal(written.page_numbers, 'absolute')
+})
+
 test('the search-speed row times one real search, as a keypress sends it', () => {
   const row = speed => settingsRows(readSettings(''), 'running', null, null, null, null, speed)
     .find(r => r.key === 'engineSpeed')
