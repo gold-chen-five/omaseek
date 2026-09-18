@@ -41,7 +41,7 @@ Item {
   property var models: null                    // { agent, models, message } for the selected CLI
   readonly property string modelAgent: chatAgent !== "default" ? chatAgent
     : agents && agents.default ? agents.default : ""
-  onModelAgentChanged: probeModels()
+  onModelAgentChanged: cli.probeModels()
 
   readonly property string agentName: agent !== "" ? agent
     : chatAgent !== "default" ? chatAgent
@@ -56,7 +56,7 @@ Item {
   onHistoryChanged: if (!restoring) remember()
 
   SessionStore {
-    id: store
+    id: storePart
     // The file is read asynchronously: a question asked before it lands waits
     // for it, or it would be recorded into a ring that is about to be replaced.
     onReadyChanged: if (ready) session.remember()
@@ -105,7 +105,7 @@ Item {
   // Ctrl+X: forget this conversation and show whichever takes its place.
   function closeSession () {
     if (sessionIndex < 0) return false          // an unsaved conversation is empty already
-    cancelTurn(liveId)                          // nobody will read this answer
+    turns.cancelTurn(liveId)                          // nobody will read this answer
     const step = Sessions.removeSession(store.sessions, sessionIndex)
     store.save(step.sessions)
     if (step.index < 0) reset()
@@ -119,7 +119,7 @@ Item {
   function clearSessions () {
     if (store.sessions.length === 0 && history.length === 0) return false
     const running = pendingIds.slice(0)
-    for (let i = 0; i < running.length; i++) cancelTurn(running[i])
+    for (let i = 0; i < running.length; i++) turns.cancelTurn(running[i])
     reset()
     store.save([])
     return true
@@ -163,7 +163,7 @@ Item {
     const payload = { question: question, history: Sessions.promptTurns(history), agent: chatAgent, model: chatModel }
     history = [...history, { role: "user", text: question }]   // remember() gives it its id
     status = "thinking"
-    startTurn(liveId, payload)
+    turns.startTurn(liveId, payload)
   }
 
   // Stop the reply being written for the conversation on screen. The question
@@ -172,7 +172,7 @@ Item {
   function stop () {
     if (!isPending(liveId)) return false
     const partial = streamBuffers[liveId] || ""
-    cancelTurn(liveId)
+    turns.cancelTurn(liveId)
     history = [...history, Sessions.stoppedTurn(partial)]
     status = "stopped"
     errorMessage = ""
@@ -191,156 +191,6 @@ Item {
     status = "idle"
     ask(question)
     return true
-  }
-
-  function startTurn (id, payload) {
-    const turn = turnComponent.createObject(session, { sessionId: id })
-    if (!turn) {
-      fail("Could not start the agent")
-      return
-    }
-    pendingTurns[id] = turn
-    pendingIds = pendingIds.concat([id])
-    streamBuffers[id] = ""
-    if (id === liveId) liveStreamText = ""
-    const command = [session.askPath]
-    if (streaming) command.push("--stream")
-    turn.command = command.concat(["--json", JSON.stringify(payload)])
-    turn.running = true
-  }
-
-  // One line of the turn's output. A delta only ever shows: what is saved is the
-  // text in the done event, so a delta misread here cannot corrupt the answer.
-  function absorb (id, line) {
-    const text = String(line ?? "").trim()
-    if (!text || !isPending(id)) return
-    let event
-    try {
-      event = JSON.parse(text)
-    } catch (error) {
-      return                                    // narration, not an event
-    }
-    if (event.event === "delta") {
-      streamBuffers[id] = (streamBuffers[id] || "") + String(event.text ?? "")
-      if (id === liveId) paint.start()          // coalesced: a repaint per token is wasted work
-      return
-    }
-    if (event.event === "done" || event.ok !== undefined) deliver(id, event)
-  }
-
-  // The reply so far reaches the screen a few times a second rather than once
-  // per token: rendering the transcript is not free, and a token is not a frame.
-  Timer {
-    id: paint
-
-    interval: 80
-    onTriggered: session.liveStreamText = session.streamBuffers[session.liveId] || ""
-  }
-
-  // Disowned first: stopping a process ends its stream, and a stream nobody
-  // waits for must not be read as an answer.
-  function cancelTurn (id) {
-    const turn = pendingTurns[id]
-    if (!turn) return
-    forget(id)
-    turn.running = false
-  }
-
-  function forget (id) {
-    const turn = pendingTurns[id]
-    if (turn) {
-      delete pendingTurns[id]
-      turn.destroy(0)
-    }
-    delete streamBuffers[id]
-    if (id === liveId) {
-      paint.stop()
-      liveStreamText = ""
-    }
-    const rest = []
-    for (let i = 0; i < pendingIds.length; i++) if (pendingIds[i] !== id) rest.push(pendingIds[i])
-    pendingIds = rest
-  }
-
-  // A finished turn, by the conversation that asked it. `payload` is the done
-  // event, whose body is the same object a whole answer would have been.
-  function deliver (id, payload) {
-    if (!isPending(id)) return                  // cancelled, or its conversation was closed
-    forget(id)
-    if (!payload || typeof payload !== "object") {
-      report(id, "error", "Could not read the agent's output", "")
-      return
-    }
-    if (!payload.ok) {
-      report(id, "error", payload.message ?? "The agent failed", "")
-      // Signing in takes the screen, so it is only offered for the conversation
-      // the reader is actually in. Out of allowance is only reported.
-      if (payload.login === true && id === liveId) login(payload.fix)
-      return
-    }
-    report(id, "assistant", String(payload.text ?? ""), payload.agent ?? "")
-  }
-
-  // The answer lands where it was asked: in the transcript if that conversation
-  // is on screen, otherwise written into the ring, leaving the reader alone.
-  function report (id, role, text, agentId) {
-    if (id === liveId) {
-      if (agentId) agent = agentId
-      history = [...history, { role: role, text: text }]
-      if (role === "error") {
-        status = "error"
-        errorMessage = text
-      } else {
-        status = "ok"
-        answered()
-      }
-      return
-    }
-    const index = Sessions.indexOfSession(store.sessions, id)
-    if (index < 0) return                       // the conversation went while it ran
-    const entry = store.sessions[index]
-    const step = Sessions.record(store.sessions, index,
-                                 entry.turns.concat([{ role: role, text: text }]),
-                                 agentId || entry.agent, Date.now())
-    store.save(step.sessions)
-  }
-
-  function launch (text) {
-    const prompt = String(text ?? "").trim()
-    if (!prompt) return
-    launching()
-    launchProcess.start([session.askPath, "--launch", "--json",
-                         JSON.stringify({ prompt: prompt, agent: chatAgent, model: chatModel, launcher: launcher })])
-  }
-
-  // Sign-in and setup belong to the CLI: hand them to a terminal with the pending
-  // question chained after. `fix` picks which command runs.
-  function login (fix) {
-    launching()
-    launchProcess.start([session.askPath, "--login", "--json",
-                         JSON.stringify({ agent: chatAgent, model: chatModel, launcher: launcher,
-                                          fix: fix || "login", prompt: lastQuestion() })])
-  }
-
-  function lastQuestion () {
-    for (let i = history.length - 1; i >= 0; i--) {
-      if (history[i].role === "user") return history[i].text
-    }
-    return ""
-  }
-
-  function probeAgents () {
-    agentsProcess.start([session.askPath, "--agents"])
-  }
-
-  function probeModels () {
-    if (!askPath || !modelAgent) return
-    // Serialize discovery so a slow old agent can never overwrite a newer one.
-    // The completion handler notices a changed selection and starts it next.
-    if (modelsProcess.running) return
-    if (models && models.agent === modelAgent) return
-    modelsProcess.requestedAgent = modelAgent
-    modelsProcess.start([askPath, "--models", "--json", JSON.stringify({ agent: modelAgent })])
   }
 
   // A new conversation. What was on screen stays in the ring — unless it was a
@@ -369,62 +219,16 @@ Item {
     history = [...history, { role: "error", text: message }]
   }
 
-  // One per question in flight. It carries the id of the conversation that asked
-  // so a late answer cannot land in whichever one is on screen when it arrives.
-  Component {
-    id: turnComponent
+  // What the panel calls: a hand-off, the agent probe. The work is AgentCli's.
+  function launch (text) { cli.launch(text) }
+  function probeAgents () { cli.probeAgents() }
+  function probeModels () { cli.probeModels() }
 
-    Process {
-      id: turn
+  AskTurns { id: turnsPart; session: session }
+  AgentCli { id: cliPart; session: session }
 
-      property string sessionId: ""
-
-      // A line at a time rather than one blob at the end: the deltas are the
-      // point. A turn that never reaches its done event — killed, or output
-      // nobody could parse — is reported when the process exits.
-      stdout: SplitParser {
-        splitMarker: "\n"
-        onRead: line => session.absorb(turn.sessionId, line)
-      }
-
-      onExited: if (session.isPending(turn.sessionId)) {
-        session.deliver(turn.sessionId, { ok: false, message: "Could not read the agent's output" })
-      }
-    }
-  }
-
-  JsonProcess {
-    id: launchProcess
-
-    onParsed: payload => { if (!payload.ok) session.fail(payload.message ?? "Could not open the agent") }
-    onUnreadable: session.fail("Could not open the agent")
-  }
-
-  JsonProcess {
-    id: agentsProcess
-
-    onParsed: payload => {
-      if (!payload.ok) return
-      session.agents = payload
-      session.probeModels()
-    }
-    onUnreadable: session.agents = ({ agents: [], default: "", configured: false })
-  }
-
-  // Discovery is serialised, so a slow answer for an agent nobody selected any
-  // more is dropped rather than overwriting a newer one.
-  JsonProcess {
-    id: modelsProcess
-
-    property string requestedAgent: ""
-
-    function keep (result) {
-      if (requestedAgent !== session.modelAgent) return
-      session.models = { agent: requestedAgent, models: result.models || [], message: result.message || "" }
-    }
-
-    onParsed: payload => modelsProcess.keep(payload)
-    onUnreadable: modelsProcess.keep({ models: [], message: "could not read the model list" })
-    onExited: Qt.callLater(session.probeModels)
-  }
+  // The parts, reached from each other as session.<part>.
+  readonly property var turns: turnsPart
+  readonly property var cli: cliPart
+  readonly property var store: storePart
 }
