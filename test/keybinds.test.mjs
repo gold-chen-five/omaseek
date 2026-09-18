@@ -80,3 +80,10 @@ test('shift is a modifier only alongside ctrl', () => {
   assert.equal(parseSequence('shift+x'), null)
   assert.equal(normalizeBinding(actionById('clearSessions'), 'shift+x'), '')
 })
+
+test('shift+tab is one key, spelled the way Qt names it', () => {
+  assert.equal(parseChord('shift+tab'), 'Backtab')
+  assert.equal(parseChord('Shift+Tab'), 'Backtab')
+  assert.equal(chordText('Backtab'), 'shift+tab', 'and written back the way a person types it')
+  assert.equal(parseChord('shift+x'), null, 'shift alone still spells a capital, not a chord')
+})

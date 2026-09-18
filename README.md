@@ -39,6 +39,7 @@ JSON API on.
 |---|---|
 | `super+d` | summon or dismiss |
 | `tab` | search ⇄ ask |
+| `shift+tab` | switch to the next agent; the conversation goes with it |
 | `enter` | search, or ask |
 | `j` `k` | through the results; `enter` opens one |
 | `h` `l` | previous and next page; `3h` `5l` walk several, `5gp` jumps to page 5 |

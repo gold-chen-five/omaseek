@@ -20,6 +20,8 @@ Item {
   property int stops: 0
   property int retries: 0
   property int olderAsked: 0
+  property int agentSwitches: 0
+  property int tabs: 0
   property int cancels: 0
   property var opened: []
 
@@ -33,6 +35,8 @@ Item {
     function onLinkOpened (url) { opened = opened.concat([url]) }
     function onRetryRequested () { retries++ }
     function onHistoryPrevRequested () { olderAsked++ }
+    function onAgentSwitchRequested () { agentSwitches++ }
+    function onTabbed () { tabs++ }
   }
 
   TestCase {
@@ -320,6 +324,21 @@ Item {
       compare(olderAsked, 4, "insert mode types it")
       verify(field.text.indexOf("U") !== -1)
       field.normalChords = ({})
+    }
+
+    function test_shift_tab_switches_the_agent_and_tab_still_switches_halves() {
+      agentSwitches = 0
+      tabs = 0
+      field.text = "half a question"
+      keyClick(Qt.Key_Backtab)                        // as Qt delivers shift+tab
+      compare(agentSwitches, 1, "from insert mode, without typing anything")
+      compare(tabs, 0)
+      compare(field.text, "half a question")
+      field.setMode("normal")
+      keyClick(Qt.Key_Backtab)
+      compare(agentSwitches, 2, "and from normal mode")
+      keyClick(Qt.Key_Tab)
+      compare(tabs, 1, "tab alone is still the switch between search and ask")
     }
   }
 }

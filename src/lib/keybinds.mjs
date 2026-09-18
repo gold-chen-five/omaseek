@@ -6,14 +6,14 @@
 const NAMED = {
   enter: 'Return', return: 'Return',
   esc: 'Escape', escape: 'Escape',
-  tab: 'Tab',
+  tab: 'Tab', backtab: 'Backtab',
   space: ' ',                       // chord.js spells it by its text
   up: 'Up', down: 'Down', left: 'Left', right: 'Right',
   home: 'Home', end: 'End'
 }
 
 const SPELLED = {
-  Return: 'enter', Escape: 'esc', Tab: 'tab', ' ': 'space',
+  Return: 'enter', Escape: 'esc', Tab: 'tab', Backtab: 'shift+tab', ' ': 'space',
   Up: 'up', Down: 'down', Left: 'left', Right: 'right',
   Home: 'home', End: 'end'
 }
@@ -45,7 +45,9 @@ export const ACTIONS = [
   { id: 'settings', config: 'settings_key', default: 'ctrl+s', scope: 'panel', command: 'settings',
     label: 'Settings', hint: 'anywhere: open or close this page (ctrl+, always works too)' },
   { id: 'switchMode', config: 'switch_mode_key', default: 'tab', scope: 'panel', command: 'toggleMode',
-    label: 'Switch search / ask', hint: 'anywhere: between searching and asking (shift+tab too)' },
+    label: 'Switch search / ask', hint: 'anywhere: between searching and asking' },
+  { id: 'switchAgent', config: 'switch_agent_key', default: 'shift+tab', scope: 'panel', command: 'switchAgent',
+    label: 'Switch agent', hint: 'anywhere: the next installed agent answers from now on — the conversation so far goes with it' },
   { id: 'open', config: 'open_key', default: 'enter', scope: 'reader', command: 'accept',
     label: 'Open', hint: 'results: the selected result · answer: the link under the cursor' },
   { id: 'handoff', config: 'handoff_key', default: 'ga', scope: 'reader', command: 'handOff',
@@ -107,6 +109,8 @@ function parseKey (token) {
     const rest = text.slice(plus + 1)
     if (modifier === 'shift') {
       const key = parseKey(rest)
+      // Qt names shift+tab a key of its own, and that is what arrives.
+      if (key === 'Tab') return 'Backtab'
       // Only as ctrl+shift+…, which the branch below assembles.
       return key !== null && key.indexOf('C-') !== 0 && key !== ' ' ? 'S-' + spellKey(key) : null
     }

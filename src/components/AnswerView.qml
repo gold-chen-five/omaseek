@@ -158,6 +158,7 @@ FocusScope {
   signal settingsRequested()
   signal tabbed()
   signal newSessionRequested()                 // the new-session chord, or the button
+  signal agentSwitchRequested()                // shift+tab: the next installed agent answers
   signal sessionWalked(int delta)              // L / H and ctrl+n: how far through the ring
   signal closeSessionRequested()               // forget this conversation
   signal clearSessionsRequested()              // forget all of them
@@ -751,6 +752,7 @@ FocusScope {
     switch (command) {
     case "settings":     settingsRequested(); break
     case "toggleMode":   tabbed(); break
+    case "switchAgent":  agentSwitchRequested(); break
     // L / H walk the ring, as h and l page the results; ctrl+n lands here too.
     case "nextSession":  sessionWalked(times); break
     case "previousSession": sessionWalked(-times); break

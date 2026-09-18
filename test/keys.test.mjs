@@ -299,3 +299,12 @@ test('a key for the field’s normal mode cannot take a vim command, or another 
   assert.match(bindingProblem('nextChat', 'x', {}), /vim uses x/, 'the answer’s L is read in the field as well')
   assert.match(bindingProblem('previousAsked', 'gx', {}), /one key/)
 })
+
+test('shift+tab switches the agent in every pane, and tab alone switches search and ask', () => {
+  assert.equal(panelChords({}).switchAgent, 'Backtab')
+  assert.equal(panelChords({}).switchMode, 'Tab')
+  assert.equal(LIST_KEYS['Backtab'], 'switchAgent')
+  assert.equal(ANSWER_KEYS['Backtab'], 'switchAgent')
+  assert.equal(readerKeys('answer', { switchAgentKey: 'ctrl+g' })['C-g'], 'switchAgent', 'rebindable')
+  assert.equal(bindingProblem('switchMode', 'shift+tab', {}), 'shift+tab is already Switch agent')
+})

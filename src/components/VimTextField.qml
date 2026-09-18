@@ -77,6 +77,7 @@ TextArea {
   signal historyNextRequested()             // Down there: back toward what was being typed
   signal requestedSettings()                // Ctrl+S (or Ctrl+,) in any mode
   signal tabbed()                           // Tab in any mode: the panel switches search <-> ai
+  signal agentSwitchRequested()             // shift+tab: the next installed agent answers
   signal newSessionRequested()              // the new-session chord: start over
   signal nextSessionRequested()             // the next saved conversation
   signal sessionWalked(int delta)           // L / H in normal mode: through the ring
@@ -104,7 +105,8 @@ TextArea {
     if (chord === chords.closeSession) return "closeSession"
     if (chord === chords.retryAnswer) return "retryAnswer"
     if (chord === chords.search) return "submit"
-    if (chord === chords.switchMode || chord === "Backtab") return "toggleMode"
+    if (chord === chords.switchMode) return "toggleMode"
+    if (chord === chords.switchAgent) return "switchAgent"
     return ""
   }
 
@@ -119,6 +121,7 @@ TextArea {
     // Both leave the field for good; a half-typed escape sequence goes with it.
     case "submit":        clearEscapePending(); submitted(); break
     case "toggleMode":    clearEscapePending(); tabbed(); break
+    case "switchAgent":   agentSwitchRequested(); break
     }
   }
 

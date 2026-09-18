@@ -27,6 +27,7 @@ ListView {
   signal appendRequested()               // a: back to the field, insert after the cursor
   signal settingsRequested()
   signal tabbed()                        // the panel switches search <-> ai
+  signal agentSwitchRequested()          // shift+tab: the next installed agent answers
   signal nextPageRequested(int pages)    // 5l: five pages on
   signal previousPageRequested(int pages)
   signal pageJumpRequested(int page)     // 5gp: page five, fetching its way there
@@ -104,6 +105,7 @@ ListView {
     switch (command) {
     case "settings":     settingsRequested(); break
     case "toggleMode":   tabbed(); break
+    case "switchAgent":  agentSwitchRequested(); break
     case "accept":       activated(currentIndex); break
     case "handOff":      if (count > 0) handedOff(currentIndex); break
     case "handOffPage":  if (count > 0) pageHandedOff(); break

@@ -21,7 +21,8 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 | Delete all sessions | `clear_sessions_key` | `ctrl+shift+x` | ask: forget every saved conversation, on the second press |
 | Retry answer | `retry_answer_key` | `ctrl+shift+r` | ask: ask the last question again after a failure, a stop, or an interruption |
 | Settings | `settings_key` | `ctrl+s` | anywhere: open or close settings (`ctrl+,` always works too) |
-| Switch search / ask | `switch_mode_key` | `tab` | anywhere, without changing Vim mode (`shift+tab` always works too) |
+| Switch search / ask | `switch_mode_key` | `tab` | anywhere, without changing Vim mode |
+| Switch agent | `switch_agent_key` | `shift+tab` | anywhere: the next installed agent answers from now on, wrapping; the conversation so far goes with it |
 | Open | `open_key` | `enter` | results: open the result and dismiss · answer: the link under the cursor or in the selection |
 | Hand off to agent | `handoff_key` | `ga` | results: the selected result's URL, alone · answer: the selection, else the reply under the cursor with its question |
 | Hand off everything | `handoff_all_key` | `gA` | results: every URL on the page · answer: the whole conversation |
@@ -103,7 +104,8 @@ empty value restores the default.
 |---|---|
 | `super+d` | summon or dismiss (Hyprland, not the panel — `omarchy-shell shell toggle omaseek`) |
 | `ctrl+s` (Settings), `ctrl+,` | open or close settings |
-| `tab` (Switch search / ask), `shift+tab` | switch between searching and asking without changing Vim mode |
+| `tab` (Switch search / ask) | switch between searching and asking without changing Vim mode |
+| `shift+tab` (Switch agent) | the next installed agent answers from now on, wrapping — the status line says who. A conversation already under way goes with it: every question carries the turns before it (the last eight), whichever agent wrote them |
 | `esc` | leave one step: close an open `/` prompt, drop a search and its highlight, cancel a pending/active find, drop a selection, normal mode from insert, the field from a list, the panel from the field |
 
 ## The field

@@ -4,7 +4,7 @@ import {
   readSettings, writeSettings, settingsRows, cycle, normalizeSequence, ENGINE_STATES,
   LAUNCHER_CHOICES, DEFAULT_AGENT,
   PAGE_SIZE_CHOICES, DEFAULTS, checkRow, FIXED_KEYS, changeSetting, selectedModel,
-  ENGINE_CHOICES, DEFAULT_ENGINES, LANGUAGE_CHOICES, toggleEngine, endpointTestText, searchSpeedText, versionText
+  ENGINE_CHOICES, DEFAULT_ENGINES, LANGUAGE_CHOICES, toggleEngine, endpointTestText, searchSpeedText, versionText, nextAgent
 } from '../src/lib/settings.mjs'
 import { ACTIONS, settingKey } from '../src/lib/keybinds.mjs'
 import { DEFAULT_TIMEOUT_MS } from '../src/lib/keymap.mjs'
@@ -455,4 +455,15 @@ test('the update row says which version runs and whether a newer one exists', ()
   assert.equal(versionText({ ok: true, version: '2026.9.8+3fdc6d753', latest: null, current: null }),
     '2026.9.8 running · could not check for a newer one')
   assert.equal(versionText({ ok: false, error: 'network', setup: true }), 'not running — start it to see its version')
+})
+
+test('shift+tab hands the conversation to the next installed agent, wrapping', () => {
+  const found = { agents: [{ id: 'claude' }, { id: 'codex' }, { id: 'opencode' }], default: 'claude', configured: true }
+  assert.equal(nextAgent(found, 'default'), 'codex', 'from default, the one after whoever stands in for it')
+  assert.equal(nextAgent(found, 'codex'), 'opencode')
+  assert.equal(nextAgent(found, 'opencode'), 'claude', 'wrapping')
+  assert.equal(nextAgent({ agents: [{ id: 'claude' }], default: 'claude' }, 'claude'), null, 'nobody else to ask')
+  assert.equal(nextAgent(null, 'default'), null, 'before discovery has answered')
+  assert.equal(settingsRows(readSettings(''), 'running').find(r => r.key === 'switchAgentKey').value, 'shift+tab',
+    'and the page lists it with the other keys')
 })

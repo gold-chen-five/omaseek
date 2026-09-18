@@ -220,6 +220,9 @@ Being out of allowance
 (`error: "quota"`) is kept apart from being signed out (`error: "auth"`),
 since only the latter has a sign-in worth opening. The conversation lives in `AiSession.qml`
 and travels in the prompt (last 8 turns) because print mode remembers nothing.
+That is also why switching agents mid-conversation (shift+tab, `nextAgent`)
+needs nothing more: the next question carries the earlier turns to whichever
+agent is chosen, whoever wrote them.
 The payload goes in as `--json '<object>'`, not stdin. Launchers: `terminal`
 (`omarchy-launch-tui`), `tmux` (new window in the *Work* session), `herdr`
 (`herdr tab create` → `herdr pane run`).

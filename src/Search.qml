@@ -87,6 +87,19 @@ Item {
     walkChats(1)
   }
 
+  // Shift+tab: the next installed agent answers from now on. The conversation
+  // does not change hands — every question already carries the turns before it
+  // in its prompt, whoever wrote them — so the new agent picks it up as it is.
+  function switchAgent () {
+    const next = SettingsLib.nextAgent(ai.agents, config.settings.chatAgent)
+    if (!next) {
+      say(ai.agents && ai.agents.agents && ai.agents.agents.length ? "no other agent installed" : "no agent installed")
+      return
+    }
+    config.change("chatAgent", next)
+    say("now asking " + next + (ai.history.length > 0 ? " — it sees the conversation so far" : ""))
+  }
+
   // L / H in the answer, and ctrl+n from either half: a step through the ring.
   function walkChats (delta) {
     if (panelMode !== States.PANEL.AI) return
@@ -528,6 +541,7 @@ Item {
                 onTextChanged: if (!root.applyingHistory) root.historyIndex = -1
                 onRequestedSettings: root.openSettings()
                 onTabbed: root.toggleMode()
+                onAgentSwitchRequested: root.switchAgent()
                 onNewSessionRequested: root.newChat()
                 onNextSessionRequested: root.nextChat()
                 onSessionWalked: delta => root.walkChats(delta)
@@ -742,6 +756,7 @@ Item {
           onAppendRequested: root.focusSearch("a")
           onSettingsRequested: root.openSettings()
           onTabbed: root.toggleMode()
+          onAgentSwitchRequested: root.switchAgent()
           onNewSessionRequested: root.newChat()
           onSessionWalked: delta => root.walkChats(delta)
           onCloseSessionRequested: root.closeChat()
@@ -784,6 +799,7 @@ Item {
           onPreviousPageRequested: pages => session.previousPage(pages)
           onPageJumpRequested: page => session.goToPage(page)
           onTabbed: root.toggleMode()
+          onAgentSwitchRequested: root.switchAgent()
         }
       }
     }

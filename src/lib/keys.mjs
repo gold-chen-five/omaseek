@@ -21,7 +21,6 @@ function merge (...tables) {
 // What both panes answer to and settings cannot move.
 const NAV = {
   'C-,': 'settings',
-  'Backtab': 'toggleMode',
   'Escape': 'cancel',
   'C-d': 'halfPageDown',
   'C-u': 'halfPageUp',
@@ -81,12 +80,12 @@ const FIELD_NORMAL = 'hjklwWbBeE0^_$fFtT;,iIaAoOvVdcyDCYxXsSrpPugq123456789'
 // What the field does with keys before any binding sees them.
 const FIELD_FIXED = {
   'Escape': 'cancel', 'C-w': 'deleteWord', 'C-u': 'deleteLine', 'C-j': 'lineBreak',
-  'C-r': 'redo', 'Up': 'up', 'Down': 'down', 'C-,': 'settings', 'Backtab': 'toggleMode'
+  'C-r': 'redo', 'Up': 'up', 'Down': 'down', 'C-,': 'settings'
 }
 
 // Names for the settings page when it refuses a key.
 const LABELS = {
-  settings: 'settings', toggleMode: 'switch search / ask', cancel: 'esc',
+  settings: 'settings', toggleMode: 'switch search / ask', switchAgent: 'switch agent', cancel: 'esc',
   nextSession: 'the next session', previousSession: 'the session before', previousAsked: 'the query or question before', closeSession: 'close the session',
   clearSessions: 'delete all sessions', stopAnswer: 'stop the answer', retryAnswer: 'retry the answer',
   halfPageDown: 'half a screen down', halfPageUp: 'half a screen up',

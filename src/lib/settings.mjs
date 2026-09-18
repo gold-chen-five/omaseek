@@ -67,7 +67,7 @@ for (let i = 0; i < ACTIONS.length; i++) DEFAULTS[settingKey(ACTIONS[i])] = ACTI
 // The keys settings cannot move, listed so the page is also the answer to
 // "what can I press". KEYS.md has the long form.
 export const FIXED_KEYS = [
-  { label: 'Anywhere', keys: 'esc cancels a pending/active find first · otherwise steps back: insert → normal → the field → closed · ctrl+, settings · shift+tab switches' },
+  { label: 'Anywhere', keys: 'esc cancels a pending/active find first · otherwise steps back: insert → normal → the field → closed · ctrl+, settings' },
   { label: 'Field', keys: 'insert: ctrl+w ctrl+u delete back · ctrl+j new line (ask) · ↑ ↓ past queries (search), lines then past questions (ask) · normal: vim motions, U the query or question before, gx opens the URL under the cursor, q or esc stops a reply being written (ask), o O open line (ask), f{char} then f/F repeats, r{char}, d c y, text objects, v V, p P, u ctrl+r, counts' },
   { label: 'Results', keys: 'j k ↓ ↑ move · ctrl+d ctrl+u half a screen · gg G first, last · → ← page · 5gp jumps to page 5 · y Y copy the URL, the title too · counts (3j) · / ? n N search the rows · gn field normal · gi i a field insert' },
   { label: 'Answer', keys: 'q stops a reply being written · h j k l w b e 0 ^ _ $ move · f t ; , find · v V select · gv reselect · y{motion} yy yank · gc the selection into the ask bar, to ask about · p P put in the ask bar · / ? n N search · * # the word under the cursor · gn field normal · gi i a field insert' },
@@ -185,6 +185,20 @@ function modelSelection (settings, agent, catalog) {
   }
   const saved = readModels(settings.chatModels)[agent] || ''
   return { options: options, value: options.indexOf(saved) !== -1 ? saved : 'default' }
+}
+
+/**
+ * Shift+tab: the installed agent after the one answering now, wrapping. From
+ * 'default' it counts from the agent that stands in for it, so the first press
+ * always changes who answers. Null when there is nothing else to switch to.
+ */
+export function nextAgent (agents, chatAgent) {
+  const { ids, defaultId } = agentChoices(agents)
+  if (ids.length === 0) return null
+  const current = agentId(chatAgent) === DEFAULT_AGENT ? defaultId : agentId(chatAgent)
+  const at = ids.indexOf(current)
+  const next = ids[(at + 1) % ids.length]
+  return next === current ? null : next
 }
 
 /** The model the panel may pass to the CLI; empty deliberately means its default. */
