@@ -34,6 +34,11 @@ FocusScope {
     for (const key in buttonWidths) widest = Math.max(widest, buttonWidths[key])
     return widest
   }
+  // Where the page is scrolled, and how far it can scroll: read by the tests
+  // that cover keeping the position across a rebuild.
+  readonly property alias scrollY: scroll.contentY
+  readonly property alias scrollHeight: scroll.contentHeight
+
   property color foreground: Color.menu.text
   property color accent: Color.menu.selectedText
   property color selectedBackground: Color.menu.selectedBackground
@@ -48,15 +53,35 @@ FocusScope {
 
   onCursorChanged: {
     refusedIndex = -1
+    keptContentY = -1                        // the reader moved; nothing to put back
     Qt.callLater(ensureCursorVisible)
   }
-  onRowsChanged: Qt.callLater(ensureCursorVisible)
+  // Flipping a switch rewrites the config, which rebuilds every row. The
+  // Repeater destroys its delegates first, so the column is briefly empty and
+  // the Flickable clamps the scroll to the top — which threw the page back to
+  // the first row whenever an engine near the bottom was toggled. Remember
+  // where it was and put it back once the rebuilt rows are as tall again.
+  property real keptContentY: -1
+  onRowsChanged: {
+    if (keptContentY < 0) keptContentY = scroll.contentY
+    Qt.callLater(restoreScroll)
+  }
+
+  function restoreScroll () {
+    if (keptContentY < 0 || scroll.contentHeight <= 0) return
+    const bottom = Math.max(0, scroll.contentHeight - scroll.height)
+    scroll.contentY = Math.max(0, Math.min(keptContentY, bottom))
+    if (keptContentY <= bottom) keptContentY = -1   // the page is tall enough again
+  }
   SettingsRows {
     id: rowState
     held: page.dropdownIndex !== -1 || page.editingIndex !== -1
   }
 
   function ensureCursorVisible () {
+    // Rebuilt rows sit at y 0 until they are laid out, and scrolling to one
+    // then means scrolling to the top. The restore knows where the page was.
+    if (keptContentY >= 0) return
     const row = rowRepeater.itemAt(cursor)
     if (!row) return
     const top = row.y
@@ -69,6 +94,7 @@ FocusScope {
   function open () {
     cursor = firstSetting()
     refusedIndex = -1
+    keptContentY = -1
     scroll.contentY = 0
     Qt.callLater(() => page.forceActiveFocus())
   }
@@ -184,6 +210,7 @@ FocusScope {
     contentHeight: layout.implicitHeight
     boundsBehavior: Flickable.StopAtBounds
     onHeightChanged: Qt.callLater(page.ensureCursorVisible)
+    onContentHeightChanged: page.restoreScroll()   // the rebuilt rows have their height back
 
     Column {
       id: layout
