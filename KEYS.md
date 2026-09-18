@@ -184,7 +184,7 @@ relative to the current row: `2j` moves down two results, `2k` moves up two.
 | `/` `?` | search the rows — title, snippet and domain — forwards or backwards; the matched words are marked |
 | `n` `N` | the next match and the one before; a count repeats (`3n`) |
 | `esc` after a search | drop it and its marks, staying on the results |
-| the numbered squares | under the status line, one square a page and a `›` for the page not fetched yet: the mouse's `h`, `l` and `5gp`. Past ten pages the row is a window around the one being read |
+| the numbered squares | under the status line, one square a page and a `›` for the page not fetched yet: the mouse's `h`, `l` and `5gp`. Past ten pages the row is a window around the one being read. With relative line numbers the squares count from the page on screen (`2 1 0 1 2`), so `3h` and `5l` read straight off the row |
 | `gi` (Back to the field) | back to the field, insert mode |
 | `gn` (Back to the field (normal)) | back to the field, normal mode |
 | `i` | back to the field, insert before the cursor, as in vim |
@@ -222,6 +222,7 @@ follow the layout when the panel width changes and are excluded from copied text
 | `gA` (Hand off everything) | the whole conversation, failures left out, as an editable draft |
 | `ctrl+c` (New session) | start a new conversation, keeping this one in the ring |
 | `ctrl+n` (Next session) | the next saved conversation, wrapping |
+| `L` `H` | the next saved conversation and the one before, wrapping — where search pages with `h` and `l`. A count walks several (`3L`), and the numbered squares below do the same with a click |
 | `ctrl+x` (Close session) | forget this conversation and show the one below it |
 | `ctrl+shift+x` (Delete all sessions) | forget every saved conversation, on a second press |
 | `q` | stop the reply being written, keeping what arrived |

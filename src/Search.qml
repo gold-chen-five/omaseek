@@ -81,9 +81,14 @@ Item {
   // The saved conversations: Ctrl+N walks them, Ctrl+X forgets one. Both leave
   // a half-typed question alone, and land in the transcript when there is one.
   function nextChat () {
+    walkChats(1)
+  }
+
+  // L / H in the answer, and ctrl+n from either half: a step through the ring.
+  function walkChats (delta) {
     if (panelMode !== States.PANEL.AI) return
     disarmClear()
-    if (ai.nextSession()) showChat()
+    if (ai.walkSessions(delta)) showChat()
   }
 
   function closeChat () {
@@ -506,6 +511,7 @@ Item {
                 onTabbed: root.toggleMode()
                 onNewSessionRequested: root.newChat()
                 onNextSessionRequested: root.nextChat()
+                onSessionWalked: delta => root.walkChats(delta)
                 onCloseSessionRequested: root.closeChat()
                 onClearSessionsRequested: root.clearChats()
                 onStopRequested: root.stopAnswer()
@@ -644,6 +650,7 @@ Item {
           current: session.pageIndex
           hasNext: session.hasNext
           loading: session.loadingPage
+          numbering: config.settings.lineNumbers
 
           onPicked: page => session.goToPage(page)
           onNextRequested: session.nextPage()
@@ -717,7 +724,7 @@ Item {
           onSettingsRequested: root.openSettings()
           onTabbed: root.toggleMode()
           onNewSessionRequested: root.newChat()
-          onNextSessionRequested: root.nextChat()
+          onSessionWalked: delta => root.walkChats(delta)
           onCloseSessionRequested: root.closeChat()
           onClearSessionsRequested: root.clearChats()
           onStopRequested: root.stopAnswer()

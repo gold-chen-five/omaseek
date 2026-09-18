@@ -14,6 +14,9 @@ Item {
   property int current: 0                      // 0-based, as the session counts them
   property bool hasNext: false
   property bool loading: false
+  // Follows the line-numbers setting: relative counts the squares from the page
+  // being read, anything else numbers them plainly.
+  property string numbering: "absolute"
   property color foreground: Color.menu.text
   property color accent: Color.menu.selectedText
   property string fontFamily: Style.font.menuFamily
@@ -45,7 +48,7 @@ Item {
 
         width: tabs.squareSize
         height: tabs.squareSize
-        text: String(page)
+        text: Pager.pageLabel(page, tabs.current + 1, tabs.numbering)
         tooltipText: "page " + page
         bordered: true
         selected: page === tabs.current + 1

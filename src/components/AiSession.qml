@@ -84,13 +84,18 @@ Item {
     return at
   }
 
-  // Ctrl+N: the next saved conversation, wrapping; from an unsaved one, the
-  // newest. Nothing saved, nothing to show.
-  function nextSession () {
+  // Ctrl+N and the answer's L: the next saved conversation, wrapping; from an
+  // unsaved one, the newest. H and a count walk the other way and further.
+  // Nothing saved, nothing to show.
+  function nextSession () { return walkSessions(1) }
+
+  function walkSessions (delta) {
+    const step = delta === undefined || delta === 0 ? 1 : delta
     const dropped = dropUnanswered()
-    // Stepping on from the slot the stub vacated lands on what was below it.
-    const from = dropped >= 0 ? dropped - 1 : sessionIndex
-    const next = Sessions.stepSession(store.sessions, from, 1)
+    // The stub vacated a slot: stepping on lands on what was below it, stepping
+    // back on what was above, both of which have shifted up by one.
+    const from = dropped >= 0 ? (step > 0 ? dropped - 1 : dropped) : sessionIndex
+    const next = Sessions.stepSession(store.sessions, from, step)
     if (next < 0) return false
     show(next)
     return true

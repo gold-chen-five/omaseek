@@ -58,6 +58,10 @@ const FIXED = {
     '$': 'lineEnd', 'End': 'lineEnd',
     'v': 'selectChars',
     'V': 'selectLines',
+    // Where search pages with h and l, ask walks its saved conversations —
+    // shifted, since h and l move by character in text. A count walks several.
+    'L': 'nextSession',
+    'H': 'previousSession',
     // The results have no cursor inside a row, so there is no word under it.
     '*': 'searchWord',
     '#': 'searchWordBack',
@@ -83,7 +87,7 @@ const FIELD_FIXED = {
 // Names for the settings page when it refuses a key.
 const LABELS = {
   settings: 'settings', toggleMode: 'switch search / ask', cancel: 'esc',
-  nextSession: 'the next session', closeSession: 'close the session',
+  nextSession: 'the next session', previousSession: 'the session before', closeSession: 'close the session',
   clearSessions: 'delete all sessions', stopAnswer: 'stop the answer', retryAnswer: 'retry the answer',
   halfPageDown: 'half a screen down', halfPageUp: 'half a screen up',
   down: 'move down', up: 'move up', right: 'move right', left: 'move left',

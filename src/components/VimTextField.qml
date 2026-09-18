@@ -79,6 +79,7 @@ TextArea {
   signal tabbed()                           // Tab in any mode: the panel switches search <-> ai
   signal newSessionRequested()              // the new-session chord: start over
   signal nextSessionRequested()             // the next saved conversation
+  signal sessionWalked(int delta)           // L / H in normal mode: through the ring
   signal closeSessionRequested()            // forget this conversation
   signal clearSessionsRequested()           // forget all of them
   signal linkOpened(string url)             // gx: the URL under the cursor, or selected
@@ -530,6 +531,12 @@ TextArea {
         select(pos, pos + 1)
       }
       return
+
+    // The ring, as the answer walks it: only ask mode has conversations, so the
+    // panel drops these when it is searching. Vim's H and L jump to the top and
+    // bottom of the screen, which one line has no use for.
+    case "L": field.sessionWalked(count); return
+    case "H": field.sessionWalked(-count); return
 
     // motions
     case "h": applyMotion(Math.max(0, pos - count), false); return

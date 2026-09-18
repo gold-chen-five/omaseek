@@ -22,6 +22,7 @@ A web search and AI panel for [Omarchy](https://omarchy.org) 4, driven with vim 
 | `gc` `gs` | ask about the result, or search for the selection |
 | `ctrl+c` | new session, keeping this one |
 | `ctrl+n` `ctrl+x` | the next saved session, or forget this one |
+| `L` `H` | in an answer: the next saved conversation, or the one before |
 | `ctrl+shift+x` | forget every saved session (press twice) |
 | `ctrl+s` | settings |
 | `esc` | back, then out |
@@ -42,7 +43,9 @@ results.
 
 Under the status line, the pages you have read are numbered squares — click one
 to go back to it, or the `›` to fetch the next. It is the same strip the saved
-conversations get in AI mode.
+conversations get in AI mode, where `L` and `H` walk them from the keyboard.
+With **relative** line numbers the squares count from the page on screen
+(`2 1 0 1 2`), so `3h` and `5l` can be read off the row.
 
 The last ten conversations are kept in `~/.local/share/omaseek/sessions.json`
 and survive a shell restart. A strip of numbered squares under the status line

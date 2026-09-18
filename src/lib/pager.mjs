@@ -16,3 +16,15 @@ export function pageWindow (current, count, max = 10) {
   const start = Math.max(0, Math.min(at - Math.floor(size / 2), total - size))
   return { start: start, end: start + size }
 }
+
+/**
+ * What a page square says. With relative line numbers the squares count from the
+ * page being read — `2 1 0 1 2` — so `3h` and `5l` can be read straight off the
+ * row, spelled exactly as the rows above spell theirs: an unsigned distance,
+ * nought on the one being read, which is filled anyway. Any other setting
+ * numbers the pages plainly.
+ */
+export function pageLabel (page, current, numbering = 'absolute') {
+  if (numbering !== 'relative') return String(page)
+  return String(Math.abs(page - current))
+}

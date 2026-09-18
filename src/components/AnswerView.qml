@@ -154,7 +154,7 @@ FocusScope {
   signal settingsRequested()
   signal tabbed()
   signal newSessionRequested()                 // the new-session chord, or the button
-  signal nextSessionRequested()                // the next saved conversation
+  signal sessionWalked(int delta)              // L / H and ctrl+n: how far through the ring
   signal closeSessionRequested()               // forget this conversation
   signal clearSessionsRequested()              // forget all of them
   signal stopRequested()                       // stop the reply being written
@@ -678,7 +678,7 @@ FocusScope {
     case "command": {
       const target = motionTarget(action.command, action.count)
       if (target) go(target, action.operator)
-      else if (!action.operator) run(action.command)   // y then a non-motion: dropped, as vim does
+      else if (!action.operator) run(action.command, action.count)   // y then a non-motion: dropped, as vim does
       break
     }
     case "find":
@@ -710,11 +710,14 @@ FocusScope {
     }
   }
 
-  function run (command) {
+  function run (command, count) {
+    const times = count === undefined ? 1 : Math.max(1, count)
     switch (command) {
     case "settings":     settingsRequested(); break
     case "toggleMode":   tabbed(); break
-    case "nextSession":  nextSessionRequested(); break
+    // L / H walk the ring, as h and l page the results; ctrl+n lands here too.
+    case "nextSession":  sessionWalked(times); break
+    case "previousSession": sessionWalked(-times); break
     case "closeSession": closeSessionRequested(); break
     case "clearSessions": clearSessionsRequested(); break
     case "stopAnswer":   stopRequested(); break
