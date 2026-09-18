@@ -876,7 +876,10 @@ FocusScope {
       id: waitLabel
 
       z: 1
-      visible: view.thinking && view.pendingText !== null
+      // Only until the first words arrive: a streamed reply is written into the
+      // very paragraph this label sits on, and drawn over it the two became one
+      // unreadable line. The breathing dot stays, and says it is still coming.
+      visible: view.thinking && view.pendingText !== null && view.streamText.trim() === ""
       x: view.pendingText ? view.pendingText.x : 0
       y: view.pendingText ? Math.round(view.pendingText.baseline - baselineOffset) : 0
       textFormat: Text.PlainText
