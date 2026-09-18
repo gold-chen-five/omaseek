@@ -300,24 +300,6 @@ export function settingsRows (settings, engine = 'unknown', agents = null, catal
       busy: !!(test && test.running)
     }
   ]
-  const engines = readEngines(settings.searxngEngines)
-  const choices = ENGINE_CHOICES.slice(0)
-  for (let i = 0; i < engines.length; i++) if (choices.indexOf(engines[i]) === -1) choices.push(engines[i])
-  for (let i = 0; i < choices.length; i++) {
-    const name = choices[i]
-    const on = engines.indexOf(name) !== -1
-    rows.push({
-      key: 'searxngEngine:' + name,
-      type: 'toggle',
-      label: ENGINE_LABELS[name] || name.charAt(0).toUpperCase() + name.slice(1),
-      hint: engines.length === 0
-        ? 'none chosen — SearXNG asks every engine it has enabled, which is slow'
-        : ENGINE_CHOICES.indexOf(name) === -1 ? 'added by hand in config.json — switching it off removes it'
-        : on ? 'asked on every search' : 'not asked',
-      action: on ? 'off' : 'on',
-      value: on
-    })
-  }
   const language = readLanguage(settings.searxngLanguage)
   rows.push(
     {
@@ -414,6 +396,27 @@ export function settingsRows (settings, engine = 'unknown', agents = null, catal
       hint: action.hint,
       placeholder: action.default,
       value: settings[settingKey(action)] || action.default
+    })
+  }
+  // The engine switches sit below the keys: they are set once, when a search
+  // feels slow, while every row above is changed more often.
+  rows.push({ type: 'section', label: 'Engines' })
+  const engines = readEngines(settings.searxngEngines)
+  const choices = ENGINE_CHOICES.slice(0)
+  for (let i = 0; i < engines.length; i++) if (choices.indexOf(engines[i]) === -1) choices.push(engines[i])
+  for (let i = 0; i < choices.length; i++) {
+    const name = choices[i]
+    const on = engines.indexOf(name) !== -1
+    rows.push({
+      key: 'searxngEngine:' + name,
+      type: 'toggle',
+      label: ENGINE_LABELS[name] || name.charAt(0).toUpperCase() + name.slice(1),
+      hint: engines.length === 0
+        ? 'none chosen — SearXNG asks every engine it has enabled, which is slow'
+        : ENGINE_CHOICES.indexOf(name) === -1 ? 'added by hand in config.json — switching it off removes it'
+        : on ? 'asked on every search' : 'not asked',
+      action: on ? 'off' : 'on',
+      value: on
     })
   }
   rows.push({ type: 'section', label: 'Fixed keys' })
