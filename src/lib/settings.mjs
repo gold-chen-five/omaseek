@@ -15,11 +15,14 @@ export const PAGE_SIZE_CHOICES = [5, 10, 15, 20]
 // bin/search. Measured to answer, and fast; the rest mostly answer with a
 // CAPTCHA or nothing. A name typed into searxng_engines by hand is kept.
 // Plain google is offered but off: it answers with a CAPTCHA where google cse,
-// Google through its embeddable search box, does not.
-export const ENGINE_CHOICES = ['google cse', 'bing', 'brave', 'google']
+// Google through its embeddable search box, does not. DuckDuckGo is offered on
+// the same terms — measured 2026-09-18, it answered every query with a CAPTCHA
+// and no rows — because an instance with a different IP or settings may fare
+// better, and Test SearXNG is what says so.
+export const ENGINE_CHOICES = ['google cse', 'bing', 'brave', 'google', 'duckduckgo']
 export const DEFAULT_ENGINES = ['google cse', 'bing', 'brave']
 // How a switch is labelled where capitalising the SearXNG name reads wrong.
-const ENGINE_LABELS = { 'google cse': 'Google CSE' }
+const ENGINE_LABELS = { 'google cse': 'Google CSE', duckduckgo: 'DuckDuckGo' }
 
 // SearXNG's language/region codes. 'default' sends none, leaving the instance's
 // own default; 'auto' asks SearXNG to guess from the query. Mirrored as the
@@ -391,6 +394,18 @@ export function settingsRows (settings, engine = 'unknown', agents = null, catal
   // The engine switches sit below the keys: they are set once, when a search
   // feels slow, while every row above is changed more often.
   rows.push({ type: 'section', label: 'Engines' })
+  rows.push(
+    {
+      key: 'engineTest',
+      type: 'action',
+      label: 'Test SearXNG',
+      hint: test ? endpointTestText(test)
+        : 'run one real query with these engines and language; see who answers',
+      action: 'test',
+      button: 'Test',
+      busy: !!(test && test.running)
+    }
+  )
   const engines = readEngines(settings.searxngEngines)
   const choices = ENGINE_CHOICES.slice(0)
   for (let i = 0; i < engines.length; i++) if (choices.indexOf(engines[i]) === -1) choices.push(engines[i])
@@ -409,18 +424,6 @@ export function settingsRows (settings, engine = 'unknown', agents = null, catal
       value: on
     })
   }
-  rows.push(
-    {
-      key: 'engineTest',
-      type: 'action',
-      label: 'Test SearXNG',
-      hint: test ? endpointTestText(test)
-        : 'run one real query with these engines and language; see who answers',
-      action: 'test',
-      button: 'Test',
-      busy: !!(test && test.running)
-    }
-  )
   rows.push({ type: 'section', label: 'Fixed keys' })
   for (let i = 0; i < FIXED_KEYS.length; i++) {
     rows.push({ type: 'info', label: FIXED_KEYS[i].label, hint: FIXED_KEYS[i].keys })
