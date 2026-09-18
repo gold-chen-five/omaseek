@@ -347,11 +347,11 @@ FocusScope {
                   opacity: settingRow.refused ? 1 : 0.55
                   font.family: page.fontFamily
                   font.pixelSize: Style.font.caption
-                  // An action's hint is a report — what the test found, per engine —
-                  // so it wraps onto as many lines as it needs rather than ending in
-                  // an ellipsis that hides the engine you were asking about.
-                  wrapMode: settingRow.isDropdown || settingRow.isInfo || settingRow.isAction || settingRow.refused ? Text.WordWrap : Text.NoWrap
-                  elide: settingRow.isDropdown || settingRow.isInfo || settingRow.isAction || settingRow.refused ? Text.ElideNone : Text.ElideRight
+                  // Every hint wraps onto as many lines as it needs. Cut short with an
+                  // ellipsis, a hint hid exactly what it was there to say — which key
+                  // a binding also works with, or which engine a test was about.
+                  wrapMode: Text.WordWrap
+                  elide: Text.ElideNone
                 }
               }
 
