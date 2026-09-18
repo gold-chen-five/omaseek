@@ -31,8 +31,10 @@ quickshell log -p /usr/share/omarchy/shell -f   # QML errors and console.log (no
 
 Run `./bin/test` after touching any `.mjs`, `.qml` or `backend/` module. There
 is no linter.
-The QML test drives `VimTextField` with real key events; its import stubs expose
-only the shell types needed to instantiate the field outside Quickshell.
+The QML tests drive `VimTextField` with real key events — `tst_field_*.qml`, each
+building on `FieldFixture` (the field and a count of every signal it raises) and
+`FieldTestCase` (the shared helpers); their import stubs expose only the shell
+types needed to instantiate the field outside Quickshell.
 
 **A QML change needs `omarchy-restart-shell`, not a rescan.** Omarchy watches
 the plugins directory and rescans on save, but `keepLoaded: true` means this
