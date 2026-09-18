@@ -24,7 +24,7 @@ export const PAGE_SIZE_CHOICES = [5, 10, 15, 20]
 // in searxng_engines, which keeps its own switch.
 export const ENGINE_CHOICES = ['google cse', 'bing', 'brave', 'google', 'duckduckgo',
   'startpage', 'yep', 'yandex', 'yahoo']
-export const DEFAULT_ENGINES = ['google cse', 'bing', 'brave']
+export const DEFAULT_ENGINES = ['google cse', 'bing', 'brave', 'duckduckgo']
 // How a switch is labelled where capitalising the SearXNG name reads wrong.
 const ENGINE_LABELS = { 'google cse': 'Google CSE', duckduckgo: 'DuckDuckGo' }
 
@@ -236,11 +236,6 @@ export function endpointTestText (test) {
   if (!test) return ''
   if (test.running) return 'asking each engine in turn…'
   if (!test.ok) return test.message || 'SearXNG did not answer'
-  // What a search costs is the query that asks every engine at once; the
-  // per-engine times that follow are each engine alone, and never add up to it.
-  const together = test.rows === undefined || test.rows === null
-    ? `${test.ms} ms`
-    : `${test.ms} ms for ${test.rows} rows, every engine at once — alone:`
   const parts = []
   const answers = test.engines || {}
   const named = {}
@@ -249,8 +244,12 @@ export function endpointTestText (test) {
     // A count alone is what --test printed before it timed each engine.
     const rows = typeof answer === 'number' ? answer : answer.rows
     const ms = typeof answer === 'number' ? null : answer.ms
+    const reason = typeof answer === 'number' ? '' : (answer.reason || '')
     named[name] = true
-    parts.push(`${name} ${rows}` + (ms === null || ms === undefined ? '' : ` in ${ms} ms`))
+    // Why it gave nothing beats how fast it gave nothing: an engine that
+    // CAPTCHAs answers in 3 ms, which reads like the fastest of the lot.
+    if (reason) parts.push(`${name}: ${reason}`)
+    else parts.push(`${name} ${rows}` + (ms === null || ms === undefined ? '' : ` in ${ms} ms`))
   }
   const silent = test.unresponsive || []
   for (let i = 0; i < silent.length; i++) {
@@ -259,7 +258,22 @@ export function endpointTestText (test) {
     parts.push(`${silent[i].engine}: ${silent[i].reason}`)
   }
   if (Object.keys(answers).length === 0 && silent.length === 0) parts.push('no rows')
-  return together + ' ' + parts.join(' · ')
+  return parts.join(' · ')
+}
+
+/**
+ * The Search speed row's hint, from `bin/search --time`: one real search, every
+ * engine at once, which is the wait a keypress actually buys. The engine times
+ * from the test row are each engine alone and never add up to this.
+ */
+export function searchSpeedText (speed) {
+  if (!speed) return 'time one real search: every engine at once, as a keypress sends it'
+  if (speed.running) return 'searching…'
+  if (!speed.ok) return speed.message || 'SearXNG did not answer'
+  const silent = speed.unresponsive || []
+  const parts = [`${speed.ms} ms for ${speed.rows} rows`]
+  for (let i = 0; i < silent.length; i++) parts.push(`${silent[i].engine}: ${silent[i].reason}`)
+  return parts.join(' · ')
 }
 
 /**
@@ -283,7 +297,7 @@ export function versionText (version) {
  * instance answers, not a stored setting. `test` is the last endpoint test, and
  * `version` the last version check; null before either ran.
  */
-export function settingsRows (settings, engine = 'unknown', agents = null, catalog = null, test = null, version = null) {
+export function settingsRows (settings, engine = 'unknown', agents = null, catalog = null, test = null, version = null, speed = null) {
   const state = ENGINE_STATES.indexOf(engine) === -1 ? 'unknown' : engine
   const running = state === 'running'
   const { known, ids, defaultId } = agentChoices(agents)
@@ -417,11 +431,20 @@ export function settingsRows (settings, engine = 'unknown', agents = null, catal
   rows.push({ type: 'section', label: 'Engines' })
   rows.push(
     {
+      key: 'engineSpeed',
+      type: 'action',
+      label: 'Search speed',
+      hint: searchSpeedText(speed),
+      action: 'time',
+      button: 'Time',
+      busy: !!(speed && speed.running)
+    },
+    {
       key: 'engineTest',
       type: 'action',
-      label: 'Test SearXNG',
+      label: 'Test engines',
       hint: test ? endpointTestText(test)
-        : 'one real search, then every engine below asked alone: what a search costs, and which engine costs it',
+        : 'ask each engine below on its own: who answers, with how many rows, and what each one costs',
       action: 'test',
       button: 'Test',
       busy: !!(test && test.running)

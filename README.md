@@ -52,13 +52,14 @@ in normal mode stops a reply instead, keeping the conversation and the words so 
 `chat` button turns into `stop` and `retry` for the same.
 
 Each result names the SearXNG engines that found it. **Ctrl+S → Engines**
-switches Google CSE, Bing and Brave — the three a fresh install asks, chosen
-for answering fast — plus Google, DuckDuckGo, Startpage, Yep, Yandex and
-Yahoo, and **Test SearXNG** runs a real query to show how long it took and
-which engines answered. Some engines CAPTCHA or refuse depending on your IP and
-the hour, which is what the test tells you. Any other SearXNG engine can be
-named by hand in `searxng_engines`, and keeps a switch of its own. The language
-and region live under **Ctrl+S → Search**. A next
+switches Google CSE, Bing, Brave and DuckDuckGo — the four a fresh install asks
+— plus Google, Startpage, Yep, Yandex and Yahoo. **Search speed** times one
+real search, every engine at once, which is the wait a keypress buys.
+**Test engines** asks each engine on its own: its rows, its time, or why it
+refused. Engines CAPTCHA or go quiet depending on your IP and the hour, which
+is what the two rows tell you. Any other SearXNG engine can be named by hand in
+`searxng_engines`, and keeps a switch of its own. The language and region live
+under **Ctrl+S → Search**. A next
 page that fails to load says `page failed · l retries` rather than pretending
 the results ended.
 
@@ -168,7 +169,7 @@ What it does outside the panel:
   and `sudo docker …` when you are not in the `docker` group. Nothing else asks
   for privileges.
 - **Network**: searches go to your SearXNG, which queries the engines you
-  enable (Google CSE, Bing and Brave by default). Result icons come from
+  enable (Google CSE, Bing, Brave and DuckDuckGo by default). Result icons come from
   DuckDuckGo's favicon service (`external-content.duckduckgo.com/ip3/`), which
   is sent each result's bare domain and never your query. Settings asks Docker Hub for
   the SearXNG image's tags to say whether an update exists. Questions go to

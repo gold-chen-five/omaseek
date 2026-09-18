@@ -27,7 +27,7 @@ Item {
   property string focusArea: States.FOCUS.FIELD  // who has the keyboard
   property string setupReason: ""              // what the backend said when the instance was down
 
-  readonly property var settingsRows: SettingsLib.settingsRows(config.settings, engine.state, ai.agents, ai.models, engine.test, engine.version)
+  readonly property var settingsRows: SettingsLib.settingsRows(config.settings, engine.state, ai.agents, ai.models, engine.test, engine.version, engine.speed)
   readonly property string chatModel: SettingsLib.selectedModel(config.settings, ai.agents, ai.models)
 
   // Every panel key, parsed, by action id; each falls back to its default.
@@ -211,10 +211,15 @@ Item {
       engine.runTest()
       return
     }
+    if (key === "engineSpeed" && action === "time") {
+      engine.timeSearch()
+      return
+    }
     if (key.indexOf("searxngEngine:") === 0) {
       const name = key.slice("searxngEngine:".length)
       config.change("searxngEngines", SettingsLib.toggleEngine(config.settings, name, action === "on"))
-      engine.test = null                       // it described the engines as they were
+      engine.test = null                       // both described the engines as they were
+      engine.speed = null
       return
     }
     if (key !== "engine") return
@@ -659,7 +664,7 @@ Item {
 
           onChanged: (key, value) => {
             config.change(key, value)
-            if (key === "searxngLanguage") engine.test = null
+            if (key === "searxngLanguage") { engine.test = null; engine.speed = null }
           }
           onActivated: (key, action) => root.runSettingAction(key, action)
           onClosed: root.closeSettings()

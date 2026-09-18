@@ -9,6 +9,8 @@ Item {
   property string state: "unknown"
   // The last endpoint test, as bin/search --test answered it; null before one ran.
   property var test: null
+  // The last timed search, as bin/search --time answered it; null before one ran.
+  property var speed: null
   // The running version against the newest image, as bin/search --version
   // answered it; null before a check.
   property var version: null
@@ -43,6 +45,13 @@ Item {
     testProcess.start([engine.backendPath, "--test"])
   }
 
+  // One search as a keypress sends it, timed. The test asks each engine alone,
+  // so only this says what a search actually waits for.
+  function timeSearch () {
+    speed = { running: true }
+    speedProcess.start([engine.backendPath, "--time"])
+  }
+
   function start () { run("") }
   function stop () { run(" --stop") }
   function updateImage () { run(" --update") }
@@ -65,6 +74,16 @@ Item {
       engine.state = payload.ok ? "running" : payload.setup === true ? "stopped" : engine.state
     }
     onUnreadable: engine.test = ({ ok: false, message: "could not read the test's output" })
+  }
+
+  JsonProcess {
+    id: speedProcess
+
+    onParsed: payload => {
+      engine.speed = payload
+      engine.state = payload.ok ? "running" : payload.setup === true ? "stopped" : engine.state
+    }
+    onUnreadable: engine.speed = ({ ok: false, message: "could not read the search's output" })
   }
 
   JsonProcess {

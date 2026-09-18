@@ -131,9 +131,9 @@ class SearchBackendTests(unittest.TestCase):
         self.assertEqual(len(page["results"]), 10)
         self.assertIsNotNone(page["next"], "and the rest is still offered")
 
-    def test_a_fresh_install_asks_google_cse_bing_and_brave(self):
+    def test_a_fresh_install_asks_the_four_default_engines(self):
         self.run_search("rust")
-        self.assertEqual(FakeSearxng.requests[-1]["engines"], "google cse,bing,brave",
+        self.assertEqual(FakeSearxng.requests[-1]["engines"], "google cse,bing,brave,duckduckgo",
                          "a name with a space travels as one engine")
 
     def test_engines_and_language_are_sent_and_key_the_buffer(self):
@@ -154,17 +154,23 @@ class SearchBackendTests(unittest.TestCase):
         self.assertTrue(report["ok"])
         # One query per configured engine, so each one's time is its own.
         asked = [params.get("engines") for params in FakeSearxng.requests]
-        # The search a keypress sends first, then one query per engine.
-        self.assertEqual(asked, ["google cse,bing,brave", "google cse", "bing", "brave"])
-        self.assertEqual(report["rows"], 10, "what that one search returned")
-        self.assertIsInstance(report["apartMs"], int)
+        self.assertEqual(asked, ["google cse", "bing", "brave", "duckduckgo"], "one query each")
         rows = {name: answer["rows"] for name, answer in report["engines"].items()}
-        self.assertEqual(rows, {"google cse": 0, "bing": 5, "brave": 10})
+        self.assertEqual(rows, {"google cse": 0, "bing": 5, "brave": 10, "duckduckgo": 0})
         for answer in report["engines"].values():
             self.assertIsInstance(answer["ms"], int)
         # Named once, however many queries the instance mentioned it in.
         self.assertEqual(report["unresponsive"], [{"engine": "google", "reason": "Suspended: CAPTCHA"}])
         self.assertIsInstance(report["ms"], int)
+
+    def test_timing_a_search_sends_the_query_a_keypress_sends(self):
+        report = self.run_search("--time")
+        self.assertTrue(report["ok"])
+        asked = [params.get("engines") for params in FakeSearxng.requests]
+        self.assertEqual(asked, ["google cse,bing,brave,duckduckgo"], "one search, every engine at once")
+        self.assertEqual(report["rows"], 10)
+        self.assertIsInstance(report["ms"], int)
+        self.assertEqual(report["unresponsive"], [{"engine": "google", "reason": "Suspended: CAPTCHA"}])
 
     def test_the_endpoint_test_reports_a_refusal(self):
         FakeSearxng.failing = {1}

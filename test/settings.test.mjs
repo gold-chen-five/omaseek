@@ -4,7 +4,7 @@ import {
   readSettings, writeSettings, settingsRows, cycle, normalizeSequence, ENGINE_STATES,
   LAUNCHER_CHOICES, DEFAULT_AGENT,
   PAGE_SIZE_CHOICES, DEFAULTS, checkRow, FIXED_KEYS, changeSetting, selectedModel,
-  ENGINE_CHOICES, DEFAULT_ENGINES, LANGUAGE_CHOICES, toggleEngine, endpointTestText, versionText
+  ENGINE_CHOICES, DEFAULT_ENGINES, LANGUAGE_CHOICES, toggleEngine, endpointTestText, searchSpeedText, versionText
 } from '../src/lib/settings.mjs'
 import { ACTIONS, settingKey } from '../src/lib/keybinds.mjs'
 import { DEFAULT_TIMEOUT_MS } from '../src/lib/keymap.mjs'
@@ -346,7 +346,7 @@ test('streaming is on unless it was deliberately turned off', async () => {
 })
 
 test('engines read as bin/search reads them: absent is the defaults, an explicit [] is kept', () => {
-  assert.deepEqual(DEFAULT_ENGINES, ['google cse', 'bing', 'brave'], 'mirrors DEFAULT_ENGINES in bin/search')
+  assert.deepEqual(DEFAULT_ENGINES, ['google cse', 'bing', 'brave', 'duckduckgo'], 'mirrors DEFAULT_ENGINES in bin/search')
   const google = settingsRows(readSettings(''), 'running').find(r => r.key === 'searxngEngine:google')
   assert.equal(google.value, false, 'plain google is offered, and off by default')
   assert.deepEqual(readSettings('').searxngEngines, DEFAULT_ENGINES)
@@ -405,26 +405,27 @@ test('the endpoint test is an action row whose hint is what the test found', () 
   assert.equal(row({ running: true }).busy, true)
   assert.equal(row({
     ok: true,
-    ms: 686,
-    rows: 28,
-    apartMs: 1766,
-    engines: { brave: { rows: 20, ms: 630 }, bing: { rows: 10, ms: 194 } },
-    unresponsive: []
-  }).hint,
-  '686 ms for 28 rows, every engine at once — alone: brave 20 in 630 ms · bing 10 in 194 ms',
-  'what a search costs, then what each engine costs alone')
-  assert.equal(row({
-    ok: true,
-    ms: 940,
-    engines: { brave: { rows: 20, ms: 630 }, bing: { rows: 10, ms: 194 }, google: { rows: 0, ms: 12, reason: 'Suspended: CAPTCHA' } },
+    ms: 1486,
+    engines: { brave: { rows: 20, ms: 630 }, bing: { rows: 10, ms: 194 }, google: { rows: 0, ms: 3, reason: 'Suspended: CAPTCHA' } },
     unresponsive: [{ engine: 'google', reason: 'Suspended: CAPTCHA' }]
   }).hint,
-  '940 ms brave 20 in 630 ms · bing 10 in 194 ms · google 0 in 12 ms',
-  'an engine that was asked has its own line, time and all')
+  'brave 20 in 630 ms · bing 10 in 194 ms · google: Suspended: CAPTCHA',
+  'a blocked engine says why, not how fast it said nothing')
   assert.equal(endpointTestText({ ok: true, ms: 312, engines: { brave: 20 }, unresponsive: [{ engine: 'google', reason: 'CAPTCHA' }] }),
-    '312 ms brave 20 · google: CAPTCHA', 'counts alone, as an older --test printed them')
+    'brave 20 · google: CAPTCHA', 'counts alone, as an older --test printed them')
   assert.equal(endpointTestText({ ok: false, message: 'SearXNG is not reachable' }), 'SearXNG is not reachable')
-  assert.equal(endpointTestText({ ok: true, ms: 5, engines: {}, unresponsive: [] }), '5 ms no rows')
+  assert.equal(endpointTestText({ ok: true, ms: 5, engines: {}, unresponsive: [] }), 'no rows')
+})
+
+test('the search-speed row times one real search, as a keypress sends it', () => {
+  const row = speed => settingsRows(readSettings(''), 'running', null, null, null, null, speed)
+    .find(r => r.key === 'engineSpeed')
+  assert.match(row(null).hint, /every engine at once/, 'before a run it says what the button does')
+  assert.equal(row({ running: true }).busy, true)
+  assert.equal(row({ ok: true, ms: 848, rows: 28, unresponsive: [] }).hint, '848 ms for 28 rows')
+  assert.equal(row({ ok: true, ms: 720, rows: 18, unresponsive: [{ engine: 'google', reason: 'Suspended: CAPTCHA' }] }).hint,
+    '720 ms for 18 rows · google: Suspended: CAPTCHA')
+  assert.equal(searchSpeedText({ ok: false, message: 'SearXNG is not reachable' }), 'SearXNG is not reachable')
 })
 
 test('the update row says which version runs and whether a newer one exists', () => {

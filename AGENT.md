@@ -103,7 +103,15 @@ page with `retry: true` — a short page would be cached by the panel as final.
 says `page failed · l retries`; the same `--next` payload resumes. The first page
 is the exception: rows to read beat an error.
 
-`bin/search --test` is the Settings → Test SearXNG row: one real query with the
+Two rows report on them, because one number cannot. **Search speed**
+(`--time`) sends the query a search sends — every engine at once — and reports
+that wait: SearXNG queries engines together, so a keypress waits for the
+slowest, never the sum. **Test engines** (`--test`) asks each engine alone and
+in turn, for the rows and the time that a combined query cannot tell apart, and
+prints an engine's *reason* rather than its row count when it was refused: a
+CAPTCHA answers in 3 ms, which otherwise reads as the fastest engine of the lot.
+
+`bin/search --test` is the Settings → Test engines row: one real query with the
 configured engines and language, reported as its time, rows per engine and
 SearXNG's `unresponsive_engines` (Google answers `Suspended: CAPTCHA` locally).
 `Engine.test` holds the answer; it runs in-process rather than in a terminal,
@@ -162,7 +170,7 @@ SearXNG ignores an engine name its instance lacks, so the list is safe to ship;
 an explicit `[]` is the escape hatch that hands the choice back to SearXNG.
 The settings page switches google cse, bing, brave, google, duckduckgo,
 startpage, yep, yandex and yahoo (`ENGINE_CHOICES`, with `ENGINE_LABELS` for the
-two whose SearXNG name capitalises wrong; `DEFAULT_ENGINES` is the first three),
+two whose SearXNG name capitalises wrong; `DEFAULT_ENGINES` is the first four),
 and shows any other name found in the list as a switch too, so a hand-typed
 engine survives a toggle. The four added on 2026-09-18 are what answered when
 28 of SearXNG's 58 general engines were each asked three queries here:
