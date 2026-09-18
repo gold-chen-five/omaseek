@@ -30,6 +30,7 @@ BorderSurface {
   readonly property Item answerView: reading.answerView
   readonly property Item resultsList: reading.resultsList
   readonly property Item translationPanel: reading.translationPanel
+  readonly property Item translationReader: reading.translationReader
   readonly property alias settingsPage: settingsPage
   readonly property alias setupPrompt: setupPrompt
 

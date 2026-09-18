@@ -441,8 +441,11 @@ The stores are non-visual `Item`s, the way first-party plugins keep state in a
   sits split to the right of the reading pane (`panel/ReadingArea`) while
   `translator.open`, and the card widens with it. `ctrl+l` from either pane
   moves the keyboard into it (`FOCUS.TRANSLATION`, `focusTranslation()`), where
-  it scrolls with its own table (`readerKeys('translation')`) and `ctrl+h`
-  comes back. ctrl+x closes what the keyboard is in (`ChatCommands.closeChat`):
+  a second `AnswerView` reads it with every vim key (`plainDocument`, under the
+  `translation` table: the answer's less `q`) and `ctrl+h` comes back. The view
+  is `ask/`'s, so `panel/ReadingArea` places it in `TranslatePanel.body` — the
+  translate feature does not import ask; the panel keeps a few keys of its own
+  for while nothing has landed. ctrl+x closes what the keyboard is in (`ChatCommands.closeChat`):
   the translation from inside it, the conversation from the answer or the
   field; search has no conversation, so there it closes the translation.
   Closing it while focused hands the keyboard back (`Translator.onOpenChanged`). `--translate` sends no history and no panel

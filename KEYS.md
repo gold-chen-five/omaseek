@@ -339,16 +339,17 @@ conversation from the answer or the field and closes the translation only from
 inside it. Search has no conversation to forget, so there `ctrl+x` from the
 field or the results closes the translation too.
 
-In the translation:
+In the translation, every key of [the answer](#the-answer) works, since it is
+read with the same view: `h j k l w b e 0 ^ $ gg G`, `f t ; ,`, counts, `v V`,
+`y{motion}` `yy` `yiw`, `/ ? n N * #`, `p P` into the ask bar, `gs` `gc` `gx`,
+`ga` `gA` (the selection, or the whole translation), and `gt` to translate a
+word of it again. Only `q` is missing — nothing is being written there. Beyond
+those:
 
 | key | does |
 |---|---|
-| `j` `k`, `down` `up` | scroll a line; a count repeats (`5j`) |
-| `ctrl+d` `ctrl+u` | half a screen |
-| `gg` `G` | top, bottom |
-| `y` `Y` | copy the translation |
 | `ctrl+x` (Close session) | close the translation; the keyboard goes back to the pane beside it, or the field when that is empty |
-| `ctrl+h`, `esc` | back to the results or the answer |
+| `ctrl+h`, `esc` | back to the results or the answer (`esc` drops a selection or a search first) |
 | `gi` `i` `a`, `gn` | back to the field, insert or normal mode |
 | `×`, `copy` | the panel's buttons: close it, or copy the translation |
 

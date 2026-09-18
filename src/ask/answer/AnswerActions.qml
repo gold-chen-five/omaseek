@@ -75,12 +75,16 @@ Item {
       view.handedOff(context)
       return
     }
+    if (view.plainDocument) {
+      view.handedOff(view.document)
+      return
+    }
     const r = Transcript.replyIndexAt(view.cursor, view.questionStarts, view.replyStarts)
     view.handedOff(r === -1 ? Transcript.conversationText(view.turns) : Transcript.exchangeText(view.turns, view.replyTurns[r]))
   }
 
   function handOffAll () {
     if (view.selecting) view.selector.stopSelecting()
-    view.handedOff(Transcript.conversationText(view.turns))
+    view.handedOff(view.plainDocument ? view.document : Transcript.conversationText(view.turns))
   }
 }

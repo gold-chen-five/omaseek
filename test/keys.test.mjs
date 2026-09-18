@@ -330,7 +330,7 @@ test('ctrl+t translates the bar from any mode of the field, and only the field',
   assert.match(bindingProblem('translateBarAnywhere', 'ctrl+w', {}), /taken in the field/)
 })
 
-test('ctrl+l and ctrl+h move between a reading pane and the translation', () => {
+test('ctrl+l and ctrl+h move between a reading pane and the translation, read with vim keys', () => {
   for (const pane of ['results', 'answer']) {
     assert.equal(resolve(readerKeys(pane, DEFAULTS), '', 'C-l').command, 'paneRight')
   }
@@ -341,6 +341,12 @@ test('ctrl+l and ctrl+h move between a reading pane and the translation', () => 
   assert.equal(resolve(translation, '', 'G').command, 'bottom')
   assert.equal(resolve(translation, '', 'y').command, 'yank')
   assert.equal(resolve(translation, 'g', 'i').command, 'insert')
+  // It is read with the answer's view, so it has the answer's vim keys.
+  assert.equal(resolve(translation, '', 'w').command, 'wordForward')
+  assert.equal(resolve(translation, '', 'V').command, 'selectLines')
+  assert.equal(resolve(translation, '', '/').command, 'findForward')
+  assert.equal(resolve(translation, 'g', 'x').command, 'openLink')
+  assert.equal(resolve(translation, '', 'q').command, '', 'nothing is being written there to stop')
   assert.match(bindingProblem('handoff', 'ctrl+l', DEFAULTS), /into the translation/)
 })
 

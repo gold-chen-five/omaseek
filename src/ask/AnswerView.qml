@@ -69,7 +69,12 @@ FocusScope {
   property string cursorLink: ""               // the openable link under the cursor, or ""
   property real preferredX: -1                 // the column j/k try to keep
   property var binds: null                     // the settings: where the rebindable commands sit
-  readonly property var readerKeys: KeysLib.readerKeys("answer", binds)
+  // The translation is read with this view too: a plain document rather than
+  // turns, under its own key table (no q to stop, ctrl+h back).
+  property string pane: "answer"
+  property bool plainDocument: false
+  property string document: ""
+  readonly property var readerKeys: KeysLib.readerKeys(pane, binds)
 
   // `/` through the transcript. The pattern stays lit after the prompt closes,
   // as vim's hlsearch does; leaving the pane forgets it.
@@ -162,6 +167,7 @@ FocusScope {
   signal sessionWalked(int delta)              // L / H and ctrl+n: how far through the ring
   signal closeSessionRequested()               // forget this conversation
   signal paneRightRequested()                  // ctrl+l: into the translation beside it
+  signal paneLeftRequested()                   // ctrl+h: back from it
   signal clearSessionsRequested()              // forget all of them
   signal stopRequested()                       // stop the reply being written
   signal retryRequested()                      // ask the last question again
@@ -178,6 +184,7 @@ FocusScope {
     if (activeFocus) cursorLink = linkUnder(cursor)   // the layout may not have existed when the answer landed
   }
   onTurnsChanged: Qt.callLater(renderer.refresh)
+  onDocumentChanged: if (plainDocument) Qt.callLater(renderer.refresh)
 
   onWidthChanged: Qt.callLater(renderer.findMarks)
 

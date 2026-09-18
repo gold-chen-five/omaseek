@@ -39,8 +39,8 @@ Item {
   readonly property var chords: Keybinds.panelChords(config.settings)
   readonly property var normalChords: Keybinds.normalChords(config.settings)
   // `/` in the pane being read, while it is still being typed.
-  readonly property string findPrompt: panelMode === States.PANEL.AI
-    ? card.answerView.findPrompt : card.resultsList.findPrompt
+  readonly property string findPrompt: focusArea === States.FOCUS.TRANSLATION ? card.translationReader.findPrompt
+    : panelMode === States.PANEL.AI ? card.answerView.findPrompt : card.resultsList.findPrompt
 
   // [menu] tokens, as the first-party overlays use: a theme switch repaints this.
   readonly property color background: Color.menu.background
@@ -129,14 +129,15 @@ Item {
     Qt.callLater(() => target.forceActiveFocus())
   }
 
-  // Through setMode, so leaving insert steps the cursor left and clears any
   // ctrl+l from a reading pane: the translation beside it takes the keyboard,
-  // and ctrl+x there closes it rather than the conversation.
+  // and ctrl+x there closes it rather than the conversation. A finished one is
+  // read with vim keys; before that the panel holds the keys itself.
   function focusTranslation () {
     if (!translator.open) return
     input.setMode("normal")
     focusArea = States.FOCUS.TRANSLATION
-    Qt.callLater(() => card.translationPanel.forceActiveFocus())
+    const target = translator.status === "done" ? card.translationReader : card.translationPanel
+    Qt.callLater(() => target.forceActiveFocus())
   }
 
   // Back from the translation, or after it closed under the keyboard: the pane
@@ -147,6 +148,7 @@ Item {
   }
 
   // half-typed operator.
+  // Through setMode, so leaving insert steps the cursor left and clears any
   function focusSearch (mode) {
     focusArea = States.FOCUS.FIELD
     if (mode === "i" || mode === "a") input.enterInsert(mode)
@@ -182,11 +184,14 @@ Item {
   Translator {
     id: translator
 
-    askPath: Qt.resolvedUrl("../bin/ask").toString().replace(/^file:\/\//, "")
     // Closed by ctrl+x, ×, or anything else while it had the keyboard.
     onOpenChanged: if (!open && root.focusArea === States.FOCUS.TRANSLATION) root.focusReading()
 
+    // The reader appears when a translation lands and goes when another starts;
+    // the keyboard follows whichever of it and the panel is showing.
+    onStatusChanged: if (open && root.focusArea === States.FOCUS.TRANSLATION) root.focusTranslation()
     modelAgent: SettingsLib.translateAgentOf(config.settings, ai.agents)
+    askPath: Qt.resolvedUrl("../bin/ask").toString().replace(/^file:\/\//, "")
   }
 
   Engine {

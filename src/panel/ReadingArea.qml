@@ -29,6 +29,7 @@ Item {
   readonly property alias answerView: answer
   readonly property alias resultsList: results
   readonly property alias translationPanel: translation
+  readonly property alias translationReader: translationReader
   readonly property bool asking: host.panelMode === States.PANEL.AI
 
   Item {
@@ -143,6 +144,40 @@ Item {
     onCopied: text => {
       area.host.copyText(text)
       area.host.say("translation copied")
+    }
+  }
+
+  // The finished translation, read with the answer's vim keys: the same view,
+  // over a plain document, in the translation panel's body.
+  AnswerView {
+    id: translationReader
+
+    parent: translation.body
+    anchors.fill: parent
+    pane: "translation"
+    plainDocument: true
+    document: area.translator.status === "done" ? area.translator.text : ""
+    binds: area.config.settings
+    chords: area.chords
+    lineNumbers: area.config.settings.lineNumbers
+
+    onHandedOff: context => area.ai.launch(context)
+    onLinkOpened: url => area.commands.openUrl(url)
+    onSearchRequested: text => area.commands.searchFor(text)
+    onAskRequested: text => area.commands.askAboutText(text)
+    onTranslateRequested: text => area.commands.translateText(text)
+    onEscaped: area.host.focusReading()
+    onPaneLeftRequested: area.host.focusReading()
+    onNormalRequested: area.host.focusSearch("normal")
+    onInsertRequested: area.host.focusSearch("i")
+    onAppendRequested: area.host.focusSearch("a")
+    onSettingsRequested: area.host.openSettings()
+    onTabbed: area.host.toggleMode()
+    onAgentSwitchRequested: area.chat.switchAgent()
+    onCloseSessionRequested: area.translator.close()
+    onPutRequested: (text, after) => {
+      area.host.focusSearch("normal")
+      area.host.input.put(after, text)
     }
   }
 }

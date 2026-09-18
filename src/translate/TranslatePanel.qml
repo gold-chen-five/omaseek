@@ -7,10 +7,13 @@ import "../shared/vim/chord.js" as Chord
 
 // The translation, split to the right of the results or the answer: what was
 // asked about, dimmed, and what it says in the target language below. The
-// keyboard stays with the pane beside it until ctrl+l moves it here, where
-// j k gg G scroll, y copies, ctrl+x closes and ctrl+h goes back. Knows nothing
-// of Translator: it is handed the words and raises what the reader wants done.
-Item {
+// keyboard stays with the pane beside it until ctrl+l moves it here. The
+// translation itself is read with vim keys by the answer's view, which
+// panel/ReadingArea puts in `body` — a feature does not import another — so
+// the keys below are only what works before it has arrived: ctrl+x, ctrl+h and
+// the way back to the field. Knows nothing of Translator: it is handed the
+// words and raises what the reader wants done.
+FocusScope {
   id: panel
 
   property string source: ""
@@ -25,13 +28,15 @@ Item {
   property var binds: null                     // the settings: where the rebindable commands sit
   readonly property var readerKeys: KeysLib.readerKeys("translation", binds)
   property var navigation: ({ pending: "", count: 0 })
+  // Where the reader of a finished translation goes, filling what is left.
+  readonly property alias body: bodySlot
 
   readonly property real squareSize: Math.round(Style.font.body * 2)
   readonly property int dotDiameter: Math.round(Style.font.body * 0.55)
   property int tick: 0
 
   signal closed()                              // × or ctrl+x
-  signal copied(string text)                   // copy, or y
+  signal copied(string text)                   // the copy button
   signal leftRequested()                       // ctrl+h, esc: back to the pane beside it
   signal insertRequested()                     // i, gi: the field, insert mode
   signal appendRequested()                     // a
@@ -42,21 +47,11 @@ Item {
 
   onActiveFocusChanged: navigation = { pending: "", count: 0 }
 
+  // Reached only while nothing is in `body` to take the keys: translating, or failed.
   Keys.onPressed: event => {
     const step = KeysLib.resolveCounted(readerKeys, navigation, Chord.of(event))
     navigation = step.state
-    run(step.command, step.count)
-    event.accepted = true
-  }
-
-  function scrollBy (pixels) {
-    const bottom = Math.max(0, scroll.contentHeight - scroll.height)
-    scroll.contentY = Math.max(0, Math.min(bottom, scroll.contentY + pixels))
-  }
-
-  function run (command, times) {
-    const line = Math.round(Style.font.body * 1.5)
-    switch (command) {
+    switch (step.command) {
     case "settings":     settingsRequested(); break
     case "toggleMode":   tabbed(); break
     case "switchAgent":  agentSwitchRequested(); break
@@ -66,14 +61,8 @@ Item {
     case "insert":       insertRequested(); break
     case "append":       appendRequested(); break
     case "fieldNormal":  normalRequested(); break
-    case "down":         scrollBy(line * times); break
-    case "up":           scrollBy(-line * times); break
-    case "halfPageDown": scrollBy(scroll.height / 2 * times); break
-    case "halfPageUp":   scrollBy(-scroll.height / 2 * times); break
-    case "top":          scrollBy(-scroll.contentHeight); break
-    case "bottom":       scrollBy(scroll.contentHeight); break
-    case "yank":         if (status === "done" && text) copied(text); break
     }
+    event.accepted = true
   }
 
   Timer {
@@ -149,97 +138,81 @@ Item {
     }
   }
 
-  Flickable {
-    id: scroll
+  Column {
+    id: above
 
     anchors.left: parent.left
     anchors.right: parent.right
     anchors.top: header.bottom
+    anchors.leftMargin: Style.spacing.md
+    anchors.topMargin: Style.spacing.md
+    spacing: Style.spacing.md
+
+    // What was asked about, so a translation of a selection says of what.
+    Text {
+      width: parent.width
+      textFormat: Text.PlainText
+      text: panel.source
+      color: panel.foreground
+      opacity: 0.5
+      font.family: panel.fontFamily
+      font.pixelSize: Style.font.caption
+      wrapMode: Text.Wrap
+      maximumLineCount: 6
+      elide: Text.ElideRight
+    }
+
+    // Waiting: the answer's own breathing dot, and how long it has been.
+    Row {
+      visible: panel.status === "translating"
+      spacing: Style.spacing.sm
+
+      Rectangle {
+        anchors.verticalCenter: parent.verticalCenter
+        width: panel.dotDiameter
+        height: width
+        radius: width / 2
+        color: panel.foreground
+
+        SequentialAnimation on opacity {
+          running: panel.visible && panel.status === "translating"
+          loops: Animation.Infinite
+          NumberAnimation { to: 0.2; duration: Thinking.PULSE_MS / 2; easing.type: Easing.InOutSine }
+          NumberAnimation { to: 1; duration: Thinking.PULSE_MS / 2; easing.type: Easing.InOutSine }
+        }
+      }
+
+      Text {
+        textFormat: Text.PlainText
+        // tick is read so the clock re-evaluates.
+        text: panel.tick >= 0 ? "translating · " + Thinking.elapsedText(Date.now() - panel.startedAt) : ""
+        color: panel.foreground
+        font.family: panel.fontFamily
+        font.pixelSize: Style.font.body
+      }
+    }
+
+    Text {
+      visible: panel.status === "error"
+      width: parent.width
+      textFormat: Text.PlainText
+      text: panel.errorMessage
+      color: Color.urgent
+      font.family: panel.fontFamily
+      font.pixelSize: Style.font.body
+      wrapMode: Text.Wrap
+    }
+  }
+
+  Item {
+    id: bodySlot
+
+    visible: panel.status === "done"
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.top: above.bottom
     anchors.bottom: parent.bottom
     anchors.leftMargin: Style.spacing.md
     anchors.topMargin: Style.spacing.md
-    clip: true
-    contentWidth: width
-    contentHeight: body.implicitHeight
-    boundsBehavior: Flickable.StopAtBounds
-
-    Column {
-      id: body
-
-      width: scroll.width
-      spacing: Style.spacing.md
-
-      // What was asked about, so a translation of a selection says of what.
-      Text {
-        width: parent.width
-        textFormat: Text.PlainText
-        text: panel.source
-        color: panel.foreground
-        opacity: 0.5
-        font.family: panel.fontFamily
-        font.pixelSize: Style.font.caption
-        wrapMode: Text.Wrap
-        maximumLineCount: 6
-        elide: Text.ElideRight
-      }
-
-      // Waiting: the answer's own breathing dot, and how long it has been.
-      Row {
-        visible: panel.status === "translating"
-        spacing: Style.spacing.sm
-
-        Rectangle {
-          anchors.verticalCenter: parent.verticalCenter
-          width: panel.dotDiameter
-          height: width
-          radius: width / 2
-          color: panel.foreground
-
-          SequentialAnimation on opacity {
-            running: panel.visible && panel.status === "translating"
-            loops: Animation.Infinite
-            NumberAnimation { to: 0.2; duration: Thinking.PULSE_MS / 2; easing.type: Easing.InOutSine }
-            NumberAnimation { to: 1; duration: Thinking.PULSE_MS / 2; easing.type: Easing.InOutSine }
-          }
-        }
-
-        Text {
-          textFormat: Text.PlainText
-          // tick is read so the clock re-evaluates.
-          text: panel.tick >= 0 ? "translating · " + Thinking.elapsedText(Date.now() - panel.startedAt) : ""
-          color: panel.foreground
-          font.family: panel.fontFamily
-          font.pixelSize: Style.font.body
-        }
-      }
-
-      // Selectable, so part of it can be copied with the mouse too.
-      TextEdit {
-        visible: panel.status === "done"
-        width: parent.width
-        readOnly: true
-        selectByMouse: true
-        activeFocusOnPress: false              // the panel's keys stay the panel's
-        textFormat: TextEdit.PlainText
-        text: panel.text
-        color: panel.foreground
-        selectionColor: Util.alpha(panel.accent, 0.35)
-        selectedTextColor: panel.foreground
-        font.family: panel.fontFamily
-        font.pixelSize: Style.font.body
-        wrapMode: TextEdit.Wrap
-      }
-
-      Text {
-        visible: panel.status === "error"
-        width: parent.width
-        textFormat: Text.PlainText
-        text: panel.errorMessage
-        color: Color.urgent
-        font.family: panel.fontFamily
-        font.pixelSize: Style.font.body
-        wrapMode: Text.Wrap
-      }
-    }
   }
 }

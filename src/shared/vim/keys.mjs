@@ -69,28 +69,16 @@ const FIXED = {
     // Stops the reply being written, as the field's q and esc do; macros are
     // deliberately absent, so vim's q is free.
     'q': 'stopAnswer'
-  }),
-  // The translation, once ctrl+l has moved into it: scrolled rather than walked
-  // with a cursor, since the only thing to take from it is all of it.
-  translation: {
-    'C-,': 'settings',
-    'Escape': 'cancel',
-    'C-d': 'halfPageDown', 'C-u': 'halfPageUp',
-    'j': 'down', 'Down': 'down',
-    'k': 'up', 'Up': 'up',
-    'g g': 'top',
-    'G': 'bottom',
-    'y': 'yank', 'Y': 'yank',
-    'i': 'insert',
-    'a': 'append',
-    'C-l': 'paneRight',
-    'C-h': 'paneLeft'
-  }
+  })
 }
+// The translation, once ctrl+l has moved into it, is read with the answer's
+// view and so its vim keys — less q, since nothing is being written there.
+FIXED.translation = merge(FIXED.answer)
+delete FIXED.translation.q
 
 // Keys a pane takes before its table is consulted: counts in both, and in the
 // answer the grammar's finds, y, and the a of a text object.
-const TAKEN_FIRST = { results: '123456789', answer: '123456789fFtT;,ya', translation: '123456789' }
+const TAKEN_FIRST = { results: '123456789', answer: '123456789fFtT;,ya', translation: '123456789fFtT;,ya' }
 
 // The field's own vim commands in normal mode, which a key bound there must
 // leave alone. Counts are digits, and g is a prefix: after it, g and x are gg's and gx's.

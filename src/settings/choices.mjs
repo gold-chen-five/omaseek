@@ -78,7 +78,7 @@ export const FIXED_KEYS = [
   { label: 'Answer', keys: 'q stops a reply being written · h j k l w b e 0 ^ _ $ move · f t ; , find · v V select · gv reselect · y{motion} yy yank · gc the selection into the ask bar, to ask about · gt translate the selection or the word under the cursor · p P put in the ask bar · ctrl+l into the translation · / ? n N search · * # the word under the cursor · gn field normal · gi i a field insert' },
   { label: 'Sessions (ask)', keys: 'L and H above — the next saved conversation and the one before — are read in the answer and in the field’s normal mode · 3L walks three · the numbered squares under the status line do the same with a click' },
   { label: 'Pages (search)', keys: 'l h the next page and the one before · 5l 3h walk several · 5gp jumps to page 5 · the numbered squares do the same with a click, and › fetches the page after them' },
-  { label: 'Translate', keys: 'gt gT or the translate button open it on the right · ctrl+l moves into it, ctrl+h or esc back · there j k ctrl+d ctrl+u gg G scroll, y copies, ctrl+x or × closes it · in ask, ctrl+x elsewhere closes the conversation' },
+  { label: 'Translate', keys: 'gt gT or the translate button open it on the right · ctrl+l moves into it, ctrl+h or esc back · there the answer’s vim keys work, and ctrl+x or × closes it · in ask, ctrl+x elsewhere closes the conversation' },
   { label: 'Settings', keys: 'j k move · h l change · enter edit · / field normal · esc back' }
 ]
 

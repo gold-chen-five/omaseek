@@ -2,6 +2,7 @@ import QtQuick
 import qs.Commons
 import "../markdown.mjs" as Markdown
 import "../transcript.mjs" as Transcript
+import "../../shared/html.mjs" as Html
 
 // The transcript rendered, and where things landed in it: the text the
 // TextEdit shows, rebuilt when a turn arrives or a reply streams in, then the
@@ -56,7 +57,7 @@ Item {
   // reads down through it (or at the end, under the question, while waiting).
   function settle () {
     findMarks()
-    view.placeCursor(startOfNewest())
+    view.placeCursor(view.plainDocument ? 0 : startOfNewest())
   }
 
   function startOfNewest () {
@@ -66,6 +67,11 @@ Item {
   }
 
   function render () {
+    // A document is shown as written: escaped, its line breaks kept.
+    if (view.plainDocument) {
+      return '<div style="color:' + view.questionColor + '; white-space:pre-wrap">' +
+        Html.escapeHtml(view.document).split("\n").join("<br>") + '</div>'
+    }
     return Markdown.renderTranscript(view.turns, {
       question: view.questionColor,
       answer: view.answerColor,
