@@ -265,7 +265,10 @@ Item {
       focusResults()
       return
     }
-    const flat = query.split(input.lineBreak).join(" ")
+    const flat = SearchLib.cleanQuery(query.split(input.lineBreak).join(" "))
+    // The field shows what is searched: stray spaces at either end, or a run of
+    // them inside, are gone once Enter has read it.
+    if (input.text !== flat) input.setQuery(flat)
     queries.remember(flat)                     // the arrows walk back to it next time
     resetHistoryWalk()
     // A pasted address is opened, as a browser's address bar would; anything

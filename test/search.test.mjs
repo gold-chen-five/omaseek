@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { describeError, normalizeRow, mergeResults, statusText, modeLabel, confirmClearText, pageJumpTarget, passageForQuestion } from '../src/lib/search.mjs'
+import { describeError, normalizeRow, mergeResults, statusText, modeLabel, confirmClearText, pageJumpTarget, passageForQuestion, cleanQuery } from '../src/lib/search.mjs'
 import { VIEW, PANEL, FOCUS } from '../src/lib/states.mjs'
 
 test('the status line counts a jump’s pages as they land', () => {
@@ -243,4 +243,12 @@ test('gc in the answer puts the passage into the ask bar as written, with room f
   assert.equal(passageForQuestion('\n  indented code\n\n'), '  indented code\n\n', 'leading indentation of the text itself is kept')
   assert.equal(passageForQuestion('   \n  '), '', 'nothing to put is nothing to put')
   assert.equal(passageForQuestion(''), '')
+})
+
+test('enter searches the query trimmed, with its inner runs of space made one', () => {
+  assert.equal(cleanQuery('   rust ownership   '), 'rust ownership')
+  assert.equal(cleanQuery('rust    ownership'), 'rust ownership')
+  assert.equal(cleanQuery('rust\n  ownership\t'), 'rust ownership', 'a line break is a space')
+  assert.equal(cleanQuery('   '), '')
+  assert.equal(cleanQuery(null), '')
 })

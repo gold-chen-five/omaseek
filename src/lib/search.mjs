@@ -195,3 +195,12 @@ export function passageForQuestion (text) {
   const passage = String(text || '').replace(/^\s*\n/, '').replace(/\s+$/, '')
   return passage.trim() === '' ? '' : passage + '\n\n'
 }
+
+/**
+ * What Enter searches for: the field's text trimmed, and any run of spaces or
+ * line breaks inside it one space. The field is then shown this, so what is
+ * on screen, what was searched and what ↑ brings back are the same text.
+ */
+export function cleanQuery (text) {
+  return String(text == null ? '' : text).replace(/\s+/g, ' ').trim()
+}
