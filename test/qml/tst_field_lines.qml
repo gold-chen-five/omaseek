@@ -2,7 +2,7 @@ import QtQuick
 import QtTest
 
 // Lines and motions in a question of several lines: jk, o and O, dd, the line
-// ends, h and l, I and A.
+// ends, h and l, I and A, gg and G.
 Item {
   width: 480
   height: 160
@@ -165,6 +165,38 @@ Item {
       keyClick("d")
       keyClick("l")
       compare(field.text, "firs\nsecond")
+    }
+
+    function test_gg_and_G_reach_the_first_and_last_line() {
+      setNormal("  first\nsecond\n  third", 10)
+
+      keyClick("G")
+      compare(field.cursorPosition, 17, "G: the last line's first non-blank")
+      keyClick("g")
+      keyClick("g")
+      compare(field.cursorPosition, 2, "gg: the first line's")
+      keyClick("2")
+      keyClick("G")
+      compare(field.cursorPosition, 8, "2G: the second line")
+      keyClick("3")
+      keyClick("g")
+      keyClick("g")
+      compare(field.cursorPosition, 17, "3gg: the third")
+      compare(field.text, "  first\nsecond\n  third")
+    }
+
+    function test_dG_and_dgg_take_whole_lines() {
+      setNormal("first\nsecond\nthird", 8)
+      keyClick("d")
+      keyClick("G")
+      compare(field.text, "first")
+
+      setNormal("first\nsecond\nthird", 8)
+      keyClick("d")
+      keyClick("g")
+      keyClick("g")
+      compare(field.text, "third")
+      compare(field.mode, "normal")
     }
   }
 }

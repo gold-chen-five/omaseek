@@ -186,10 +186,10 @@ test('result counts cancel on escape and unknown keys without leaking into the n
 })
 
 test('a rebound key moves its command in both panes and frees the old key', () => {
-  const binds = { ...DEFAULTS, handoffKey: 'ctrl+h', handoffAllKey: 'gz', openLinkKey: 'ctrl+o', nextPageKey: 'm' }
+  const binds = { ...DEFAULTS, handoffKey: 'ctrl+b', handoffAllKey: 'gz', openLinkKey: 'ctrl+o', nextPageKey: 'm' }
   for (const pane of ['results', 'answer']) {
     const keys = readerKeys(pane, binds)
-    assert.equal(resolve(keys, '', 'C-h').command, 'handOff')
+    assert.equal(resolve(keys, '', 'C-b').command, 'handOff')
     assert.equal(resolve(keys, 'g', 'z').command, 'handOffPage')
     assert.equal(resolve(keys, 'g', 'a').command, '')
     assert.equal(resolve(keys, 'g', 'A').command, '')
@@ -237,7 +237,7 @@ test('keys in panes that never meet may share a key', () => {
   assert.equal(bindingProblem('search', 'enter', DEFAULTS), '')
   assert.equal(bindingProblem('open', 'enter', DEFAULTS), '')
   assert.equal(bindingProblem('nextPage', 'l', DEFAULTS), '')
-  assert.equal(bindingProblem('handoff', 'ctrl+h', DEFAULTS), '')
+  assert.equal(bindingProblem('handoff', 'ctrl+b', DEFAULTS), '')
 })
 
 test('keys the field would type are refused for the keys it catches', () => {
@@ -328,4 +328,23 @@ test('ctrl+t translates the bar from any mode of the field, and only the field',
   assert.equal(ANSWER_KEYS['C-t'], undefined)
   assert.match(bindingProblem('translateBarAnywhere', 't', {}), /could never be typed/, 'a letter would eat typing')
   assert.match(bindingProblem('translateBarAnywhere', 'ctrl+w', {}), /taken in the field/)
+})
+
+test('ctrl+l and ctrl+h move between a reading pane and the translation', () => {
+  for (const pane of ['results', 'answer']) {
+    assert.equal(resolve(readerKeys(pane, DEFAULTS), '', 'C-l').command, 'paneRight')
+  }
+  const translation = readerKeys('translation', DEFAULTS)
+  assert.equal(resolve(translation, '', 'C-h').command, 'paneLeft')
+  assert.equal(resolve(translation, '', 'C-x').command, 'closeSession', 'ctrl+x closes what the keyboard is in')
+  assert.equal(resolve(translation, 'g', 'g').command, 'top')
+  assert.equal(resolve(translation, '', 'G').command, 'bottom')
+  assert.equal(resolve(translation, '', 'y').command, 'yank')
+  assert.equal(resolve(translation, 'g', 'i').command, 'insert')
+  assert.match(bindingProblem('handoff', 'ctrl+l', DEFAULTS), /into the translation/)
+})
+
+test('gg and G are the field’s own in normal mode', () => {
+  assert.match(bindingProblem('previousAsked', 'G', DEFAULTS), /vim uses G/)
+  assert.match(bindingProblem('translateBar', 'gg', DEFAULTS), /vim uses gg/)
 })

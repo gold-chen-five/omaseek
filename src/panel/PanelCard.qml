@@ -29,6 +29,7 @@ BorderSurface {
   readonly property Item field: fieldBar.field
   readonly property Item answerView: reading.answerView
   readonly property Item resultsList: reading.resultsList
+  readonly property Item translationPanel: reading.translationPanel
   readonly property alias settingsPage: settingsPage
   readonly property alias setupPrompt: setupPrompt
 

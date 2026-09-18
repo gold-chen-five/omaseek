@@ -99,6 +99,23 @@ Item {
     else field.clampCursor()
   }
 
+  // gg and G: to a line's first non-blank. They are linewise in vim, so an
+  // operator takes every whole line between the cursor and there (dG, ygg).
+  function jumpToLine (target) {
+    if (field.pendingOperator === "") {
+      applyMotion(target, false)
+      return
+    }
+    const operator = field.pendingOperator
+    field.pendingOperator = ""
+    field.operatorCount = 1
+    const from = Math.min(field.cursorPosition, target)
+    const to = Math.max(field.cursorPosition, target)
+    const lines = field.text.substring(from, to).split("\n").length
+    field.cursorPosition = Motions.lineBounds(field.text, from).start
+    operateLines(operator, lines)
+  }
+
   // A resolved motion target either moves the cursor, extends the visual
   // selection, or feeds the operator waiting on it.
   function applyMotion (target, inclusive) {

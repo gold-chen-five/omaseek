@@ -35,7 +35,10 @@ const NAV = {
   'n': 'findNext',
   'N': 'findPrevious',
   'i': 'insert',
-  'a': 'append'
+  'a': 'append',
+  // The translation sits to the right of both panes; ctrl+h comes back from it.
+  'C-l': 'paneRight',
+  'C-h': 'paneLeft'
 }
 
 const FIXED = {
@@ -66,17 +69,33 @@ const FIXED = {
     // Stops the reply being written, as the field's q and esc do; macros are
     // deliberately absent, so vim's q is free.
     'q': 'stopAnswer'
-  })
+  }),
+  // The translation, once ctrl+l has moved into it: scrolled rather than walked
+  // with a cursor, since the only thing to take from it is all of it.
+  translation: {
+    'C-,': 'settings',
+    'Escape': 'cancel',
+    'C-d': 'halfPageDown', 'C-u': 'halfPageUp',
+    'j': 'down', 'Down': 'down',
+    'k': 'up', 'Up': 'up',
+    'g g': 'top',
+    'G': 'bottom',
+    'y': 'yank', 'Y': 'yank',
+    'i': 'insert',
+    'a': 'append',
+    'C-l': 'paneRight',
+    'C-h': 'paneLeft'
+  }
 }
 
 // Keys a pane takes before its table is consulted: counts in both, and in the
 // answer the grammar's finds, y, and the a of a text object.
-const TAKEN_FIRST = { results: '123456789', answer: '123456789fFtT;,ya' }
+const TAKEN_FIRST = { results: '123456789', answer: '123456789fFtT;,ya', translation: '123456789' }
 
 // The field's own vim commands in normal mode, which a key bound there must
-// leave alone. Counts are digits, and g is a prefix: after it, x is gx's.
-const FIELD_NORMAL = 'hjklwWbBeE0^_$fFtT;,iIaAoOvVdcyDCYxXsSrpPugq123456789'
-const FIELD_AFTER_G = 'x'
+// leave alone. Counts are digits, and g is a prefix: after it, g and x are gg's and gx's.
+const FIELD_NORMAL = 'hjklwWbBeE0^_$fFtT;,iIaAoOvVdcyDCYxXsSrpPugGq123456789'
+const FIELD_AFTER_G = 'gx'
 
 // What the field does with keys before any binding sees them.
 const FIELD_FIXED = {
@@ -103,10 +122,11 @@ const LABELS = {
   reselect: 'reselect', yank: 'yank', put: 'put', putBefore: 'put',
   yankUrl: 'yank the URL', yankCitation: 'yank the title and URL',
   askAbout: 'ask about this result', searchFor: 'search the web for this',
+  paneRight: 'into the translation', paneLeft: 'back from the translation',
   deleteWord: 'delete a word', deleteLine: 'delete to the line start', lineBreak: 'a line break', redo: 'redo'
 }
 
-const PANE_NAMES = { field: 'the field', normal: 'the field’s normal mode', results: 'the results', answer: 'the answer' }
+const PANE_NAMES = { field: 'the field', normal: 'the field’s normal mode', results: 'the results', answer: 'the answer', translation: 'the translation' }
 
 /** A pane's keymap: its fixed keys plus the rebindable ones, as `binds` (the settings) has them. */
 export function readerKeys (pane, binds) {

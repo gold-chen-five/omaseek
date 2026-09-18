@@ -19,7 +19,7 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 | Next session | `next_session_key` | `ctrl+n` | ask: the next saved conversation, newest first, wrapping |
 | Next conversation | `next_chat_key` | `L` | ask: the next saved conversation, wrapping (`3L` walks three) |
 | Previous conversation | `previous_chat_key` | `H` | ask: the conversation before, wrapping |
-| Close session | `close_session_key` | `ctrl+x` | ask: forget this conversation and show the one below it |
+| Close session | `close_session_key` | `ctrl+x` | closes what the keyboard is in: in ask, this conversation (showing the one below it); in the translation, that |
 | Delete all sessions | `clear_sessions_key` | `ctrl+shift+x` | ask: forget every saved conversation, on the second press |
 | Retry answer | `retry_answer_key` | `ctrl+shift+r` | ask: ask the last question again after a failure, a stop, or an interruption |
 | Settings | `settings_key` | `ctrl+s` | anywhere: open or close settings (`ctrl+,` always works too) |
@@ -150,7 +150,7 @@ question. While a reply is being written, `q` in the answer stops it — and in
 the field, `q` or `esc` in normal mode (`esc` closes the panel again once
 nothing is being written); `q` otherwise does nothing, since macros are absent.
 
-Normal mode uses vim editing: `h l w W b B e 0 ^ _ $` (on the line under the cursor, in a question of several), `f F t T{char}`;
+Normal mode uses vim editing: `h l w W b B e 0 ^ _ $` (on the line under the cursor, in a question of several), `gg` `G` (the first and last line of a question — `3G` or `3gg` the third, `dG` `ygg` whole lines), `f F t T{char}`;
 after a find, `f`/`F` keep walking that character forward/backward, and `;`/`,`
 also repeat/reverse. All matches on the line are highlighted; the current one
 uses the accent colour. `i a I A`, `o O` (open a line below/above in AI mode), `r{char}`, `x`, `d c y` with a motion or doubled (`dd cc yy`), `v`,
@@ -171,7 +171,7 @@ the results is how you reach them.
 `yy` copies the current line, `dd` deletes it and keeps the cursor column on
 the line that replaces it (clamped when shorter), and `cc` changes it; counts
 operate on consecutive lines (`2yy`, `2dd`). In multiline questions, other
-text motions retain their existing behavior. `j` or `down` steps into what is below. Deliberately absent: `.` repeat, macros, marks,
+text motions retain their existing behavior. `j` or `down` steps into what is below — the results or the answer, or a translation when there is nothing else to read. Deliberately absent: `.` repeat, macros, marks,
 named registers.
 
 ## The results
@@ -196,6 +196,8 @@ relative to the current row: `2j` moves down two results, `2k` moves up two.
 | `Y` | copy its title and URL, on two lines |
 | `gc` (Ask about this) | the selected URL over in the ask bar, to type a question around — it is not sent |
 | `gs` (Search for this) | search for the selected result's title |
+| `ctrl+l` | into the translation beside the results, while one is open |
+| `ctrl+x` (Close session) | close the translation beside the results — there is no conversation here to forget |
 | `/` `?` | search the rows — title, snippet and domain — forwards or backwards; the matched words are marked |
 | `n` `N` | the next match and the one before; a count repeats (`3n`) |
 | `esc` after a search | drop it and its marks, staying on the results |
@@ -240,7 +242,8 @@ follow the layout when the panel width changes and are excluded from copied text
 | `ctrl+c` (New session) | start a new conversation, keeping this one in the ring |
 | `ctrl+n` (Next session) | the next saved conversation, wrapping |
 | `L` `H` (Next/Previous conversation) | the next saved conversation and the one before, wrapping — where search pages with `h` and `l`. Read in the answer and in the field's normal mode. A count walks several (`3L`), and the numbered squares below do the same with a click |
-| `ctrl+x` (Close session) | forget this conversation and show the one below it — or, while a translation is open, close that and nothing else |
+| `ctrl+l` | into the translation beside the answer, while one is open |
+| `ctrl+x` (Close session) | forget this conversation and show the one below it — even with a translation open; `ctrl+l` there and `ctrl+x` closes that instead |
 | `ctrl+shift+x` (Delete all sessions) | forget every saved conversation, on a second press |
 | `q` | stop the reply being written, keeping what arrived |
 | `ctrl+shift+r` (Retry answer) | ask the last question again after a failure or a stop |
@@ -327,11 +330,26 @@ selected row visible. Values are written as they change; there is no save.
 `gt` on a selection — in an answer, or in the field's visual mode — `gT` on the
 whole bar (`ctrl+t` from insert mode), or the **translate** button beside search and chat, translates into
 the panel split off to the right of the results or the answer. The keyboard
-stays where it was. A new translation replaces the one showing.
+stays where it was; `ctrl+l` moves it into the translation — the header and the
+seam light up while it has it — and `ctrl+h` moves it back. A new translation
+replaces the one showing.
+
+`ctrl+x` closes what the keyboard is in, so in ask mode it forgets the
+conversation from the answer or the field and closes the translation only from
+inside it. Search has no conversation to forget, so there `ctrl+x` from the
+field or the results closes the translation too.
+
+In the translation:
 
 | key | does |
 |---|---|
-| `ctrl+x` | closes the translation, from the field, the results or the answer; with none open it does what it always does |
+| `j` `k`, `down` `up` | scroll a line; a count repeats (`5j`) |
+| `ctrl+d` `ctrl+u` | half a screen |
+| `gg` `G` | top, bottom |
+| `y` `Y` | copy the translation |
+| `ctrl+x` (Close session) | close the translation; the keyboard goes back to the pane beside it, or the field when that is empty |
+| `ctrl+h`, `esc` | back to the results or the answer |
+| `gi` `i` `a`, `gn` | back to the field, insert or normal mode |
 | `×`, `copy` | the panel's buttons: close it, or copy the translation |
 
 **Settings → Translate** chooses the language (**Translate into**, which by

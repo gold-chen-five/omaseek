@@ -2,12 +2,14 @@ import QtQuick
 import qs.Commons
 import qs.Ui
 import "../shared/thinking.mjs" as Thinking
+import "../shared/vim/keys.mjs" as KeysLib
+import "../shared/vim/chord.js" as Chord
 
 // The translation, split to the right of the results or the answer: what was
-// asked about, dimmed, and what it says in the target language below. Read
-// with the mouse — select, copy, close — while the keyboard stays with the
-// pane beside it; ctrl+x closes it from there. Knows nothing of Translator: it
-// is handed the words and raises what the reader wants done.
+// asked about, dimmed, and what it says in the target language below. The
+// keyboard stays with the pane beside it until ctrl+l moves it here, where
+// j k gg G scroll, y copies, ctrl+x closes and ctrl+h goes back. Knows nothing
+// of Translator: it is handed the words and raises what the reader wants done.
 Item {
   id: panel
 
@@ -20,13 +22,59 @@ Item {
   property color foreground: Color.menu.text
   property color accent: Color.menu.selectedText
   property string fontFamily: Style.font.menuFamily
+  property var binds: null                     // the settings: where the rebindable commands sit
+  readonly property var readerKeys: KeysLib.readerKeys("translation", binds)
+  property var navigation: ({ pending: "", count: 0 })
 
   readonly property real squareSize: Math.round(Style.font.body * 2)
   readonly property int dotDiameter: Math.round(Style.font.body * 0.55)
   property int tick: 0
 
-  signal closed()                              // × — the same as ctrl+x
-  signal copied(string text)
+  signal closed()                              // × or ctrl+x
+  signal copied(string text)                   // copy, or y
+  signal leftRequested()                       // ctrl+h, esc: back to the pane beside it
+  signal insertRequested()                     // i, gi: the field, insert mode
+  signal appendRequested()                     // a
+  signal normalRequested()                     // gn: the field, normal mode
+  signal settingsRequested()
+  signal tabbed()
+  signal agentSwitchRequested()
+
+  onActiveFocusChanged: navigation = { pending: "", count: 0 }
+
+  Keys.onPressed: event => {
+    const step = KeysLib.resolveCounted(readerKeys, navigation, Chord.of(event))
+    navigation = step.state
+    run(step.command, step.count)
+    event.accepted = true
+  }
+
+  function scrollBy (pixels) {
+    const bottom = Math.max(0, scroll.contentHeight - scroll.height)
+    scroll.contentY = Math.max(0, Math.min(bottom, scroll.contentY + pixels))
+  }
+
+  function run (command, times) {
+    const line = Math.round(Style.font.body * 1.5)
+    switch (command) {
+    case "settings":     settingsRequested(); break
+    case "toggleMode":   tabbed(); break
+    case "switchAgent":  agentSwitchRequested(); break
+    case "closeSession": closed(); break
+    case "cancel":
+    case "paneLeft":     leftRequested(); break
+    case "insert":       insertRequested(); break
+    case "append":       appendRequested(); break
+    case "fieldNormal":  normalRequested(); break
+    case "down":         scrollBy(line * times); break
+    case "up":           scrollBy(-line * times); break
+    case "halfPageDown": scrollBy(scroll.height / 2 * times); break
+    case "halfPageUp":   scrollBy(-scroll.height / 2 * times); break
+    case "top":          scrollBy(-scroll.contentHeight); break
+    case "bottom":       scrollBy(scroll.contentHeight); break
+    case "yank":         if (status === "done" && text) copied(text); break
+    }
+  }
 
   Timer {
     interval: Thinking.CLOCK_MS
@@ -41,7 +89,7 @@ Item {
     anchors.top: parent.top
     anchors.bottom: parent.bottom
     width: Math.max(1, Style.normalBorderWidth)
-    color: Util.alpha(panel.foreground, 0.18)
+    color: panel.activeFocus ? panel.accent : Util.alpha(panel.foreground, 0.18)
   }
 
   Item {
@@ -58,8 +106,9 @@ Item {
       anchors.verticalCenter: parent.verticalCenter
       textFormat: Text.PlainText
       text: ("translation" + (panel.targetLabel ? " · " + panel.targetLabel : "")).toUpperCase()
-      color: panel.foreground
-      opacity: 0.5
+      // Lit while it has the keyboard, so ctrl+x is seen to mean this.
+      color: panel.activeFocus ? panel.accent : panel.foreground
+      opacity: panel.activeFocus ? 1 : 0.5
       font.family: panel.fontFamily
       font.pixelSize: Style.font.caption
       font.letterSpacing: 1.5
@@ -170,6 +219,7 @@ Item {
         width: parent.width
         readOnly: true
         selectByMouse: true
+        activeFocusOnPress: false              // the panel's keys stay the panel's
         textFormat: TextEdit.PlainText
         text: panel.text
         color: panel.foreground

@@ -76,6 +76,24 @@ export function linesDown (text, pos, count) {
   return at
 }
 
+/** How many logical lines the text holds; an empty text is still one. */
+export function lineCount (text) {
+  let count = 1
+  for (let at = text.indexOf('\n'); at !== -1; at = text.indexOf('\n', at + 1)) count++
+  return count
+}
+
+/** `gg` `G` with a count: the first non-blank of line `line` (1-based), clamped to the text. */
+export function lineStartAt (text, line) {
+  let at = 0
+  for (let i = 1; i < line; i++) {
+    const nl = text.indexOf('\n', at)
+    if (nl === -1) break
+    at = nl + 1
+  }
+  return firstNonBlank(text, at)
+}
+
 /**
  * `f` `F` `t` `T` — character search. Returns -1 when the target is absent,
  * which callers treat as a failed motion that cancels any pending operator.

@@ -7,9 +7,10 @@ import "../translate"
 
 // The half of the panel that is read: the answer in AI mode, the results in
 // search, and — while a translation is open — the panel split off to their
-// right. The two panes raise what the reader wants; this sends it where it
-// goes: to the commands, the conversation keys, or back to the panel (`host`)
-// for focus.
+// right. The panes raise what the reader wants; this sends it where it goes:
+// to the commands, the conversation keys, or back to the panel (`host`) for
+// focus — ctrl+l and ctrl+h move it between the reading pane and the
+// translation.
 Item {
   id: area
 
@@ -27,6 +28,7 @@ Item {
 
   readonly property alias answerView: answer
   readonly property alias resultsList: results
+  readonly property alias translationPanel: translation
   readonly property bool asking: host.panelMode === States.PANEL.AI
 
   Item {
@@ -66,6 +68,7 @@ Item {
       onNewSessionRequested: area.chat.newChat()
       onSessionWalked: delta => area.chat.walkChats(delta)
       onCloseSessionRequested: area.chat.closeChat()
+      onPaneRightRequested: area.host.focusTranslation()
       onClearSessionsRequested: area.chat.clearChats()
       onStopRequested: area.chat.stopAnswer()
       onRetryRequested: area.chat.retryAnswer()
@@ -105,10 +108,14 @@ Item {
       onTabbed: area.host.toggleMode()
       onAgentSwitchRequested: area.chat.switchAgent()
       onCloseSessionRequested: area.chat.closeChat()
+      onPaneRightRequested: area.host.focusTranslation()
     }
   }
 
   TranslatePanel {
+    id: translation
+
+    binds: area.config.settings
     visible: area.translator.open
     anchors.left: readingPane.right
     anchors.right: parent.right
@@ -126,6 +133,13 @@ Item {
     fontFamily: area.fontFamily
 
     onClosed: area.translator.close()
+    onLeftRequested: area.host.focusReading()
+    onInsertRequested: area.host.focusSearch("i")
+    onAppendRequested: area.host.focusSearch("a")
+    onNormalRequested: area.host.focusSearch("normal")
+    onSettingsRequested: area.host.openSettings()
+    onTabbed: area.host.toggleMode()
+    onAgentSwitchRequested: area.chat.switchAgent()
     onCopied: text => {
       area.host.copyText(text)
       area.host.say("translation copied")

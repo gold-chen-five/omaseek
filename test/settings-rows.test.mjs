@@ -110,7 +110,7 @@ test('the page refuses a key another action has, and says which', () => {
   const row = rows.find(row => row.key === 'handoffKey')
   assert.match(checkRow(row, 'gx', rows).error, /Open link/)
   assert.equal(checkRow(row, 'gx', rows).value, null)
-  assert.deepEqual(checkRow(row, 'ctrl+h', rows), { value: 'ctrl+h', error: '' })
+  assert.deepEqual(checkRow(row, 'ctrl+b', rows), { value: 'ctrl+b', error: '' })
   assert.deepEqual(checkRow(row, 'g a', rows), { value: 'ga', error: '' }, 'its own key is not a clash')
   assert.deepEqual(checkRow(row, '', rows), { value: 'ga', error: '' }, 'empty restores the default')
   const escape = rows.find(row => row.key === 'escapeSequence')

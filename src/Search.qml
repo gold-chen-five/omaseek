@@ -130,6 +130,22 @@ Item {
   }
 
   // Through setMode, so leaving insert steps the cursor left and clears any
+  // ctrl+l from a reading pane: the translation beside it takes the keyboard,
+  // and ctrl+x there closes it rather than the conversation.
+  function focusTranslation () {
+    if (!translator.open) return
+    input.setMode("normal")
+    focusArea = States.FOCUS.TRANSLATION
+    Qt.callLater(() => card.translationPanel.forceActiveFocus())
+  }
+
+  // Back from the translation, or after it closed under the keyboard: the pane
+  // beside it when it has something to read, else the field.
+  function focusReading () {
+    if (hasBody()) focusResults()
+    else focusSearch("normal")
+  }
+
   // half-typed operator.
   function focusSearch (mode) {
     focusArea = States.FOCUS.FIELD
@@ -167,6 +183,9 @@ Item {
     id: translator
 
     askPath: Qt.resolvedUrl("../bin/ask").toString().replace(/^file:\/\//, "")
+    // Closed by ctrl+x, ×, or anything else while it had the keyboard.
+    onOpenChanged: if (!open && root.focusArea === States.FOCUS.TRANSLATION) root.focusReading()
+
     modelAgent: SettingsLib.translateAgentOf(config.settings, ai.agents)
   }
 
@@ -229,7 +248,8 @@ Item {
 
     function onSubmitted () { commands.runSearch() }
     function onCancelled () { root.dismiss() }
-    function onSteppedDown () { if (root.hasBody()) root.focusResults() }
+    // With nothing below to read, j reaches a translation of the bar (gT).
+    function onSteppedDown () { if (root.hasBody()) root.focusResults(); else root.focusTranslation() }
     function onHistoryPrevRequested () { commands.walkHistory(1) }
     // Past the draft there is no query left, so Down means the results.
     function onHistoryNextRequested () { if (!commands.walkHistory(-1) && root.hasBody()) root.focusResults() }

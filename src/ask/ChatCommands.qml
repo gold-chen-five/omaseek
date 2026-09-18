@@ -39,10 +39,11 @@ Item {
     if (ai.walkSessions(delta)) showChat()
   }
 
-  // Ctrl+X closes an open translation first, and does nothing else; with none,
-  // it forgets the conversation on screen and shows the one below it.
+  // Ctrl+X closes what the keyboard is in: the translation once ctrl+l has
+  // moved there, else the conversation on screen, showing the one below it.
+  // Search has no conversation to close, so there it closes the translation.
   function closeChat () {
-    if (translator.open) {
+    if (translator.open && (host.focusArea === States.FOCUS.TRANSLATION || host.panelMode !== States.PANEL.AI)) {
       translator.close()
       return
     }

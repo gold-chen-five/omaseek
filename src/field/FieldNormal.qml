@@ -55,11 +55,20 @@ Item {
       return
     }
 
-    // After g: gx, and the translate keys (gt, gT) bound in settings.
+    // After g: gg, gx, and the translate keys (gt, gT) bound in settings.
     if (field.pendingG) {
+      const counted = field.pendingCount
       field.pendingG = false
       field.pendingCount = 0
-      if (field.pendingOperator !== "") return
+      // 3gg is the third line, as G's count is; dgg takes every line up to the first.
+      if (key === "g") {
+        field.edits.jumpToLine(Motions.lineStartAt(field.text, counted > 0 ? counted : 1))
+        return
+      }
+      if (field.pendingOperator !== "") {
+        field.clearPending()
+        return
+      }
       const sequence = "g " + key
       // gt: the selection, from visual mode; gT: everything in the bar.
       if (sequence === field.normalChords.translate && field.mode === "visual") {
@@ -74,7 +83,7 @@ Item {
       }
       return
     }
-    if (key === "g" && field.pendingOperator === "") {
+    if (key === "g") {
       field.pendingG = true
       return
     }
@@ -98,6 +107,7 @@ Item {
   }
 
   function handleNormalKey (key) {
+    const counted = field.pendingCount           // G: a count names the line, none the last
     const count = field.takeCount(1)
     // The conversation keys, as the answer reads them: only ask mode has a ring,
     // so the panel ignores these while it is searching. Vim's H and L jump to
@@ -181,6 +191,7 @@ Item {
       }
       field.edits.applyMotion(Motions.firstNonBlank(field.text, Motions.linesDown(field.text, pos, count)), false)
       return
+    case "G": field.edits.jumpToLine(Motions.lineStartAt(field.text, counted > 0 ? counted : Motions.lineCount(field.text))); return
     case "$": field.edits.applyMotion(Motions.lineBounds(field.text, Motions.linesDown(field.text, pos, count)).end, false); return
     case "w": field.edits.applyMotion(step(Motions.wordForward, false), false); return
     case "W": field.edits.applyMotion(step(Motions.wordForward, true), false); return

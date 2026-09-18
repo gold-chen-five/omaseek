@@ -21,7 +21,7 @@ const SPELLED = {
 // Every key the settings page rebinds, in the order it lists them. `scope` is
 // where the key is read: 'field' and 'panel' keys are caught before the field
 // types anything, so they must be a named key or a ctrl chord (a letter there
-// could never be typed); 'panel' keys also work in the two reading panes.
+// could never be typed); 'panel' keys also work in the reading panes.
 // 'reader' keys belong to those panes, `panes` narrowing them to one, and may
 // be two keys in turn; `field: true` says the field reads one in normal mode as
 // well. 'normal' keys are the field's alone, in normal mode, as a vim command
@@ -80,7 +80,7 @@ export const ACTIONS = [
     label: 'Back to the field (normal)', hint: 'results and answer: return to the field in normal mode (esc does too)' }
 ]
 
-export const PANES = ['results', 'answer']
+export const PANES = ['results', 'answer', 'translation']
 
 /** The settings key an action is stored under: handoff -> handoffKey. */
 export function settingKey (action) {

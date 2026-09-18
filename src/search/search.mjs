@@ -149,8 +149,10 @@ export function modeLabel ({ view = VIEW.SEARCH, panelMode = PANEL.SEARCH, focus
   if (view === VIEW.SETUP) return 'SETUP'
   if (panelMode === PANEL.AI) {
     if (focusArea === FOCUS.RESULTS) return selecting ? 'AI · VISUAL' : 'AI · ANSWER'
+    if (focusArea === FOCUS.TRANSLATION) return 'AI · TRANSLATION'
     return 'AI · ' + String(mode).toUpperCase()
   }
+  if (focusArea === FOCUS.TRANSLATION) return 'TRANSLATION'
   return focusArea === FOCUS.RESULTS ? 'RESULTS' : String(mode).toUpperCase()
 }
 

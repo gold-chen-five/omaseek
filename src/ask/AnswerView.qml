@@ -161,6 +161,7 @@ FocusScope {
   signal translateRequested(string text)       // gt: the selection, or the word under the cursor
   signal sessionWalked(int delta)              // L / H and ctrl+n: how far through the ring
   signal closeSessionRequested()               // forget this conversation
+  signal paneRightRequested()                  // ctrl+l: into the translation beside it
   signal clearSessionsRequested()              // forget all of them
   signal stopRequested()                       // stop the reply being written
   signal retryRequested()                      // ask the last question again

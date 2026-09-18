@@ -439,8 +439,13 @@ The stores are non-visual `Item`s, the way first-party plugins keep state in a
   request**, since a stopped `Process` still reports its empty stream as an
   unreadable answer and a replaced request must not land as an error; the view
   sits split to the right of the reading pane (`panel/ReadingArea`) while
-  `translator.open`, and the card widens with it. ctrl+x closes it first
-  (`ChatCommands.closeChat`). `--translate` sends no history and no panel
+  `translator.open`, and the card widens with it. `ctrl+l` from either pane
+  moves the keyboard into it (`FOCUS.TRANSLATION`, `focusTranslation()`), where
+  it scrolls with its own table (`readerKeys('translation')`) and `ctrl+h`
+  comes back. ctrl+x closes what the keyboard is in (`ChatCommands.closeChat`):
+  the translation from inside it, the conversation from the answer or the
+  field; search has no conversation, so there it closes the translation.
+  Closing it while focused hands the keyboard back (`Translator.onOpenChanged`). `--translate` sends no history and no panel
   preamble, runs its own agent and model (`translate_agent`,
   `translate_models`; 'same' is Ask's), and drops Claude's web tools — a
   translation needs none, and a tool call only slows it.

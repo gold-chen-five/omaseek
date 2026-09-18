@@ -14,5 +14,6 @@ export const PANEL = Object.freeze({
 
 export const FOCUS = Object.freeze({
   FIELD: 'field',         // the field has the keyboard
-  RESULTS: 'results'      // the list, or the transcript, has it
+  RESULTS: 'results',     // the list, or the transcript, has it
+  TRANSLATION: 'translation'  // the translation beside them has it (ctrl+l)
 })

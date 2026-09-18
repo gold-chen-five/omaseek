@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {
   charClass, wordForward, wordBackward, wordEnd,
   firstNonBlank, linesDown, charStep, find, findInLine, findMatchPosition, matchingCharsInLine,
-  flipFind, clampToLine, insertExit, repeat, BLANK, WORD, PUNCT
+  flipFind, clampToLine, insertExit, repeat, lineCount, lineStartAt, BLANK, WORD, PUNCT
 } from '../src/shared/vim/motions.mjs'
 
 test('charClass separates blanks, word characters and punctuation', () => {
@@ -134,4 +134,16 @@ test('h and l stop at the line’s ends instead of running onto the next', () =>
   assert.equal(charStep(text, 13, -1), 13)
   assert.equal(charStep(text, 3, 9, true), 5, 'an operator may take the line to its end')
   assert.equal(charStep('', 0, 1), 0)
+})
+
+test('gg and G land on a line’s first non-blank, a count naming the line', () => {
+  const text = 'first\n  second\n\nfourth'
+  assert.equal(lineCount(text), 4)
+  assert.equal(lineCount(''), 1, 'an empty question is still one line')
+  assert.equal(lineStartAt(text, 1), 0)
+  assert.equal(lineStartAt(text, 2), 8, 'past the indent')
+  assert.equal(lineStartAt(text, 3), 15, 'a blank line is its start')
+  assert.equal(lineStartAt(text, lineCount(text)), 16)
+  assert.equal(lineStartAt(text, 99), 16, 'a count past the end stops on the last line')
+  assert.equal(lineStartAt('one line', 1), 0)
 })

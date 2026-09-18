@@ -86,6 +86,7 @@ Item {
     case "nextSession":  view.sessionWalked(times); break
     case "previousSession": view.sessionWalked(-times); break
     case "closeSession": view.closeSessionRequested(); break
+    case "paneRight":    view.paneRightRequested(); break
     case "clearSessions": view.clearSessionsRequested(); break
     case "stopAnswer":   view.stopRequested(); break
     case "retryAnswer":  view.retryRequested(); break
