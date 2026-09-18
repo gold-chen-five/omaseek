@@ -246,11 +246,13 @@ FocusScope {
     })
   }
 
-  // A <br> in a question comes back as U+2028, not \n. Swapping one for the
-  // other keeps every position where it was, and lets a question typed on
-  // several lines be found again by its text.
+  // The text as lines. A paragraph ends in U+2029 and a <br> in a question in
+  // U+2028, not \n; swapping each for \n — one character for one — keeps every
+  // position where it was, lets a question typed on several lines be found
+  // again by its text, and gives h, l, f, t and the text objects the line ends
+  // they stop at. Without it the whole transcript read as a single line.
   function plain () {
-    return answer.getText(0, answer.length).split(String.fromCharCode(0x2028)).join("\n")
+    return answer.getText(0, answer.length).replace(/[\u2028\u2029]/g, "\n")
   }
 
   function findMarks () {
@@ -390,7 +392,7 @@ FocusScope {
   // Where a motion lands, without going there: { pos, inclusive, linewise,
   // column }, or null for a command that is not a motion. The one answer moves
   // the cursor, stretches a selection, or bounds a yank.
-  function motionTarget (command, count) {
+  function motionTarget (command, count, operator) {
     const text = plain()
     const times = motion => Motions.repeat(motion, count, cursor)
     switch (command) {
@@ -398,8 +400,10 @@ FocusScope {
     case "up":              return { pos: lineTarget(-count), linewise: true, column: true }
     case "halfPageDown":    return { pos: halfPageTarget(1), linewise: true, column: true }
     case "halfPageUp":      return { pos: halfPageTarget(-1), linewise: true, column: true }
-    case "right":           return { pos: Math.min(answer.length, cursor + count) }
-    case "left":            return { pos: Math.max(0, cursor - count) }
+    // Along the line and no further, as vim's h and l; a pending y may take
+    // the line to its end (yl on the last character still yanks it).
+    case "right":           return { pos: Motions.charStep(text, cursor, count, !!operator) }
+    case "left":            return { pos: Motions.charStep(text, cursor, -count) }
     case "top":             return { pos: 0, linewise: true }
     case "bottom":          return { pos: answer.length, linewise: true }
     case "wordForward":     return { pos: times(at => Motions.wordForward(text, at)) }
@@ -713,7 +717,7 @@ FocusScope {
     if (action.type !== "find" && action.type !== "repeatFind") repeatFindReady = false
     switch (action.type) {
     case "command": {
-      const target = motionTarget(action.command, action.count)
+      const target = motionTarget(action.command, action.count, action.operator)
       if (target) go(target, action.operator)
       else if (!action.operator) run(action.command, action.count)   // y then a non-motion: dropped, as vim does
       break

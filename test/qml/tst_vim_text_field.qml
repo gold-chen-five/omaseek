@@ -340,5 +340,25 @@ Item {
       keyClick(Qt.Key_Tab)
       compare(tabs, 1, "tab alone is still the switch between search and ask")
     }
+
+    function test_h_and_l_stop_at_the_line_ends() {
+      setNormal("first\nsecond", 6)                   // the start of the second line
+      keyClick("h")
+      compare(field.cursorPosition, 6, "h does not climb onto the line above")
+
+      field.cursorPosition = 4                          // the last character of the first
+      keyClick("l")
+      compare(field.cursorPosition, 4, "l does not run onto the line below")
+
+      keyClick("h")
+      compare(field.cursorPosition, 3, "and both still move along the line")
+    }
+
+    function test_dl_at_the_end_of_a_line_still_takes_the_last_character() {
+      setNormal("first\nsecond", 4)
+      keyClick("d")
+      keyClick("l")
+      compare(field.text, "firs\nsecond")
+    }
   }
 }

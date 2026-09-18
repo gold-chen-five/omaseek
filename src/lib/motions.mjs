@@ -160,6 +160,21 @@ export function lineBounds (text, pos) {
   return { start, end: nl === -1 ? text.length : nl }
 }
 
+/**
+ * `h` / `l`: `delta` characters along the line holding pos, and no further —
+ * vim's h and l stop at the line's ends rather than running onto the next.
+ * Normal mode rests on a character, so the last one is the limit; `toEnd`
+ * allows the line's end itself, for an operator (`3dl` near the end takes the
+ * rest of the line). Logical lines: a soft-wrapped one still flows, as vim's
+ * does with wrap on.
+ */
+export function charStep (text, pos, delta, toEnd = false) {
+  const at = Math.max(0, Math.min(pos, text.length))
+  const bounds = lineBounds(text, at)
+  const last = toEnd ? bounds.end : Math.max(bounds.start, bounds.end - 1)
+  return Math.max(bounds.start, Math.min(last, at + delta))
+}
+
 /** A logical column on the line holding pos, clamped to its last character. */
 export function positionAtColumn (text, pos, column) {
   const at = Math.max(0, Math.min(pos, text.length))

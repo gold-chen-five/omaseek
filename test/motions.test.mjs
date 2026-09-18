@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   charClass, wordForward, wordBackward, wordEnd,
-  firstNonBlank, linesDown, find, findInLine, findMatchPosition, matchingCharsInLine,
+  firstNonBlank, linesDown, charStep, find, findInLine, findMatchPosition, matchingCharsInLine,
   flipFind, clampToLine, insertExit, repeat, BLANK, WORD, PUNCT
 } from '../src/lib/motions.mjs'
 
@@ -121,4 +121,17 @@ test('counts repeat a motion', () => {
   const w = at => wordForward(text, at)
   assert.equal(repeat(w, 3, 0), 14, '3w')
   assert.equal(repeat(w, 1, 0), 4)
+})
+
+test('h and l stop at the line’s ends instead of running onto the next', () => {
+  const text = 'first\nsecond\n\nfourth'
+  assert.equal(charStep(text, 2, 1), 3, 'along the line')
+  assert.equal(charStep(text, 4, 1), 4, 'l on the last character stays')
+  assert.equal(charStep(text, 6, -1), 6, 'h on the first character stays')
+  assert.equal(charStep(text, 7, 99), 11, 'a count stops at the last character')
+  assert.equal(charStep(text, 11, -99), 6, 'and back at the first')
+  assert.equal(charStep(text, 13, 1), 13, 'a blank line has one place')
+  assert.equal(charStep(text, 13, -1), 13)
+  assert.equal(charStep(text, 3, 9, true), 5, 'an operator may take the line to its end')
+  assert.equal(charStep('', 0, 1), 0)
 })

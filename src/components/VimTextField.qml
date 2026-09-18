@@ -556,8 +556,10 @@ TextArea {
       return
 
     // motions
-    case "h": applyMotion(Math.max(0, pos - count), false); return
-    case "l": applyMotion(Math.min(text.length, pos + count), false); return
+    // Along the line and no further, as vim's h and l; an operator may take the
+    // line to its end (3dl near the end deletes the rest of it).
+    case "h": applyMotion(Motions.charStep(text, pos, -count), false); return
+    case "l": applyMotion(Motions.charStep(text, pos, count, pendingOperator !== ""), false); return
     // A question can hold several lines; these keep to the one under the cursor.
     case "0": applyMotion(Motions.lineBounds(text, pos).start, false); return
     case "^": applyMotion(Motions.firstNonBlank(text, pos), false); return
