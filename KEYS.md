@@ -12,6 +12,7 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 |---|---|---|---|
 | Leave insert with | `escape_sequence` | `jk` | typed within vim's timeoutlen, leaves insert |
 | Search / ask | `search_key` | `enter` | field: runs the query or asks the question |
+| Translate the bar (any mode) | `translate_bar_anywhere_key` | `ctrl+t` | field, insert mode too: everything in the search or ask bar |
 | Translate the bar | `translate_bar_key` | `gT` | field, normal mode: everything in the search or ask bar |
 | Previous query / question | `previous_asked_key` | `U` | field, normal mode: what you searched or asked before, one step back each press (`up` on the first line too) |
 | New session | `new_session_key` | `ctrl+c` | field and answer: forget the conversation and start one |
@@ -126,6 +127,7 @@ Insert mode:
 | `up` `down` | search: the field is one line, so they walk the queries searched before — `up` an older one, `down` back toward what you had typed, then into the results |
 | `up` `down` | ask: a line up or down within a question of several lines; past the first line, `up` walks the questions asked before, and past the last, `down` comes back toward what you had typed, then into the transcript |
 | `gT` (Translate the bar) | normal mode: translate everything in the bar — search or ask — into the panel on the right |
+| `ctrl+t` (Translate the bar, any mode) | the same from insert mode, without leaving it: type, press it, keep typing |
 | `gt` (Translate) | visual mode: translate the selection |
 | `U` (Previous query / question) | normal mode: one step back through what was searched or asked before, as `up` is — in either half, a count stepping further (`3U`) |
 | `enter` (Search / ask) | search and focus the first result when it arrives — or, when the field holds an address, open it in the browser; asking moves you into the answer |
@@ -322,7 +324,7 @@ selected row visible. Values are written as they change; there is no save.
 ## Translate
 
 `gt` on a selection — in an answer, or in the field's visual mode — `gT` on the
-whole bar, or the **translate** button beside search and chat, translates into
+whole bar (`ctrl+t` from insert mode), or the **translate** button beside search and chat, translates into
 the panel split off to the right of the results or the answer. The keyboard
 stays where it was. A new translation replaces the one showing.
 

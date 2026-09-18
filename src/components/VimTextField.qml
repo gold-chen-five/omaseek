@@ -78,7 +78,7 @@ TextArea {
   signal requestedSettings()                // Ctrl+S (or Ctrl+,) in any mode
   signal tabbed()                           // Tab in any mode: the panel switches search <-> ai
   signal agentSwitchRequested()             // shift+tab: the next installed agent answers
-  signal translateRequested(string text)    // gt on a selection, gT on the whole bar
+  signal translateRequested(string text)    // gt on a selection, gT or ctrl+t on the whole bar
   signal newSessionRequested()              // the new-session chord: start over
   signal nextSessionRequested()             // the next saved conversation
   signal sessionWalked(int delta)           // L / H in normal mode: through the ring
@@ -108,6 +108,7 @@ TextArea {
     if (chord === chords.search) return "submit"
     if (chord === chords.switchMode) return "toggleMode"
     if (chord === chords.switchAgent) return "switchAgent"
+    if (chord === chords.translateBarAnywhere) return "translateBar"
     return ""
   }
 
@@ -123,6 +124,8 @@ TextArea {
     case "submit":        clearEscapePending(); submitted(); break
     case "toggleMode":    clearEscapePending(); tabbed(); break
     case "switchAgent":   agentSwitchRequested(); break
+    // ctrl+t: gT without leaving insert mode — the words just typed, translated.
+    case "translateBar":  clearEscapePending(); translateRequested(text); break
     }
   }
 

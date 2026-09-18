@@ -321,3 +321,11 @@ test('shift+tab switches the agent in every pane, and tab alone switches search 
   assert.equal(readerKeys('answer', { switchAgentKey: 'ctrl+g' })['C-g'], 'switchAgent', 'rebindable')
   assert.equal(bindingProblem('switchMode', 'shift+tab', {}), 'shift+tab is already Switch agent')
 })
+
+test('ctrl+t translates the bar from any mode of the field, and only the field', () => {
+  assert.equal(panelChords({}).translateBarAnywhere, 'C-t')
+  assert.equal(LIST_KEYS['C-t'], undefined, 'a field key: the panes do not read it')
+  assert.equal(ANSWER_KEYS['C-t'], undefined)
+  assert.match(bindingProblem('translateBarAnywhere', 't', {}), /could never be typed/, 'a letter would eat typing')
+  assert.match(bindingProblem('translateBarAnywhere', 'ctrl+w', {}), /taken in the field/)
+})

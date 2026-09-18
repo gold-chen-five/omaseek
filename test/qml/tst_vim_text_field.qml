@@ -385,5 +385,19 @@ Item {
       compare(field.text, "what is ownership", "and neither edits the text")
       field.normalChords = ({})
     }
+
+    function test_ctrl_t_translates_the_bar_without_leaving_insert_mode() {
+      translated = []
+      field.text = "what is ownership"
+      field.cursorPosition = field.text.length
+      compare(field.mode, "insert")
+      keyClick(Qt.Key_T, Qt.ControlModifier)
+      compare(translated, ["what is ownership"])
+      compare(field.mode, "insert", "still typing")
+      compare(field.text, "what is ownership", "and no t typed")
+      field.setMode("normal")
+      keyClick(Qt.Key_T, Qt.ControlModifier)
+      compare(translated.length, 2, "normal mode too")
+    }
   }
 }

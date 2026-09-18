@@ -30,6 +30,8 @@ const SPELLED = {
 export const ACTIONS = [
   { id: 'search', config: 'search_key', default: 'enter', scope: 'field',
     label: 'Search / ask', hint: 'field: runs the query or asks the question' },
+  { id: 'translateBarAnywhere', config: 'translate_bar_anywhere_key', default: 'ctrl+t', scope: 'field',
+    label: 'Translate the bar (any mode)', hint: 'field, insert mode too: everything in the search or ask bar, as gT does from normal mode' },
   { id: 'translateBar', config: 'translate_bar_key', default: 'gT', scope: 'normal',
     label: 'Translate the bar', hint: 'field, normal mode: everything in the search or ask bar, into the language set under Translate' },
   { id: 'previousAsked', config: 'previous_asked_key', default: 'U', scope: 'normal',
