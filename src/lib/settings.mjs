@@ -288,16 +288,6 @@ export function settingsRows (settings, engine = 'unknown', agents = null, catal
       hint: versionText(version),
       action: 'update',
       button: 'Update'
-    },
-    {
-      key: 'engineTest',
-      type: 'action',
-      label: 'Test SearXNG',
-      hint: test ? endpointTestText(test)
-        : 'run one real query with these engines and language; see who answers',
-      action: 'test',
-      button: 'Test',
-      busy: !!(test && test.running)
     }
   ]
   const language = readLanguage(settings.searxngLanguage)
@@ -419,6 +409,18 @@ export function settingsRows (settings, engine = 'unknown', agents = null, catal
       value: on
     })
   }
+  rows.push(
+    {
+      key: 'engineTest',
+      type: 'action',
+      label: 'Test SearXNG',
+      hint: test ? endpointTestText(test)
+        : 'run one real query with these engines and language; see who answers',
+      action: 'test',
+      button: 'Test',
+      busy: !!(test && test.running)
+    }
+  )
   rows.push({ type: 'section', label: 'Fixed keys' })
   for (let i = 0; i < FIXED_KEYS.length; i++) {
     rows.push({ type: 'info', label: FIXED_KEYS[i].label, hint: FIXED_KEYS[i].keys })
