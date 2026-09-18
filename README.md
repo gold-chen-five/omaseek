@@ -1,143 +1,87 @@
 # omaseek
 
-A web search and AI panel for [Omarchy](https://omarchy.org) 4, driven with vim keys.
+A web search and AI panel for [Omarchy](https://omarchy.org) 4, driven with vim
+keys. It searches through a SearXNG instance you run yourself and asks an agent
+CLI you already have — no API keys, no accounts.
 
-**SUPER + D** to summon it. **Tab** switches between searching the web and asking an agent.
-
-| key | does |
-|---|---|
-| `super+d` | summon or dismiss |
-| `tab` | search ⇄ ask, keeping the current Vim mode |
-| `enter` | search and focus the first result, or ask |
-| `↑` `↓` | in the search field: the queries you searched before |
-| `j` `k` | through the results |
-| `enter` on a result | open it in the browser |
-| `h` `l` | previous and next page; `3h` `5l` walk several |
-| `5gp` | jump to page 5 of the results, or click its square |
-| `v` `V` then `y` | select in an answer, and yank |
-| `enter` on a selection | hand it to the agent in a terminal |
-| `/` `?` then `n` `N` | search the results or the answer |
-| `*` `#` | search for the word under the cursor, in an answer |
-| `y` on a result | copy its URL |
-| `gc` `gs` | ask about the result, or search for the selection |
-| `ctrl+c` | new session, keeping this one |
-| `ctrl+n` `ctrl+x` | the next saved session, or forget this one |
-| `L` `H` | in an answer: the next saved conversation, or the one before |
-| `ctrl+shift+x` | forget every saved session (press twice) |
-| `ctrl+s` | settings |
-| `esc` | back, then out |
-
-The field is vim on one line — motions, operators, counts, text objects
-(`diw`, `ci"`, `da(`). `jk` leaves insert. In the results and the answer, `/`
-searches the pane and `gi` or `gn` go back to the field, typing or in normal
-mode.
-
-Paste an address into the search field and Enter opens it in the browser, the
-way an address bar would; `gx` in normal mode opens the one under the cursor.
-`gs` on a result searches for its title.
-
-The last twenty-five queries are kept in `~/.local/share/omaseek/queries.json`:
-the search field is one line, so `↑` and `↓` walk them the way a shell does, and
-`↓` past the newest puts back what you were typing before stepping into the
-results.
-
-Under the status line, the pages you have read are numbered squares — click one
-to go back to it, or the `›` to fetch the next. It is the same strip the saved
-conversations get in AI mode, where `L` and `H` walk them from the keyboard.
-**Ctrl+S → Display → Page numbers** sets what the squares say: **absolute**,
-each with its own page number, or **relative**, counting from the page on screen
-(`2 1 0 1 2`) so `3h` and `5l` can be read off the row.
-
-The last ten conversations are kept in `~/.local/share/omaseek/sessions.json`
-and survive a shell restart. A strip of numbered squares under the status line
-shows them — it appears once the first question has been asked, so a fresh
-install shows none — `1` the newest and the open one filled: click one to switch, or
-walk them with `ctrl+n`. `ctrl+x` forgets the one on screen, and the `+` square
-(or `ctrl+c`) starts another. `ctrl+c` while the agent is still thinking leaves
-that question running — its square keeps a dot until the answer lands in it —
-so you can start something else and come back to a finished reply. `q` or `esc`
-in normal mode stops a reply instead, keeping the conversation and the words so far, and
-`ctrl+shift+r` asks the last question again after a stop or a failure — the
-`chat` button turns into `stop` and `retry` for the same.
-
-Each result names the SearXNG engines that found it. **Ctrl+S → Engines**
-switches Google CSE, Bing, Brave and DuckDuckGo — the four a fresh install asks
-— plus Google, Startpage, Yep, Yandex and Yahoo. **Search speed** times one
-real search, every engine at once, which is the wait a keypress buys.
-**Test engines** asks each engine on its own: its rows, its time, or why it
-refused. Engines CAPTCHA or go quiet depending on your IP and the hour, which
-is what the two rows tell you. Any other SearXNG engine can be named by hand in
-`searxng_engines`, and keeps a switch of its own. The language and region live
-under **Ctrl+S → Search**. A next
-page that fails to load says `page failed · l retries` rather than pretending
-the results ended.
-
-Replies appear as they are written, where the agent's CLI streams them
-(Claude Code does; the others answer whole). **Ctrl+S → Ask** turns it off.
-
-[**KEYS.md**](KEYS.md) has every binding. `ctrl+s` opens settings, which
-writes `~/.config/omaseek/config.json`.
+**SUPER + D** summons it. **Tab** switches between searching and asking.
 
 ## Install
-
-omaseek is an Omarchy 4 plugin. It is not listed in the Omarchy plugin
-marketplace yet, so add it from its repository with Omarchy's own plugin
-command:
 
 ```bash
 omarchy plugin add https://github.com/gold-chen-five/omaseek.git --enable
 ```
 
-Omarchy clones it into `~/.config/omarchy/plugins/omaseek`, validates the
-manifest, enables it, and asks which bar section gets the search icon (center
-by default). Review the code before enabling it: like every Omarchy plugin,
-omaseek runs unsandboxed inside `omarchy-shell`.
+Not in the Omarchy plugin marketplace yet, hence the repository URL. Plugins run
+unsandboxed inside `omarchy-shell`, so read the code before enabling it.
 
-### Keybind
-
-A plugin cannot bind keys, since Omarchy never edits your Hyprland config for
-one. Add this line to `~/.config/hypr/bindings.lua`, then run `hyprctl reload`:
+**The keybind.** A plugin cannot edit your Hyprland config, so add this to
+`~/.config/hypr/bindings.lua` and run `hyprctl reload` — or run
+`~/.config/omarchy/plugins/omaseek/bin/install`, which appends it with a backup
+and leaves `SUPER + D` alone if you have already bound it. The bar icon opens
+the panel either way.
 
 ```lua
 o.bind("SUPER + D", "Search", "omarchy-shell shell toggle omaseek")
 ```
 
-Or let the plugin's helper add it. It appends that line with a backup, and
-leaves `SUPER + D` alone if you have already bound it to something else:
+**SearXNG.** Searching needs one. The panel offers to create it the first time
+you search, or run `bin/searxng-up`: it starts the `searxng/searxng` Docker
+image on `127.0.0.1:8888` and writes `~/.config/searxng/settings.yml` with the
+JSON API on.
 
-```bash
-~/.config/omarchy/plugins/omaseek/bin/install
-```
+**Asking** uses whichever agent CLI you have — `claude`, `codex`, `crush`,
+`opencode`, `gemini`, `hermes`, `copilot`, `cursor-agent`.
 
-Without a keybind, the bar icon opens the panel.
+## Keys
 
-### SearXNG
+| key | does |
+|---|---|
+| `super+d` | summon or dismiss |
+| `tab` | search ⇄ ask |
+| `enter` | search, or ask |
+| `j` `k` | through the results; `enter` opens one |
+| `h` `l` | previous and next page; `3h` `5l` walk several, `5gp` jumps to page 5 |
+| `y` `Y` | copy a result's URL, or its title with it |
+| `v` `V` then `y` | select in an answer and copy |
+| `/` `?` `n` `N` | search the results or the answer |
+| `ga` `gA` | hand off to the agent in a terminal: this result, or everything |
+| `gc` `gs` | ask about a result, or search for a selection |
+| `ctrl+c` `ctrl+n` `ctrl+x` | a new conversation, the next saved one, forget this one |
+| `L` `H` | in ask mode: the next saved conversation, or the one before |
+| `ctrl+s` | settings |
+| `esc` | back, then out |
 
-Searching needs a SearXNG instance you run yourself. The first time you search,
-the panel offers to create one, or you can run:
+The field is vim on one line — motions, operators, counts, text objects
+(`diw`, `ci"`, `da(`), and `jk` to leave insert. `↑` `↓` walk the last
+twenty-five queries. Paste an address and `enter` opens it.
 
-```bash
-~/.config/omarchy/plugins/omaseek/bin/searxng-up
-```
+Under the status line, numbered squares are the pages you have read: click one
+to go back, or `›` to fetch the next. Ask mode gets the same strip for its last
+ten conversations, which survive a restart.
 
-It runs the `searxng/searxng` Docker image as a container named `searxng`,
-listening on `127.0.0.1:8888` only, and writes `~/.config/searxng/settings.yml`
-with the JSON API on. **Ctrl+S → Search → Update SearXNG** shows the running
-version, pulls a newer image and replaces the container only when it changed.
-The configuration is kept.
+[**KEYS.md**](KEYS.md) has every binding, and settings can move any of them.
 
-Asking uses an agent CLI you already have (`claude`, `codex`, `crush`,
-`opencode`, `gemini`, `hermes`, `copilot`, `cursor-agent`); there is no API key.
+## Settings
+
+`ctrl+s`, saved as you go to `~/.config/omaseek/config.json`.
+
+- **Search** — start or stop SearXNG, update its image, language and region,
+  results per page.
+- **Ask** — the agent, its model, streaming, and where a hand-off opens.
+- **Display** — line numbers and page numbers, relative or absolute.
+- **Keys** — every binding.
+- **Engines** — which engines SearXNG asks: Google CSE, Bing, Brave and
+  DuckDuckGo by default, plus Google, Startpage, Yep, Yandex and Yahoo.
+  **Search speed** times one real search; **Test engines** asks each one alone
+  and says what it gave, or why it refused.
 
 ## Update
 
 ```bash
 omarchy plugin update omaseek
-omarchy-restart-shell
+omarchy-restart-shell     # a loaded panel keeps its old code until then
 ```
-
-The panel stays loaded between summons, so it keeps the old code until the
-shell restarts.
 
 ## Uninstall
 
@@ -145,74 +89,37 @@ shell restarts.
 omarchy plugin remove omaseek
 ```
 
-**Remove Plugin** in the Omarchy menu does the same. As omaseek is removed, a
-terminal opens and asks whether the SearXNG Docker container and image should
-go too; `~/.config/searxng` is kept either way. Disabling the plugin or
-restarting the shell asks nothing, and a plugin that was already disabled
-before removal cannot ask, because it is no longer loaded.
+A terminal opens and asks whether the SearXNG container and image should go
+too. `bin/uninstall` does the same from a terminal you already have open, and
+also removes the keybind `bin/install` added.
 
-`bin/uninstall` does the same from a terminal you already have open, and also
-removes the `SUPER + D` line `bin/install` added. `--searxng` or
-`--keep-searxng` answers the SearXNG question in advance, and `--yes` skips the
-one about the plugin.
+Left for you to delete: `~/.config/omaseek`, `~/.local/share/omaseek`,
+`~/.cache/omaseek` and `~/.config/searxng`.
 
-Left behind for you to delete: `~/.config/omaseek` (settings),
-`~/.local/share/omaseek` (queries and conversations), `~/.cache/omaseek`, and
-`~/.config/searxng`.
-
-## Dependencies and privileges
+## Requirements, and what it touches
 
 | needs | for |
 |---|---|
-| Omarchy 4 (`omarchy-shell`, `gum`, `xdg-terminal-exec`) | the panel, and terminals for setup and removal |
-| `python3` (standard library only) | `bin/search` and `bin/ask` |
-| Docker | the SearXNG container (the image is pulled from Docker Hub) |
-| an agent CLI, optional | asking; the agent's own sign-in and provider |
-| `tmux` or `herdr`, optional | hand-offs to a tmux window or a herdr tab instead of a terminal |
-| `jq` | `bin/install` |
+| Omarchy 4 (`omarchy-shell`, `gum`, `jq`, `xdg-terminal-exec`) | the panel, and terminals for setup and removal |
+| `python3`, standard library only | `bin/search` and `bin/ask` |
+| Docker | the SearXNG container |
+| an agent CLI, optional | asking |
+| `tmux` or `herdr`, optional | hand-offs somewhere other than a terminal |
 
-What it does outside the panel:
-
-- **sudo**: `bin/searxng-up` alone uses it, always in a visible terminal. It
-  runs `sudo systemctl enable --now docker` when the Docker daemon is not running,
-  and `sudo docker …` when you are not in the `docker` group. Nothing else asks
-  for privileges.
-- **Network**: searches go to your SearXNG, which queries the engines you
-  enable (Google CSE, Bing, Brave and DuckDuckGo by default). Result icons come from
-  DuckDuckGo's favicon service (`external-content.duckduckgo.com/ip3/`), which
-  is sent each result's bare domain and never your query. Settings asks Docker Hub for
-  the SearXNG image's tags to say whether an update exists. Questions go to
-  whichever agent CLI you use, and on to its provider. There is no telemetry.
-- **Files**: settings in `~/.config/omaseek/config.json`, history in
-  `~/.local/share/omaseek/`, the page cache in `~/.cache/omaseek/`, SearXNG's
-  config in `~/.config/searxng/`, and a copy of the removal scripts in
-  `$XDG_RUNTIME_DIR/omaseek-removal/`. Your Hyprland config is edited only by
-  `bin/install` and `bin/uninstall`, when you run them, with a backup.
-- **Agent hand-offs** (`ga`, `gA`, sign-in) open the agent's interactive CLI
-  with the same auto-approve flags `omarchy-agent` uses (`claude --permission-mode
-  auto`, `codex --approve-for-me`, `gemini --yolo`, …). The prompt is pasted as
-  an editable draft and never submitted for you. Links open only for `http` and
-  `https`.
-
-## Switch AI models
-
-Open **Ctrl+S → Ask**, choose your **Agent**, then open the **Model** dropdown
-with **Enter**. Use **j/k** or **↑/↓** to choose and **Enter** to save, exactly
-like the Agent dropdown. Choose **default** to use the CLI's own model choice.
-
-OpenCode, Cursor and Copilot supply their model lists through their CLIs; Codex
-uses its local model catalogue. Omaseek does not carry its own model list: when
-an agent cannot report one, or lookup fails, the dropdown contains only
-**default**. Model access depends on the agent's configured provider and account.
-
-The choice is remembered separately for each agent, including the resolved
-agent when **Agent** is `default`. It applies to the next question in the current
-conversation and to terminal/tmux/herdr hand-offs. A reply already running
-finishes with its original model.
-
-These choices live under `chat_models` in `~/.config/omaseek/config.json`.
-For a one-off backend call, pass `"model"` in the `./bin/ask --json` payload;
-an empty string uses the CLI default.
+- **sudo** — `bin/searxng-up` alone, always in a terminal you can watch:
+  `systemctl enable --now docker` when the daemon is down, and `sudo docker`
+  when you are not in the `docker` group.
+- **Network** — your SearXNG and the engines you enable; DuckDuckGo's favicon
+  service, sent each result's bare domain and never your query; Docker Hub, for
+  whether a newer SearXNG image exists; your agent CLI's own provider. No
+  telemetry.
+- **Files** — `~/.config/omaseek`, `~/.local/share/omaseek`, `~/.cache/omaseek`,
+  `~/.config/searxng`, and removal scripts under `$XDG_RUNTIME_DIR`. Your
+  Hyprland config is touched only by `bin/install` and `bin/uninstall`, with a
+  backup.
+- **Hand-offs** open the agent's interactive CLI with the same auto-approve
+  flags `omarchy-agent` uses. The prompt waits there as an editable draft;
+  nothing is submitted for you.
 
 ## License
 
