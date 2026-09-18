@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import "../core"
 
 // The SearXNG instance: whether it answers, and the script that manages it.
 Item {

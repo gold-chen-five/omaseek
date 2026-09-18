@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { LIST_KEYS, ANSWER_KEYS, resolve, resolveCounted, readerKeys, bindingProblem } from '../src/lib/keys.mjs'
-import { ACTIONS, settingKey, normalChords, panelChords } from '../src/lib/keybinds.mjs'
-import { DEFAULTS } from '../src/lib/settings.mjs'
+import { LIST_KEYS, ANSWER_KEYS, resolve, resolveCounted, readerKeys, bindingProblem } from '../src/vim/keys.mjs'
+import { ACTIONS, settingKey, normalChords, panelChords } from '../src/vim/keybinds.mjs'
+import { DEFAULTS } from '../src/settings/settings.mjs'
 
 test('a bound chord is its command', () => {
   assert.deepEqual(resolve(LIST_KEYS, '', 'j'), { command: 'down', pending: '' })

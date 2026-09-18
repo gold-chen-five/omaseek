@@ -1,18 +1,19 @@
 import QtQuick
 import Quickshell
 import qs.Commons
-import "../lib/keys.mjs" as KeysLib
-import "../lib/find.mjs" as Find
-import "../lib/motions.mjs" as Motions
-import "../lib/markdown.mjs" as Markdown
-import "../lib/thinking.mjs" as Thinking
-import "../lib/urls.mjs" as Urls
-import "../lib/transcript.mjs" as Transcript
-import "../lib/textobjects.mjs" as TextObjects
-import "../lib/grammar.mjs" as Grammar
-import "../lib/keybinds.mjs" as Keybinds
-import "chord.js" as Chord
-import "measure.js" as Measure
+import "../vim/keys.mjs" as KeysLib
+import "../vim/find.mjs" as Find
+import "../vim/motions.mjs" as Motions
+import "markdown.mjs" as Markdown
+import "../core/thinking.mjs" as Thinking
+import "../core/urls.mjs" as Urls
+import "transcript.mjs" as Transcript
+import "../vim/textobjects.mjs" as TextObjects
+import "../vim/grammar.mjs" as Grammar
+import "../vim/keybinds.mjs" as Keybinds
+import "../vim/chord.js" as Chord
+import "../vim/measure.js" as Measure
+import "../vim"
 
 // The transcript, read with vim keys. One read-only rich-text TextEdit holds
 // every turn, so the cursor and a selection can cross turns. Line motions use

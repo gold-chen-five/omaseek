@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { placePopup } from '../src/lib/popup.mjs'
+import { placePopup } from '../src/settings/popup.mjs'
 
 // A 1536×864 logical screen (1920×1080 at 1.25), rows of 28, eight of them.
 const screen = { windowHeight: 864, triggerHeight: 28, natural: 254, gap: 2, margin: 8, minimum: 28 }

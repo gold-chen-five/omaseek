@@ -5,7 +5,7 @@
 // `/` used to mean "back to the field". It means this now — gi and gn go back,
 // in insert and in normal mode, and esc still does.
 
-import { escapeHtml } from './markdown.mjs'
+import { escapeHtml } from '../ask/markdown.mjs'
 
 export const IDLE = Object.freeze({ active: false, backward: false, pattern: '' })
 

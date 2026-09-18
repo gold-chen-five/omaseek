@@ -1,8 +1,8 @@
 import QtQuick
 import qs.Commons
 import qs.Ui
-import "../lib/settings.mjs" as SettingsLib
-import "chord.js" as Chord
+import "settings.mjs" as SettingsLib
+import "../vim/chord.js" as Chord
 
 // One row per setting; the rows come from lib/settings.mjs. A FocusScope because
 // a typed row lends the keyboard to a text field and has to take it back.

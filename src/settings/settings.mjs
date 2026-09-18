@@ -2,11 +2,11 @@
 // once here so the page and bin/search agree; the keys come from ACTIONS in
 // keybinds.mjs, so a new binding is one entry there.
 
-import { parseObject } from './json.mjs'
-import { readKeymap, DEFAULT_SEQUENCES, DEFAULT_TIMEOUT_MS } from './keymap.mjs'
-import { ACTIONS, settingKey, normalizeBinding, actionById } from './keybinds.mjs'
-import { bindingProblem } from './keys.mjs'
-import { TRANSLATE_LANGUAGES, FOLLOW_SEARCH, defaultTarget, targetLabel, readTarget } from './translate.mjs'
+import { parseObject } from '../core/json.mjs'
+import { readKeymap, DEFAULT_SEQUENCES, DEFAULT_TIMEOUT_MS } from '../vim/keymap.mjs'
+import { ACTIONS, settingKey, normalizeBinding, actionById } from '../vim/keybinds.mjs'
+import { bindingProblem } from '../vim/keys.mjs'
+import { TRANSLATE_LANGUAGES, FOLLOW_SEARCH, defaultTarget, targetLabel, readTarget } from '../translate/translate.mjs'
 
 export const LINE_NUMBER_CHOICES = ['relative', 'absolute', 'hide']
 

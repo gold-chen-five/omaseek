@@ -51,21 +51,21 @@ QML.** The same file loads in both (`import "../lib/motions.mjs" as Motions` in
 QML, `import` in node), so cursor arithmetic, escape-sequence matching, page
 merging and config parsing are all under test without a compositor.
 
-- `src/lib/json.mjs` — reading one of our own hand-editable JSON files: nothing here throws, so an unreadable file is an empty one
-- `src/lib/motions.mjs` — cursor motions (`w b e f t 0 ^ $`), `(text, pos) -> pos`
-- `src/lib/textobjects.mjs` — `iw aw i" a(` … `(text, pos) -> {start, end}`
-- `src/lib/keymap.mjs` — the insert-mode escape sequence (`jk`) and its config
-- `src/lib/search.mjs` — result normalising, de-duplication, status/error strings
-- `src/lib/settings.mjs` — config text → settings, and the settings-page row list
-- `src/lib/markdown.mjs` — the agent's Markdown → the rich-text subset a TextEdit colours; the transcript layout
-- `src/lib/keybinds.mjs` — `ACTIONS`, every rebindable key; binding text ↔ chords (`gA` ↔ `g A`); `panelChords()` for the field's and the answer's table
-- `src/lib/keys.mjs` — chord → command name for the reading panes, the `gg`/`gv` prefix machine, and the clash check for a rebound key
-- `src/lib/states.mjs` — the panel's `VIEW`, `PANEL` and `FOCUS` values; never write them as bare strings
-- `src/lib/urls.mjs` — the bare URL under the cursor for `gx`, and which links may open (http/https only)
-- `src/lib/sessions.mjs` — the ring of ten saved conversations: recording, walking, forgetting, and its file
-- `src/lib/popup.mjs` — where a settings dropdown's list opens so it stays on screen: below, above, or shrunk to scroll
-- `src/lib/translate.mjs` — the languages a translation goes into, and which by default: the search language, else 繁體中文
-- `src/lib/pager.mjs` — which page squares the results strip shows: every page while they fit, then a window around the one being read
+- `src/core/json.mjs` — reading one of our own hand-editable JSON files: nothing here throws, so an unreadable file is an empty one
+- `src/vim/motions.mjs` — cursor motions (`w b e f t 0 ^ $`), `(text, pos) -> pos`
+- `src/vim/textobjects.mjs` — `iw aw i" a(` … `(text, pos) -> {start, end}`
+- `src/vim/keymap.mjs` — the insert-mode escape sequence (`jk`) and its config
+- `src/search/search.mjs` — result normalising, de-duplication, status/error strings
+- `src/settings/settings.mjs` — config text → settings, and the settings-page row list
+- `src/ask/markdown.mjs` — the agent's Markdown → the rich-text subset a TextEdit colours; the transcript layout
+- `src/vim/keybinds.mjs` — `ACTIONS`, every rebindable key; binding text ↔ chords (`gA` ↔ `g A`); `panelChords()` for the field's and the answer's table
+- `src/vim/keys.mjs` — chord → command name for the reading panes, the `gg`/`gv` prefix machine, and the clash check for a rebound key
+- `src/core/states.mjs` — the panel's `VIEW`, `PANEL` and `FOCUS` values; never write them as bare strings
+- `src/core/urls.mjs` — the bare URL under the cursor for `gx`, and which links may open (http/https only)
+- `src/ask/sessions.mjs` — the ring of ten saved conversations: recording, walking, forgetting, and its file
+- `src/settings/popup.mjs` — where a settings dropdown's list opens so it stays on screen: below, above, or shrunk to scroll
+- `src/translate/translate.mjs` — the languages a translation goes into, and which by default: the search language, else 繁體中文
+- `src/search/pager.mjs` — which page squares the results strip shows: every page while they fit, then a window around the one being read
 
 `VimTextField.qml` is therefore only a mode machine and key dispatch — if you
 add a motion or an object, the logic goes in `src/lib` with tests and the QML
@@ -305,7 +305,7 @@ title and snippet in front of it only get in the way of the question being typed
 around it — or the selection / the reply under the cursor with its question;
 `gA` every URL on the page one per line, or the whole conversation, built from
 the turns (`transcript.mjs`), never the rendered text with its placeholder dots.
-Every panel key is one entry in `ACTIONS` (`src/lib/keybinds.mjs`): its
+Every panel key is one entry in `ACTIONS` (`src/vim/keybinds.mjs`): its
 default, where it is read, and its Settings → Keys row. `bindingProblem` in
 `keys.mjs` refuses a key another action or a fixed vim key already holds —
 including a prefix, since `g` alone would swallow `gg`. Link lookup reads
@@ -391,11 +391,11 @@ belongs to, and a new piece of state to the store that owns it; `Search.qml`
 should only ever gain a signal connection.
 
 The two panes that are *read* with vim keys — the result list and the answer
-view — share their keymap rather than each spelling one out: `src/lib/keys.mjs`
+view — share their keymap rather than each spelling one out: `src/vim/keys.mjs`
 holds the tables and turns a chord plus whatever is pending into a command
 name, and each pane switches on that name. `j`/`k`/`gg`/`G`/Enter therefore
 cannot drift apart between them, and the `g` prefix is written once. Qt's key
-enums become chord strings in `src/components/chord.js`, which is a plain
+enums become chord strings in `src/vim/chord.js`, which is a plain
 (non-`.pragma library`) JS import precisely so it can see `Qt` — the `.mjs`
 next door cannot, because node loads it too. `measure.js` is a plain import for
 the same reason: both panes light a character, and `positionToRectangle` gives a
@@ -406,7 +406,7 @@ counts, operators and pending finds make it a different machine, and flattening
 it into a table would hide that rather than simplify it.
 
 The answer view needs that machine too (`3w`, `yiw`, `viw`, `fx`), so it runs
-its keys through `src/lib/grammar.mjs` first: counts, the `y` operator, the key
+its keys through `src/vim/grammar.mjs` first: counts, the `y` operator, the key
 after `f`/`t` and after `i`/`a`, then the table for everything else. Every
 motion there answers *where it lands* (`motionTarget`) rather than moving, so
 one target moves the cursor, stretches a selection, or bounds a yank. Finds and
@@ -422,7 +422,7 @@ maps action id → parsed chord, and the field and the answer both take it as
 `VimTextField.panelCommand`, not a property threaded through `Search.qml`.
 
 Settings live in `~/.config/omaseek/config.json`, shared by the panel and
-`bin/search` — **the option lists are declared once in `src/lib/settings.mjs`**
+`bin/search` — **the option lists are declared once in `src/settings/settings.mjs`**
 and mirrored in `bin/search` (`PAGE_SIZE_CHOICES`, `DEFAULT_ENGINES`,
 `LANGUAGE_PATTERN`); change both. `searxng_url`
 is read by `bin/search` and never written by the panel, so `writeSettings` must

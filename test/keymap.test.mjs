@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   readKeymap, advance, isTypedKey, DEFAULT_SEQUENCES, DEFAULT_TIMEOUT_MS
-} from '../src/lib/keymap.mjs'
+} from '../src/vim/keymap.mjs'
 
 test('jk completes the sequence and takes back the j already typed', () => {
   const first = advance('', 'j', ['jk'])

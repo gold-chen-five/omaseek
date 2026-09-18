@@ -1,5 +1,5 @@
 import QtQuick
-import "../lib/find.mjs" as Find
+import "find.mjs" as Find
 import "chord.js" as Chord
 
 // The `/` prompt, shared by the two panes that are read. They differ only in

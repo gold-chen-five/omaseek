@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { replyIndexAt, replyEnd, cut, exchangeText, conversationText, replyLanded } from '../src/lib/transcript.mjs'
+import { replyIndexAt, replyEnd, cut, exchangeText, conversationText, replyLanded } from '../src/ask/transcript.mjs'
 
 const TURNS = [
   { role: 'user', text: 'rust site?' },

@@ -2,13 +2,14 @@ import QtQuick
 import Quickshell
 import QtQuick.Controls
 import qs.Commons
-import "../lib/motions.mjs" as Motions
-import "../lib/textobjects.mjs" as TextObjects
-import "../lib/keymap.mjs" as Keymap
-import "../lib/keybinds.mjs" as Keybinds
-import "../lib/urls.mjs" as Urls
-import "chord.js" as Chord
-import "measure.js" as Measure
+import "../vim/motions.mjs" as Motions
+import "../vim/textobjects.mjs" as TextObjects
+import "../vim/keymap.mjs" as Keymap
+import "../vim/keybinds.mjs" as Keybinds
+import "../core/urls.mjs" as Urls
+import "../vim/chord.js" as Chord
+import "../vim/measure.js" as Measure
+import "../vim"
 
 // The search field with a vim editing model: the mode machine and key dispatch.
 // Cursor arithmetic lives in lib/motions.mjs, where it runs under test.

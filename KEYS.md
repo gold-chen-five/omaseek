@@ -313,13 +313,13 @@ selected row visible. Values are written as they change; there is no save.
 
 ## Where they live in the source
 
-- `src/lib/keybinds.mjs` — `ACTIONS`, every rebindable key with its default, scope and label; binding text ↔ chord strings (`"ctrl+c"` ↔ `"C-c"`, `"gx"` ↔ `"g x"`)
-- `src/lib/keys.mjs` — the fixed keys of the two panes that are *read* (results, answer); `readerKeys` merges in the rebound ones, chord → command name; `bindingProblem` is the clash check the settings page runs
-- `src/lib/settings.mjs` — the Keys rows (one per action) and the Fixed keys rows (`FIXED_KEYS`)
-- `src/components/chord.js` — Qt key events → chord strings
-- `src/components/VimTextField.qml` — the field's mode machine and everything vim
-- `src/components/ResultList.qml`, `AnswerView.qml`, `SettingsPage.qml`, `SetupPrompt.qml` — each view's own dispatch
-- `src/lib/sessions.mjs` — the ring of saved conversations the session keys walk
+- `src/vim/keybinds.mjs` — `ACTIONS`, every rebindable key with its default, scope and label; binding text ↔ chord strings (`"ctrl+c"` ↔ `"C-c"`, `"gx"` ↔ `"g x"`)
+- `src/vim/keys.mjs` — the fixed keys of the two panes that are *read* (results, answer); `readerKeys` merges in the rebound ones, chord → command name; `bindingProblem` is the clash check the settings page runs
+- `src/settings/settings.mjs` — the Keys rows (one per action) and the Fixed keys rows (`FIXED_KEYS`)
+- `src/vim/chord.js` — Qt key events → chord strings
+- `src/field/VimTextField.qml` — the field's mode machine and everything vim
+- `src/search/ResultList.qml`, `AnswerView.qml`, `SettingsPage.qml`, `SetupPrompt.qml` — each view's own dispatch
+- `src/ask/sessions.mjs` — the ring of saved conversations the session keys walk
 
 ## Translate
 

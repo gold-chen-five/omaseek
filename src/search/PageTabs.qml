@@ -1,7 +1,7 @@
 import QtQuick
 import qs.Commons
 import qs.Ui
-import "../lib/pager.mjs" as Pager
+import "pager.mjs" as Pager
 
 // The pages of results as numbered squares, the one on screen filled — the
 // mouse's h, l and 5gp. The last square fetches the page after the ones held,

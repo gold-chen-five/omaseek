@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { describeError, normalizeRow, mergeResults, statusText, modeLabel, confirmClearText, pageJumpTarget, passageForQuestion, cleanQuery } from '../src/lib/search.mjs'
-import { VIEW, PANEL, FOCUS } from '../src/lib/states.mjs'
+import { describeError, normalizeRow, mergeResults, statusText, modeLabel, confirmClearText, pageJumpTarget, passageForQuestion, cleanQuery } from '../src/search/search.mjs'
+import { VIEW, PANEL, FOCUS } from '../src/core/states.mjs'
 
 test('the status line counts a jump’s pages as they land', () => {
   const line = extra => statusText({ status: 'ok', count: 10, page: 3, hasNext: true, ...extra })
@@ -144,7 +144,7 @@ test('on a link, the answer hint says gx and where it goes', () => {
 
 
 test('a hand-off is the selected result’s URL, or every URL on the page', async () => {
-  const { handoffText } = await import('../src/lib/search.mjs')
+  const { handoffText } = await import('../src/search/search.mjs')
   const rows = [{ title: 'One', url: 'https://one.test', snippet: 'first' },
                 { title: 'Two', url: 'https://two.test', snippet: 'second' }]
   assert.equal(handoffText(rows, 1), 'https://two.test')
@@ -187,7 +187,7 @@ test('the destructive key names itself and what it will forget', () => {
 })
 
 test('y yanks a result’s URL, Y the title above it', async () => {
-  const { resultYankText, yankNotice } = await import('../src/lib/search.mjs')
+  const { resultYankText, yankNotice } = await import('../src/search/search.mjs')
   const row = { title: 'The Rust Book', url: 'https://doc.rust-lang.org/book/', display_url: 'doc.rust-lang.org' }
 
   assert.equal(resultYankText(row, false), 'https://doc.rust-lang.org/book/')

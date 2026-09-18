@@ -6,7 +6,7 @@
 // the next-session key stays predictable while it is answered into; `updated`
 // records when it last moved, for anyone reading the file.
 
-import { asText, listUnder } from './json.mjs'
+import { asText, listUnder } from '../core/json.mjs'
 
 export const MAX_SESSIONS = 10
 export const TITLE_LENGTH = 60

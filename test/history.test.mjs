@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   MAX_QUERIES, readQueries, writeQueries, rememberQuery, stepQuery
-} from '../src/lib/history.mjs'
+} from '../src/search/history.mjs'
 
 function ring (count) {
   let queries = []

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { urlAt, isOpenable, hostOf, urlFromSelection, queryUrl } from '../src/lib/urls.mjs'
+import { urlAt, isOpenable, hostOf, urlFromSelection, queryUrl } from '../src/core/urls.mjs'
 
 const book = 'Good places are (https://doc.rust-lang.org/book/), and Rustlings.'
 
@@ -64,7 +64,7 @@ test('gx finds bare domains beside paragraph separators and skips surrounding pr
 })
 
 test('cursor link metadata preserves the actual target and query parameters', async () => {
-  const { hrefFromHtml } = await import('../src/lib/urls.mjs')
+  const { hrefFromHtml } = await import('../src/core/urls.mjs')
   assert.equal(hrefFromHtml('<p><a href="https://doc.rust-lang.org/book/?x=1&amp;y=2">R</a></p>'),
     'https://doc.rust-lang.org/book/?x=1&y=2')
   assert.equal(hrefFromHtml('<p>R</p>'), '')

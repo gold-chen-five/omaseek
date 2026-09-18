@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import qs.Commons
 import qs.Ui
-import "../lib/popup.mjs" as PopupLib
+import "popup.mjs" as PopupLib
 
 // The settings page's dropdown: Omarchy's qs.Ui Dropdown — its look, its
 // tokens, its keys — with one difference that could not be reached from

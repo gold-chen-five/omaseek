@@ -1,5 +1,6 @@
 import QtQuick
-import "../lib/history.mjs" as HistoryLib
+import "history.mjs" as HistoryLib
+import "../core"
 
 // The queries searched before, ~/.local/share/omaseek/queries.json. The shape of
 // SessionStore, and read once and never watched for the same reason: a walk is an

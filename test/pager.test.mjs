@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { pageWindow, pageLabel } from '../src/lib/pager.mjs'
+import { pageWindow, pageLabel } from '../src/search/pager.mjs'
 
 test('every page shows while they fit in the row', () => {
   assert.deepEqual(pageWindow(0, 1), { start: 0, end: 1 })

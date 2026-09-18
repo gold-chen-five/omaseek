@@ -3,15 +3,21 @@ import Quickshell.Wayland
 import QtQuick
 import qs.Commons
 import qs.Ui
-import "components"
-import "lib/search.mjs" as SearchLib
-import "lib/settings.mjs" as SettingsLib
-import "lib/keybinds.mjs" as Keybinds
-import "lib/states.mjs" as States
-import "lib/history.mjs" as History
-import "lib/sessions.mjs" as Sessions
-import "lib/translate.mjs" as TranslateLib
-import "lib/urls.mjs" as Urls
+import "search/search.mjs" as SearchLib
+import "settings/settings.mjs" as SettingsLib
+import "vim/keybinds.mjs" as Keybinds
+import "core/states.mjs" as States
+import "search/history.mjs" as History
+import "ask/sessions.mjs" as Sessions
+import "translate/translate.mjs" as TranslateLib
+import "core/urls.mjs" as Urls
+import "translate"
+import "settings"
+import "search"
+import "panel"
+import "field"
+import "engine"
+import "ask"
 
 // Web search and AI overlay. The layer-shell setup and the open/close/dismiss/
 // toggle contract mirror shell/plugins/emojis/Emojis.qml, so shell IPC works

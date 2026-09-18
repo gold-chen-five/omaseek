@@ -1,6 +1,6 @@
 import QtQuick
 import qs.Commons
-import "../lib/find.mjs" as Find
+import "../vim/find.mjs" as Find
 
 // One search result. Model roles arrive as required properties: a ListView delegate.
 Rectangle {

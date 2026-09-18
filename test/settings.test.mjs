@@ -5,9 +5,9 @@ import {
   LAUNCHER_CHOICES, DEFAULT_AGENT,
   PAGE_SIZE_CHOICES, DEFAULTS, checkRow, FIXED_KEYS, changeSetting, selectedModel,
   ENGINE_CHOICES, DEFAULT_ENGINES, LANGUAGE_CHOICES, toggleEngine, endpointTestText, searchSpeedText, versionText, nextAgent, translateAgentOf, SAME_AS_ASK
-} from '../src/lib/settings.mjs'
-import { ACTIONS, settingKey } from '../src/lib/keybinds.mjs'
-import { DEFAULT_TIMEOUT_MS } from '../src/lib/keymap.mjs'
+} from '../src/settings/settings.mjs'
+import { ACTIONS, settingKey } from '../src/vim/keybinds.mjs'
+import { DEFAULT_TIMEOUT_MS } from '../src/vim/keymap.mjs'
 
 test('an absent config yields the defaults', () => {
   const settings = readSettings('')
@@ -330,7 +330,7 @@ test('the fixed keys close the page as read-only rows, so it lists everything pr
 })
 
 test('streaming is on unless it was deliberately turned off', async () => {
-  const { readSettings, writeSettings, settingsRows } = await import('../src/lib/settings.mjs')
+  const { readSettings, writeSettings, settingsRows } = await import('../src/settings/settings.mjs')
 
   assert.equal(readSettings('{}').stream, true)
   assert.equal(readSettings('{"stream":false}').stream, false)

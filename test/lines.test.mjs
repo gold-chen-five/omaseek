@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { lineDown, lineUp, lineBounds, lineRange, positionAtColumn, findInLine } from '../src/lib/motions.mjs'
+import { lineDown, lineUp, lineBounds, lineRange, positionAtColumn, findInLine } from '../src/vim/motions.mjs'
 
 const text = 'first line\nab\nthird line'   // lines start at 0, 11, 14
 

@@ -1,6 +1,6 @@
 // The insert-mode escape sequence (vim's `inoremap jk <Esc>`) and its config.
 
-import { parseObject } from './json.mjs'
+import { parseObject } from '../core/json.mjs'
 
 export const DEFAULT_SEQUENCES = ['jk']
 // vim's `timeoutlen`: keys typed within it count as one mapping.

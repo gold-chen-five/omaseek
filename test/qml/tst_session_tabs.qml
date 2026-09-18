@@ -1,6 +1,6 @@
 import QtQuick
 import QtTest
-import "../../src/components"
+import "../../src/ask"
 
 Item {
   width: 400

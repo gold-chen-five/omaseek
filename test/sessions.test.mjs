@@ -4,7 +4,7 @@ import {
   MAX_SESSIONS, readSessions, writeSessions, record, removeSession, stepSession,
   sessionTitle, sessionLabel, isAnswered, indexOfSession, newId,
   stoppedTurn, endsStopped, retryPoint, promptTurns, pastQuestions
-} from '../src/lib/sessions.mjs'
+} from '../src/ask/sessions.mjs'
 
 const turns = question => [{ role: 'user', text: question }, { role: 'assistant', text: 'because.' }]
 

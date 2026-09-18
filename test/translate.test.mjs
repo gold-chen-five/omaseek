@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   TRANSLATE_LANGUAGES, FOLLOW_SEARCH, defaultTarget, effectiveTarget, targetLabel, readTarget
-} from '../src/lib/translate.mjs'
+} from '../src/translate/translate.mjs'
 
 test('with nothing chosen, translations go into the language searches are made in', () => {
   assert.equal(defaultTarget('zh-TW'), 'zh-TW')

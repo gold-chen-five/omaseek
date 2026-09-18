@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { toHtml, inline, escapeHtml, renderTranscript } from '../src/lib/markdown.mjs'
+import { toHtml, inline, escapeHtml, renderTranscript } from '../src/ask/markdown.mjs'
 
 test('inline marks become tags and html is escaped', () => {
   assert.equal(inline('a **b** c'), 'a <b>b</b> c')
@@ -70,7 +70,7 @@ test('while waiting, a placeholder reply is built exactly as a reply is', () => 
 })
 
 test('the reply being written takes the waiting placeholder’s place', async () => {
-  const { renderTranscript } = await import('../src/lib/markdown.mjs')
+  const { renderTranscript } = await import('../src/ask/markdown.mjs')
   const turns = [{ role: 'user', text: 'why' }]
 
   const waiting = renderTranscript(turns, { pending: true })

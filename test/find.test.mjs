@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {
   IDLE, openFind, feedFind, promptText, caseSensitive,
   matchPositions, matchFrom, nextMatch, matchingRows, markMatches, wordAt
-} from '../src/lib/find.mjs'
+} from '../src/vim/find.mjs'
 
 function type (state, text) {
   let current = state

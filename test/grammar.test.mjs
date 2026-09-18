@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { IDLE, feed, trimExclusive } from '../src/lib/grammar.mjs'
-import { ANSWER_KEYS } from '../src/lib/keys.mjs'
+import { IDLE, feed, trimExclusive } from '../src/vim/grammar.mjs'
+import { ANSWER_KEYS } from '../src/vim/keys.mjs'
 
 // Types a run of chords and returns the last action and the state left behind.
 const type = (chords, visual = false, activeFind = null) => {
