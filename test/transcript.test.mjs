@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { replyIndexAt, replyEnd, cut, exchangeText, conversationText } from '../src/lib/transcript.mjs'
+import { replyIndexAt, replyEnd, cut, exchangeText, conversationText, replyLanded } from '../src/lib/transcript.mjs'
 
 const TURNS = [
   { role: 'user', text: 'rust site?' },
@@ -57,4 +57,15 @@ test('copied text leaves the invisible marks out', () => {
   assert.equal(cut('● hi\n> q', 5, [[5, 7]]), 'hi\n> q')
   assert.equal(cut('abcdef', 10, [[11, 12], [13, 15]]), 'acf')
   assert.equal(cut('abc', 0, []), 'abc')
+})
+
+test('a reply landing is the question just asked, answered — not another conversation', () => {
+  const asked = [{ role: 'user', text: 'what is rust?' }]
+  const answered = [...asked, { role: 'assistant', text: 'A language.' }]
+  assert.equal(replyLanded('what is rust?', answered), true)
+  assert.equal(replyLanded('what is rust?', [...asked, { role: 'assistant', text: '', stopped: true }]), true, 'a stop lands too')
+  assert.equal(replyLanded('what is rust?', asked), false, 'still waiting')
+  assert.equal(replyLanded('what is go?', answered), false, 'another conversation came on screen')
+  assert.equal(replyLanded('', answered), false, 'nothing was being waited for')
+  assert.equal(replyLanded('what is rust?', []), false)
 })

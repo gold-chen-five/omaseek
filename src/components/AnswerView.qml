@@ -28,6 +28,10 @@ FocusScope {
   property int tick: 0
   property real startedAt: 0
 
+  // The question a reply is on its way for, so its landing can be told apart
+  // from another conversation coming on screen.
+  property string waitingFor: ""
+
   onThinkingChanged: {
     if (thinking) {
       startedAt = Date.now()
@@ -176,13 +180,28 @@ FocusScope {
   // An answer lands as two changes in one handler — the history, then the
   // status — and callLater folds them into one render.
   function refresh () {
+    // The reply the reader was waiting on has landed, and they had already
+    // moved off to read: leave them where they are. Settling would throw them
+    // back to the top of the reply they were halfway through.
+    if (thinking) {
+      const last = turns.length > 0 ? turns[turns.length - 1] : null
+      waitingFor = last && last.role === "user" ? String(last.text) : ""
+    }
+    const stay = !thinking && !following && Transcript.replyLanded(waitingFor, turns)
+    const at = cursor
+    if (!thinking) waitingFor = ""
     anchor = -1
     preferredX = -1
-    following = true
+    if (!stay) following = true
     repeatFindReady = false
     currentFindHit = -1
     answer.text = render()
-    Qt.callLater(settle)                       // the layout settles after the text lands
+    // The layout settles after the text lands.
+    if (stay) Qt.callLater(() => {
+      findMarks()
+      placeCursor(Math.min(at, answer.length))
+    })
+    else Qt.callLater(settle)
   }
 
   // Find the bars and dots, then land at the start of the newest reply so j

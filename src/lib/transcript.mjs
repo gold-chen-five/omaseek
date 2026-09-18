@@ -62,3 +62,16 @@ export function cut (text, base, ranges) {
   }
   return out
 }
+
+/**
+ * Whether the turns are the reply to `question` landing: the question last
+ * asked, then one assistant turn — an answer, a stop or an error. Anything else
+ * is a different conversation on screen, and that one starts at its newest reply.
+ */
+export function replyLanded (question, turns) {
+  if (!question || !Array.isArray(turns) || turns.length < 2) return false
+  const last = turns[turns.length - 1]
+  const asked = turns[turns.length - 2]
+  return !!last && !!asked && last.role === 'assistant' && asked.role === 'user' &&
+    String(asked.text) === String(question)
+}
