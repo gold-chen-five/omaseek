@@ -4,13 +4,12 @@ and what the settings page sends — engines, language — and asks of --test.""
 
 import contextlib
 import http.server
-import importlib.machinery
-import importlib.util
 import io
 import json
 import os
 import pathlib
 import subprocess
+import sys
 import tempfile
 import threading
 import unittest
@@ -181,11 +180,11 @@ class SearchBackendTests(unittest.TestCase):
 
 
 def load_search():
-    loader = importlib.machinery.SourceFileLoader("omaseek_search", str(SCRIPT))
-    spec = importlib.util.spec_from_loader("omaseek_search", loader)
-    module = importlib.util.module_from_spec(spec)
-    loader.exec_module(module)
-    return module
+    """The version check's own module: DOCKER_TAGS_URL is patched where
+    report_version reads it."""
+    sys.path.insert(0, str(ROOT / "backend"))
+    import omaseek.search.version
+    return omaseek.search.version
 
 
 class VersionTests(unittest.TestCase):
