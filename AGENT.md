@@ -336,7 +336,11 @@ between search and AI with Tab; only an explicit mode-changing action changes it
   in a terminal. Paths come from `Qt.resolvedUrl` so the dev symlink works.
 - `SearchSession.qml` — the query, the page cache (`pages`/`pageIndex` — `h`
   never refetches), the `ListModel` the list paints, and the `JsonProcess` that
-  runs the backend. Raises `engineDown`, `pageShown`.
+  runs the backend. Raises `engineDown`, `pageShown`. `5gp` jumps: a page's
+  continuation only arrives with the page before it, so `goToPage` sets
+  `pageTarget` and each answer asks for the next until it lands, `h` or a
+  failure calls it off, and `pageJumpTarget` caps one jump at ten new requests
+  so a stray `500gp` cannot spend five hundred.
 - `AiSession.qml` — the transcript, the agent list from `bin/ask --agents`,
   `ask()`, `launch()`, and the ring of saved conversations (`nextSession()`,
   `closeSession()`, `sessionIndex`). `AnswerView.qml` reads the transcript with

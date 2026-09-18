@@ -29,6 +29,7 @@ ListView {
   signal tabbed()                        // the panel switches search <-> ai
   signal nextPageRequested()
   signal previousPageRequested()
+  signal pageJumpRequested(int page)     // 5gp: page five, fetching its way there
 
   readonly property string findPrompt: finder.prompt
   // What the rows mark. It outlives the prompt, as the answer's highlight does.
@@ -120,6 +121,7 @@ ListView {
     case "down":         moveCursor(times); break
     case "up":           moveCursor(-times); break
     case "nextPage":     nextPageRequested(); break
+    case "goToPage":     pageJumpRequested(times); break
     case "previousPage": previousPageRequested(); break
     case "top":          moveCursorTo(0); break
     case "bottom":       moveCursorTo(count - 1); break

@@ -13,6 +13,7 @@ A web search and AI panel for [Omarchy](https://omarchy.org) 4, driven with vim 
 | `j` `k` | through the results |
 | `enter` on a result | open it in the browser |
 | `h` `l` | previous and next page |
+| `5gp` | jump to page 5 of the results |
 | `v` `V` then `y` | select in an answer, and yank |
 | `enter` on a selection | hand it to the agent in a terminal |
 | `/` `?` then `n` `N` | search the results or the answer |

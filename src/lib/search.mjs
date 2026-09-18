@@ -63,9 +63,19 @@ export function mergeResults (existing = [], incoming = []) {
 }
 
 /** Right-hand side of the status strip. */
+/**
+ * Where `5gp` lands. Pages past the cache have to be fetched one after another,
+ * so a jump is capped at `reach` new requests: 500gp asks for ten more pages,
+ * not five hundred, and `l` or another jump carries on from there.
+ */
+export function pageJumpTarget (requested, cached = 1, reach = 10) {
+  const wanted = Math.max(1, Math.floor(Number(requested) || 1))
+  return Math.min(wanted, Math.max(1, cached) + reach)
+}
+
 export function statusText ({
   view = VIEW.SEARCH, panelMode = PANEL.SEARCH, status, count = 0, query = '', page = 1,
-  hasNext = false, loadingPage = false, errorMessage = '', backend = '',
+  hasNext = false, loadingPage = false, errorMessage = '', backend = '', pageTarget = 0,
   pageError = '', nextPageKey = 'l',
   agent = '', selecting = false, link = '', session = '',
   stopKey = 'esc', retryKey = 'ctrl+shift+r', canRetry = false, address = ''
@@ -84,6 +94,8 @@ export function statusText ({
     case 'empty':
       return `No results for “${query}”`
     case 'ok':
+      // A jump fetches the pages between here and there, one request each.
+      if (loadingPage && pageTarget > page + 1) return `page ${page + 1} of ${pageTarget} · loading…`
       if (loadingPage) return `page ${page + 1} · loading…`
       // A failed page is not the end: its continuation is kept for a retry.
       if (pageError) return `page ${page} · ${count} results · page failed · ${nextPageKey || 'l'} retries`

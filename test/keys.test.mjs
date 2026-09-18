@@ -60,7 +60,7 @@ test('q stops the reply being written in the answer, and means nothing in the re
 // The list's own, each for a reason: h and l page where the answer moves by
 // character, and a row is one URL where a reply is text to operate on — so y
 // there copies at once rather than waiting for a motion.
-const LIST_ONLY = ['nextPage', 'previousPage', 'yankUrl', 'yankCitation', 'askAbout']
+const LIST_ONLY = ['nextPage', 'previousPage', 'goToPage', 'yankUrl', 'yankCitation', 'askAbout']
 
 test('both panes agree on the keys they share; the rest are the list’s own', () => {
   for (const chord of Object.keys(LIST_KEYS)) {
@@ -71,6 +71,24 @@ test('both panes agree on the keys they share; the rest are the list’s own', (
     }
     assert.equal(ANSWER_KEYS[chord], command, `${chord} means two things`)
   }
+})
+
+test('a count before gp says which page; the answer has no pages to jump to', () => {
+  const press = (...chords) => {
+    let state = { pending: '', count: 0 }
+    let last = { command: '', count: 1 }
+    for (const chord of chords) {
+      const step = resolveCounted(LIST_KEYS, state, chord)
+      state = step.state
+      if (step.command) last = step
+    }
+    return last
+  }
+  assert.deepEqual(press('5', 'g', 'p'), { state: { pending: '', count: 0 }, command: 'goToPage', count: 5 })
+  assert.deepEqual(press('1', '2', 'g', 'p').count, 12, 'multi-digit pages')
+  assert.equal(press('g', 'p').count, 1, 'no count is page one')
+  assert.equal(press('g', 'g').command, 'top', 'gg still reaches the first row')
+  assert.equal(ANSWER_KEYS['g p'], undefined)
 })
 
 test('y copies a result at once, but still opens a yank in the answer', () => {

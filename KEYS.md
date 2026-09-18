@@ -173,6 +173,7 @@ relative to the current row: `2j` moves down two results, `2k` moves up two.
 | `gg` `G` | first, last |
 | `l` (Next page), `right` | next page; after `page failed` on the status line, it retries that page |
 | `h` (Previous page), `left` | previous page |
+| `5gp` | jump to page 5; `gp` alone is page 1. Cached pages are instant, the rest are fetched one by one and the status line counts them (`page 4 of 7 · loading…`). A jump asks for at most ten new pages, so `500gp` goes ten on and another `gp` carries on |
 | `enter` (Open) | open in the browser and dismiss |
 | `ga` (Hand off to agent) | the selected result's URL on its own, as an editable draft in the agent |
 | `gA` (Hand off everything) | every URL on the current page, one per line, as an editable draft |

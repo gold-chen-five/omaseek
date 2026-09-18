@@ -609,6 +609,7 @@ Item {
               page: session.pageIndex + 1,
               hasNext: session.hasNext,
               loadingPage: session.loadingPage,
+              pageTarget: session.pageTarget,
               pageError: session.pageError,
               nextPageKey: config.settings.nextPageKey,
               errorMessage: root.panelMode === States.PANEL.AI ? ai.errorMessage : session.errorMessage,
@@ -734,6 +735,7 @@ Item {
           onSettingsRequested: root.openSettings()
           onNextPageRequested: session.nextPage()
           onPreviousPageRequested: session.previousPage()
+          onPageJumpRequested: page => session.goToPage(page)
           onTabbed: root.toggleMode()
         }
       }

@@ -1,7 +1,22 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { describeError, normalizeRow, mergeResults, statusText, modeLabel, confirmClearText } from '../src/lib/search.mjs'
+import { describeError, normalizeRow, mergeResults, statusText, modeLabel, confirmClearText, pageJumpTarget } from '../src/lib/search.mjs'
 import { VIEW, PANEL, FOCUS } from '../src/lib/states.mjs'
+
+test('the status line counts a jump’s pages as they land', () => {
+  const line = extra => statusText({ status: 'ok', count: 10, page: 3, hasNext: true, ...extra })
+  assert.equal(line({ loadingPage: true, pageTarget: 7 }), 'page 4 of 7 · loading…')
+  assert.equal(line({ loadingPage: true }), 'page 4 · loading…', 'a plain l says nothing about a target')
+  assert.equal(line({ loadingPage: true, pageTarget: 4 }), 'page 4 · loading…', 'the last page of a jump is just a page')
+})
+
+test('a jump is capped at ten fetches, so 500gp asks for ten pages, not five hundred', () => {
+  assert.equal(pageJumpTarget(5, 1), 5)
+  assert.equal(pageJumpTarget(500, 1), 11, 'one cached page plus ten')
+  assert.equal(pageJumpTarget(500, 4), 14, 'and it carries on from where it stopped')
+  assert.equal(pageJumpTarget(0, 3), 1, 'a page before the first is the first')
+  assert.equal(pageJumpTarget('rubbish', 3), 1)
+})
 
 test('the backend message wins, because it names the port or the setting to fix', () => {
   assert.equal(

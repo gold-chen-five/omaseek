@@ -18,6 +18,9 @@ Item {
   // Why the page after this one failed to load. Its continuation is kept, so
   // `l` asks again; "" when nothing failed.
   property string pageError: ""
+  // Where a `5gp` jump is heading, 1-based; 0 when nothing is being jumped to.
+  // Pages come one request at a time, so the jump is a chain of them.
+  property int pageTarget: 0
 
   readonly property var currentPage: pages.length > 0 ? pages[pageIndex] : null
   readonly property bool hasNext: currentPage ? (pageIndex + 1 < pages.length || currentPage.next !== null) : false
@@ -40,6 +43,7 @@ Item {
   // `l` — forward a page, from cache when we have already been there.
   function nextPage () {
     if (loadingPage || status === "loading") return
+    if (pageTarget > 0 && pages.length >= pageTarget) pageTarget = 0
     if (pageIndex + 1 < pages.length) {
       showPage(pageIndex + 1)
       return
@@ -52,7 +56,24 @@ Item {
 
   // `h` — back a page. Always cached, so this never hits the network.
   function previousPage () {
+    pageTarget = 0                             // stepping by hand ends a jump
     if (hasPrevious) showPage(pageIndex - 1)
+  }
+
+  // `5gp` — page five. Cached pages are instant; the rest are fetched in turn,
+  // since each page's continuation only comes with the page before it.
+  function goToPage (number) {
+    if (status !== "ok") return
+    const target = SearchLib.pageJumpTarget(number, pages.length)
+    if (target <= pages.length) {
+      pageTarget = 0
+      showPage(target - 1)
+      return
+    }
+    if (loadingPage) return
+    pageTarget = target
+    showPage(pages.length - 1)                 // fetching carries on from the last one held
+    nextPage()
   }
 
   function handoffText (index) {
@@ -86,6 +107,7 @@ Item {
     pageIndex = 0
     loadingPage = false
     pageError = ""
+    pageTarget = 0
   }
 
   function showPage (index) {
@@ -152,11 +174,22 @@ Item {
     const stillWaiting = pageIndex === pages.length - 1
     pages = [...pages, page]
     if (stillWaiting) showPage(pages.length - 1)
+
+    // Mid-jump: ask for the next one, or stop here when the pages ran out.
+    if (pageTarget > 0) {
+      if (pages.length < pageTarget && page.next) nextPage()
+      else {
+        const landed = Math.min(pageTarget, pages.length)
+        pageTarget = 0
+        showPage(landed - 1)
+      }
+    }
   }
 
   // Said only on the last page: stepped back with h, the reader's `l` means the
   // cached page in front, and the next one to fetch can fail again later.
   function failPage (message) {
+    pageTarget = 0                             // a jump stops where it broke
     if (pageIndex === pages.length - 1) pageError = message
   }
 

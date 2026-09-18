@@ -40,7 +40,12 @@ const NAV = {
 }
 
 const FIXED = {
-  results: merge(NAV, { 'Right': 'nextPage', 'Left': 'previousPage', 'y': 'yankUrl', 'Y': 'yankCitation' }),
+  results: merge(NAV, {
+    'Right': 'nextPage', 'Left': 'previousPage', 'y': 'yankUrl', 'Y': 'yankCitation',
+    // A count says which page: 5gp is page five, gp is page one. The answer has
+    // no pages, so this one is the results' alone.
+    'g p': 'goToPage'
+  }),
   // The answer is text, so it adds motions and a selection.
   answer: merge(NAV, {
     'l': 'right', 'Right': 'right',
@@ -87,7 +92,7 @@ const LABELS = {
   findForward: 'search the pane', findBackward: 'search the pane backwards',
   findNext: 'the next match', findPrevious: 'the match before',
   searchWord: 'search for the word under the cursor', searchWordBack: 'search back for the word under the cursor',
-  nextPage: 'next page', previousPage: 'previous page',
+  nextPage: 'next page', previousPage: 'previous page', goToPage: 'jump to a page',
   wordForward: 'a word motion', wordForwardBig: 'a word motion', wordBackward: 'a word motion',
   wordBackwardBig: 'a word motion', wordEnd: 'a word motion', wordEndBig: 'a word motion',
   lineStart: 'line start', lineEnd: 'line end', selectChars: 'visual mode', selectLines: 'linewise visual',
