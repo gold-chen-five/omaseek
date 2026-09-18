@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { LIST_KEYS, ANSWER_KEYS, resolve, resolveCounted, readerKeys, bindingProblem } from '../src/lib/keys.mjs'
-import { ACTIONS, settingKey } from '../src/lib/keybinds.mjs'
+import { ACTIONS, settingKey, chatChords } from '../src/lib/keybinds.mjs'
 import { DEFAULTS } from '../src/lib/settings.mjs'
 
 test('a bound chord is its command', () => {
@@ -71,6 +71,18 @@ test('both panes agree on the keys they share; the rest are the list’s own', (
     }
     assert.equal(ANSWER_KEYS[chord], command, `${chord} means two things`)
   }
+})
+
+test('L and H are the answer’s, rebindable, and the field walks the ring with them', () => {
+  assert.equal(ANSWER_KEYS['L'], 'nextSession')
+  assert.equal(ANSWER_KEYS['H'], 'previousSession')
+  assert.equal(LIST_KEYS['L'], undefined, 'the results have pages, not conversations')
+  const moved = readerKeys('answer', { nextChatKey: 'gN' })
+  assert.equal(moved['g N'], 'nextSession', 'rebinding moves it')
+  assert.equal(moved['L'], undefined, 'and frees the old key')
+  assert.deepEqual(chatChords({}), { nextChat: 'L', previousChat: 'H' })
+  assert.deepEqual(chatChords({ nextChatKey: 'gN' }), { previousChat: 'H' },
+    'two keys in turn belong to the panes; the field takes single chords only')
 })
 
 test('a count before gp says which page; the answer has no pages to jump to', () => {

@@ -14,6 +14,8 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 | Search / ask | `search_key` | `enter` | field: runs the query or asks the question |
 | New session | `new_session_key` | `ctrl+c` | field and answer: forget the conversation and start one |
 | Next session | `next_session_key` | `ctrl+n` | ask: the next saved conversation, newest first, wrapping |
+| Next conversation | `next_chat_key` | `L` | ask: the next saved conversation, wrapping (`3L` walks three) |
+| Previous conversation | `previous_chat_key` | `H` | ask: the conversation before, wrapping |
 | Close session | `close_session_key` | `ctrl+x` | ask: forget this conversation and show the one below it |
 | Delete all sessions | `clear_sessions_key` | `ctrl+shift+x` | ask: forget every saved conversation, on the second press |
 | Retry answer | `retry_answer_key` | `ctrl+shift+r` | ask: ask the last question again after a failure, a stop, or an interruption |
@@ -222,7 +224,7 @@ follow the layout when the panel width changes and are excluded from copied text
 | `gA` (Hand off everything) | the whole conversation, failures left out, as an editable draft |
 | `ctrl+c` (New session) | start a new conversation, keeping this one in the ring |
 | `ctrl+n` (Next session) | the next saved conversation, wrapping |
-| `L` `H` | the next saved conversation and the one before, wrapping — where search pages with `h` and `l`. A count walks several (`3L`), and the numbered squares below do the same with a click |
+| `L` `H` (Next/Previous conversation) | the next saved conversation and the one before, wrapping — where search pages with `h` and `l`. Read in the answer and in the field's normal mode. A count walks several (`3L`), and the numbered squares below do the same with a click |
 | `ctrl+x` (Close session) | forget this conversation and show the one below it |
 | `ctrl+shift+x` (Delete all sessions) | forget every saved conversation, on a second press |
 | `q` | stop the reply being written, keeping what arrived |

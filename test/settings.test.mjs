@@ -325,7 +325,7 @@ test('the fixed keys close the page as read-only rows, so it lists everything pr
   assert.match(FIXED_KEYS.find(entry => entry.label === 'Settings').keys, /\/ field normal/)
   // The two strips and the keys that walk them are a row each, not a clause
   // buried in a pane's line: they are how a reader finds out they exist.
-  assert.match(FIXED_KEYS.find(entry => entry.label === 'Sessions (ask)').keys, /L the next saved conversation/)
+  assert.match(FIXED_KEYS.find(entry => entry.label === 'Sessions (ask)').keys, /read in the answer and in the field/)
   assert.match(FIXED_KEYS.find(entry => entry.label === 'Pages (search)').keys, /5gp jumps to page 5/)
 })
 

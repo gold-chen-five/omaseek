@@ -58,10 +58,6 @@ const FIXED = {
     '$': 'lineEnd', 'End': 'lineEnd',
     'v': 'selectChars',
     'V': 'selectLines',
-    // Where search pages with h and l, ask walks its saved conversations —
-    // shifted, since h and l move by character in text. A count walks several.
-    'L': 'nextSession',
-    'H': 'previousSession',
     // The results have no cursor inside a row, so there is no word under it.
     '*': 'searchWord',
     '#': 'searchWordBack',

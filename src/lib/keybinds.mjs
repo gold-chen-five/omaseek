@@ -57,6 +57,10 @@ export const ACTIONS = [
     label: 'Next page', hint: 'results: the next page (→ too)' },
   { id: 'previousPage', config: 'previous_page_key', default: 'h', scope: 'reader', panes: ['results'], command: 'previousPage',
     label: 'Previous page', hint: 'results: the page before, from the cache (← too)' },
+  { id: 'nextChat', config: 'next_chat_key', default: 'L', scope: 'reader', panes: ['answer'], command: 'nextSession',
+    label: 'Next conversation', hint: 'ask: the next saved conversation, wrapping — 3L walks three' },
+  { id: 'previousChat', config: 'previous_chat_key', default: 'H', scope: 'reader', panes: ['answer'], command: 'previousSession',
+    label: 'Previous conversation', hint: 'ask: the conversation before, wrapping' },
   { id: 'insert', config: 'insert_key', default: 'gi', scope: 'reader', command: 'insert',
     label: 'Back to the field', hint: 'results and answer: return to the field in insert mode (i and a do too)' },
   { id: 'normal', config: 'normal_key', default: 'gn', scope: 'reader', command: 'fieldNormal',
@@ -185,6 +189,23 @@ export function normalizeBinding (action, raw) {
  * so adding an action is an entry in ACTIONS and nothing else. Null settings —
  * or an unparseable one — give that key its default.
  */
+/**
+ * The two conversation keys as chords, for the field: it walks the ring in
+ * normal mode as the answer does, so it has to know what they are bound to.
+ * Single-character chords only — a two-key binding belongs to the panes, where
+ * a pending prefix exists.
+ */
+export function chatChords (settings) {
+  const chords = {}
+  for (const id of ['nextChat', 'previousChat']) {
+    const action = actionById(id)
+    const raw = settings && settings[settingKey(action)] ? settings[settingKey(action)] : action.default
+    const chord = parseBinding(action, raw) || parseBinding(action, action.default)
+    if (chord && chord.length === 1) chords[id] = chord
+  }
+  return chords
+}
+
 export function panelChords (settings) {
   const chords = {}
   for (let i = 0; i < ACTIONS.length; i++) {

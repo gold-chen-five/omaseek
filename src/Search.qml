@@ -32,6 +32,8 @@ Item {
 
   // Every panel key, parsed, by action id; each falls back to its default.
   readonly property var chords: Keybinds.panelChords(config.settings)
+  // The answer's conversation keys; the field walks the ring with them too.
+  readonly property var chatChords: Keybinds.chatChords(config.settings)
   readonly property string clearSessionsKeyText: config.settings.clearSessionsKey || "ctrl+shift+x"
   property bool clearArmed: false              // the first press; the second forgets them
   property int historyIndex: -1                // where the query walk sits; -1 is what was typed
@@ -497,6 +499,7 @@ Item {
                 escapeSequences: config.keymap.sequences
                 escapeTimeout: config.keymap.timeoutMs
                 chords: root.chords
+                chatChords: root.chatChords
 
                 onSubmitted: root.runSearch()
                 onCancelled: root.dismiss()

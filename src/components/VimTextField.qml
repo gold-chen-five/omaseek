@@ -80,6 +80,9 @@ TextArea {
   signal newSessionRequested()              // the new-session chord: start over
   signal nextSessionRequested()             // the next saved conversation
   signal sessionWalked(int delta)           // L / H in normal mode: through the ring
+
+  // The answer's two conversation keys, so normal mode here walks the ring too.
+  property var chatChords: ({})
   signal closeSessionRequested()            // forget this conversation
   signal clearSessionsRequested()           // forget all of them
   signal linkOpened(string url)             // gx: the URL under the cursor, or selected
@@ -479,6 +482,11 @@ TextArea {
 
   function handleNormalKey (key) {
     const count = takeCount(1)
+    // The conversation keys, as the answer reads them: only ask mode has a ring,
+    // so the panel ignores these while it is searching. Vim's H and L jump to
+    // the top and bottom of the screen, which one line has no use for.
+    if (key === chatChords.nextChat) { field.sessionWalked(count); return }
+    if (key === chatChords.previousChat) { field.sessionWalked(-count); return }
     const pos = mode === "visual" && visualLinewise ? visualCursor : cursorPosition
     const step = (motion, big) => Motions.repeat(at => motion(text, at, big), count, pos)
     if ("fFtT;,".indexOf(key) === -1) repeatFindReady = false
@@ -531,12 +539,6 @@ TextArea {
         select(pos, pos + 1)
       }
       return
-
-    // The ring, as the answer walks it: only ask mode has conversations, so the
-    // panel drops these when it is searching. Vim's H and L jump to the top and
-    // bottom of the screen, which one line has no use for.
-    case "L": field.sessionWalked(count); return
-    case "H": field.sessionWalked(-count); return
 
     // motions
     case "h": applyMotion(Math.max(0, pos - count), false); return
