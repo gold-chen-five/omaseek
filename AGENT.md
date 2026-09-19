@@ -299,6 +299,19 @@ and travels in the prompt (last 8 turns) because print mode remembers nothing.
 That is also why switching agents mid-conversation (shift+tab, `nextAgent`)
 needs nothing more: the next question carries the earlier turns to whichever
 agent is chosen, whoever wrote them.
+
+**Effort is a flag, never a config write.** Settings keeps a level per agent
+(`chat_efforts`, and `translate_efforts` apart from it, since a deep effort
+only slows a translation), and `with_effort` puts it on the command line of
+each process `bin/ask` starts — `--effort` for claude and copilot, `-c
+model_reasoning_effort=` for codex, `--variant` for opencode — so it reaches
+the answer and the hand-off but never an agent already running. Writing the
+CLI's own config would have changed agents the user starts by hand too. The
+levels are `efforts` in `AGENTS`, mirrored as `EFFORT_CHOICES` in
+`choices.mjs` (a test compares them). OpenCode's TUI takes no `--variant`
+(`launch_effort: False`, as crush's `launch_model`); cursor puts effort in the
+model name; copilot refuses one while its model is `auto`.
+
 The payload goes in as `--json '<object>'`, not stdin. Launchers: `terminal`
 (`omarchy-launch-tui`), `tmux` (new window in the *Work* session), `herdr`
 (`herdr tab create` → `herdr pane run`).

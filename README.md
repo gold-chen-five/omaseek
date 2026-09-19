@@ -72,9 +72,11 @@ ten conversations, which survive a restart.
 
 - **Search** — start or stop SearXNG, update its image, language and region,
   results per page.
-- **Ask** — the agent, its model, streaming, and where a hand-off opens.
+- **Ask** — the agent, its model and reasoning effort, streaming, and where a
+  hand-off opens. Effort goes on the command line of each agent omaseek starts,
+  so an agent you already have open keeps its own.
 - **Translate** — the language translations go into (the search language by
-  default, else 繁體中文), and the agent and model that translate them.
+  default, else 繁體中文), and the agent, model and effort that translate them.
 - **Display** — line numbers and page numbers, relative or absolute.
 - **Keys** — every binding.
 - **Engines** — which engines SearXNG asks: Google CSE, Bing, Brave and
