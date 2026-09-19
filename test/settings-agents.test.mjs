@@ -110,3 +110,25 @@ test('Translate follows the search language and Ask’s agent until told otherwi
   assert.match(rows.find(r => r.key === 'translateLanguage').hint, /into 日本語/)
   assert.equal(rows.find(r => r.key === 'translateModel:codex').value, 'default')
 })
+
+test('effort edits keep a level per agent, only one its flag takes', () => {
+  const agents = { agents: [{ id: 'claude' }, { id: 'gemini' }, { id: 'cursor-agent' }], default: 'claude' }
+  const source = '{"chat_efforts":{"claude":"high","codex":"ultra","gemini":"high"},"extra":1}'
+  let settings = readSettings(source)
+  assert.deepEqual(settings.chatEfforts, { claude: 'high' })
+  const row = () => settingsRows(settings, 'running', agents, null).find(r => r.label === 'Effort')
+  assert.equal(row().key, 'chatEffort:claude')
+  assert.equal(row().value, 'high')
+  assert.deepEqual(row().options, ['default', 'low', 'medium', 'high', 'xhigh', 'max'])
+  settings = changeSetting(settings, 'chatEffort:claude', 'max')
+  settings = changeSetting(settings, 'chatEffort:gemini', 'high')
+  let saved = writeSettings(settings, source)
+  assert.deepEqual(JSON.parse(saved).chat_efforts, { claude: 'max' })
+  assert.equal(JSON.parse(saved).extra, 1)
+  settings = changeSetting(readSettings(saved), 'chatEffort:claude', 'default')
+  assert.deepEqual(JSON.parse(writeSettings(settings, saved)).chat_efforts, {})
+  settings = changeSetting(settings, 'chatAgent', 'gemini')
+  assert.deepEqual(row().options, ['default'])
+  settings = changeSetting(settings, 'chatAgent', 'cursor-agent')
+  assert.match(row().hint, /model name/)
+})

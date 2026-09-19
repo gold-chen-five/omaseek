@@ -6,7 +6,7 @@ import sys
 from .agents import installed_agents, omarchy_default, resolve_agent
 from .config import emit, fail, read_config, read_payload
 from .handoff import chosen_launcher, hand_off, launch_terminal, login_line, shell_line
-from .models import chosen_model, list_models, with_model
+from .models import chosen_effort, chosen_model, list_models, with_effort, with_model
 from .prompts import build_prompt, build_translation_prompt, translate_target, without_web
 from .run import run_chat, run_chat_outcome
 from .stream import stream_chat
@@ -62,7 +62,7 @@ def main():
         emit(list_models(agent))
         return
     model = chosen_model(payload, config, agent)
-    agent = with_model(agent, model)
+    agent = with_effort(with_model(agent, model), chosen_effort(payload, config, agent))
 
     if argv and argv[0] == "--login":
         launcher = chosen_launcher(payload, config)

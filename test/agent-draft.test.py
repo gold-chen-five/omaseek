@@ -210,6 +210,57 @@ class DraftTests(unittest.TestCase):
                     os.unlink(command[1])
                 self.assertIs(ASK['with_model'](original, ''), original)
 
+    def test_effort_selection_keeps_only_a_level_the_flag_takes(self):
+        choose = ASK['chosen_effort']
+        claude = CLAUDE
+        gemini = next(a for a in ASK['AGENTS'] if a['id'] == 'gemini')
+        config = {'chat_efforts': {'claude': 'high', 'gemini': 'high'}}
+        self.assertEqual(choose({}, config, claude), 'high')
+        self.assertEqual(choose({}, config, gemini), '', 'gemini has no effort flag')
+        self.assertEqual(choose({'effort': 'max'}, config, claude), 'max')
+        self.assertEqual(choose({'effort': 'ultra'}, config, claude), '')
+        for efforts in (None, [], 'high', {'claude': 42}, {'claude': '--yolo'}):
+            self.assertEqual(choose({}, {'chat_efforts': efforts}, claude), '')
+
+    def test_effort_reaches_chat_and_draft_on_their_own_command_lines(self):
+        expected = {'claude': ['--effort', 'high'], 'copilot': ['--effort', 'high'],
+                    'codex': ['-c', 'model_reasoning_effort="high"'], 'opencode': ['--variant', 'high']}
+        for original in ASK['AGENTS']:
+            with self.subTest(agent=original['id']):
+                agent = ASK['with_effort'](ASK['with_model'](original, 'some-model'), 'high')
+                flags = expected.get(original['id'])
+                if flags is None:
+                    self.assertEqual(agent['chat'], ASK['with_model'](original, 'some-model')['chat'])
+                    continue
+                for kind in ('chat', 'stream'):
+                    if kind in agent:
+                        command = agent[kind]
+                        at = command.index(flags[0])
+                        self.assertEqual(command[at:at + 2], flags)
+                        if original[kind][-1] in ('-p', '-q', '--'):
+                            self.assertEqual(command[-1], original[kind][-1], 'the prompt flag stays last')
+                command = ASK['interactive_command'](agent, 'draft text')
+                try:
+                    if original.get('launch_effort') is False:
+                        self.assertNotIn(flags[0], command)
+                    else:
+                        at = command.index(flags[0])
+                        self.assertEqual(command[at:at + 2], flags)
+                finally:
+                    os.unlink(command[1])
+                self.assertIs(ASK['with_effort'](original, ''), original)
+                self.assertIs(ASK['with_effort'](original, 'ultra'), original)
+
+    def test_effort_levels_mirror_the_panel(self):
+        source = (ROOT / 'src/settings/choices.mjs').read_text()
+        block = source[source.index('EFFORT_CHOICES = {'):]
+        block = block[:block.index('}')]
+        import re
+        panel = {agent: re.findall(r"'([^']+)'", levels)
+                 for agent, levels in re.findall(r"'?([\w-]+)'?: \[([^\]]*)\]", block)}
+        backend = {a['id']: a['efforts'] for a in ASK['AGENTS'] if 'efforts' in a}
+        self.assertEqual(panel, backend)
+
     def test_bracketed_paste_has_no_submit_or_embedded_escape(self):
         pasted = DRAFT['paste_bytes']('one\r\ntwo\x1b[201~\x03')
         self.assertEqual(pasted, b'\x1b[200~one\ntwo[201~\x1b[201~')

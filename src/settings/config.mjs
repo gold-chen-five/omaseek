@@ -8,7 +8,7 @@ import { ACTIONS, settingKey, normalizeBinding } from '../shared/vim/keybinds.mj
 import { FOLLOW_SEARCH, readTarget } from '../translate/translate.mjs'
 import {
   LINE_NUMBER_CHOICES, PAGE_NUMBER_CHOICES, PAGE_SIZE_CHOICES, DEFAULT_ENGINES, LANGUAGE_CHOICES,
-  LANGUAGE_PATTERN, LAUNCHER_CHOICES, DEFAULT_AGENT, SAME_AS_ASK, DEFAULTS
+  LANGUAGE_PATTERN, LAUNCHER_CHOICES, DEFAULT_AGENT, SAME_AS_ASK, EFFORT_CHOICES, DEFAULTS
 } from './choices.mjs'
 
 export function oneOf (value, choices, fallback) {
@@ -29,6 +29,7 @@ export function readSettings (source) {
     pageNumbers: oneOf(config.page_numbers, PAGE_NUMBER_CHOICES, DEFAULTS.pageNumbers),
     chatAgent: agentId(config.chat_agent),
     chatModels: readModels(config.chat_models),
+    chatEfforts: readEfforts(config.chat_efforts),
     launcher: oneOf(config.launcher, LAUNCHER_CHOICES, DEFAULTS.launcher),
     // On unless it was deliberately turned off: an agent that cannot stream
     // falls back on its own, so this is only for turning the behaviour off.
@@ -101,6 +102,18 @@ export function readModels (value) {
   return models
 }
 
+// Only a level the agent's flag takes is kept; the rest is its CLI's own.
+export function readEfforts (value) {
+  const efforts = {}
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return efforts
+  const ids = Object.keys(value)
+  for (let i = 0; i < ids.length; i++) {
+    const levels = EFFORT_CHOICES[ids[i]]
+    if (Array.isArray(levels) && levels.indexOf(value[ids[i]]) !== -1) efforts[ids[i]] = value[ids[i]]
+  }
+  return efforts
+}
+
 /** A model row targets the resolved agent, even when Agent is set to default. */
 export function changeSetting (settings, key, value) {
   const next = Object.assign({}, settings)
@@ -112,6 +125,14 @@ export function changeSetting (settings, key, value) {
       if (model) next.translateModels[id] = model
       else delete next.translateModels[id]
     }
+    return next
+  }
+  if (key.indexOf('chatEffort:') === 0) {
+    const id = key.slice('chatEffort:'.length)
+    next.chatEfforts = readEfforts(settings.chatEfforts)
+    const levels = EFFORT_CHOICES[id]
+    if (Array.isArray(levels) && levels.indexOf(value) !== -1) next.chatEfforts[id] = value
+    else delete next.chatEfforts[id]
     return next
   }
   if (key.indexOf('chatModel:') === 0) {
@@ -136,6 +157,7 @@ export function writeSettings (settings, source) {
   config.page_numbers = oneOf(settings.pageNumbers, PAGE_NUMBER_CHOICES, DEFAULTS.pageNumbers)
   config.chat_agent = agentId(settings.chatAgent)
   config.chat_models = readModels(settings.chatModels)
+  config.chat_efforts = readEfforts(settings.chatEfforts)
   config.launcher = oneOf(settings.launcher, LAUNCHER_CHOICES, DEFAULTS.launcher)
   config.stream = settings.stream !== false
   config.searxng_engines = readEngines(settings.searxngEngines)

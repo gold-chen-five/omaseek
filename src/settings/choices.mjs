@@ -48,6 +48,15 @@ export const LANGUAGE_PATTERN = /^(default|auto|all|[a-z]{2,3}(-[A-Z]{2})?)$/
 // (bin/ask --agents), so they are not declared here.
 export const LAUNCHER_CHOICES = ['terminal', 'tmux', 'herdr']
 export const DEFAULT_AGENT = 'default'
+// The reasoning-effort levels each agent's CLI takes on its command line, by
+// agent id; one missing has no such flag. Mirrored as `efforts` in AGENTS in
+// backend/omaseek/ask/agents.py; change both.
+export const EFFORT_CHOICES = {
+  claude: ['low', 'medium', 'high', 'xhigh', 'max'],
+  codex: ['low', 'medium', 'high', 'xhigh', 'max'],
+  opencode: ['minimal', 'low', 'medium', 'high', 'max'],
+  copilot: ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']
+}
 // Translate with: the first option, stored as 'same' — whoever Ask uses.
 export const SAME_AS_ASK = 'same as Ask'
 
@@ -59,6 +68,7 @@ export const DEFAULTS = {
   pageNumbers: PAGE_NUMBER_CHOICES[0],
   chatAgent: DEFAULT_AGENT,
   chatModels: {},
+  chatEfforts: {},
   launcher: LAUNCHER_CHOICES[0],
   stream: true,
   searxngEngines: DEFAULT_ENGINES,

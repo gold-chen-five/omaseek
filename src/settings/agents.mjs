@@ -1,8 +1,8 @@
 // Who answers, given what discovery found: the agent Ask uses, the one that
 // translates, the model each is given, and the next one shift+tab moves to.
 
-import { agentId, modelId, readModels } from './config.mjs'
-import { DEFAULT_AGENT, SAME_AS_ASK } from './choices.mjs'
+import { agentId, modelId, readModels, readEfforts } from './config.mjs'
+import { DEFAULT_AGENT, SAME_AS_ASK, EFFORT_CHOICES } from './choices.mjs'
 
 // Who answers, given what discovery found: the installed ids, and the one that
 // stands in for 'default'. Read by the model row and by the model handed to the
@@ -26,6 +26,14 @@ export function modelSelection (settings, agent, catalog, stored = 'chatModels')
     if (id && options.indexOf(id) === -1) options.push(id)
   }
   const saved = readModels(settings[stored])[agent] || ''
+  return { options: options, value: options.indexOf(saved) !== -1 ? saved : 'default' }
+}
+
+/** The effort row: 'default', then the levels the agent's flag takes, if any. */
+export function effortSelection (settings, agent) {
+  const levels = EFFORT_CHOICES[agent]
+  const options = ['default'].concat(Array.isArray(levels) ? levels : [])
+  const saved = readEfforts(settings.chatEfforts)[agent] || ''
   return { options: options, value: options.indexOf(saved) !== -1 ? saved : 'default' }
 }
 

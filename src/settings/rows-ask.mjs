@@ -1,13 +1,13 @@
-// The Ask, Translate and Display sections: who answers and with which model,
+// The Ask, Translate and Display sections: who answers, with which model and effort,
 // who translates and into what, and how lines and pages are numbered.
 
 import {
   LAUNCHER_CHOICES, DEFAULT_AGENT, SAME_AS_ASK, LINE_NUMBER_CHOICES, PAGE_NUMBER_CHOICES
 } from './choices.mjs'
-import { agentChoices, modelSelection, translateAgentOf } from './agents.mjs'
+import { agentChoices, modelSelection, effortSelection, translateAgentOf } from './agents.mjs'
 import { TRANSLATE_LANGUAGES, FOLLOW_SEARCH, defaultTarget, targetLabel, readTarget } from '../translate/translate.mjs'
 
-/** The agent, its model, streaming, and where a hand-off opens. */
+/** The agent, its model and effort, streaming, and where a hand-off opens. */
 export function askRows (settings, agents, catalog) {
   const { known, ids, defaultId } = agentChoices(agents)
   const chatAgent = settings.chatAgent === DEFAULT_AGENT || ids.indexOf(settings.chatAgent) !== -1
@@ -15,6 +15,7 @@ export function askRows (settings, agents, catalog) {
     : DEFAULT_AGENT
   const modelAgent = chatAgent !== DEFAULT_AGENT ? chatAgent : defaultId
   const model = modelSelection(settings, modelAgent, catalog)
+  const effort = effortSelection(settings, modelAgent)
   return [
     {
       key: 'chatAgent',
@@ -38,6 +39,23 @@ export function askRows (settings, agents, catalog) {
         : 'choose an installed agent first',
       options: model.options,
       value: model.value
+    },
+    {
+      key: 'chatEffort:' + modelAgent,
+      type: 'choice',
+      control: 'dropdown',
+      label: 'Effort',
+      hint: !modelAgent ? 'choose an installed agent first'
+        : effort.options.length === 1
+          ? (modelAgent === 'cursor-agent'
+              ? 'cursor-agent reads effort from the model name — choose it under Model'
+              : `${modelAgent} takes no effort on its command line; it uses its own setting`)
+          : `${modelAgent} — default uses the CLI's own; only omaseek's questions`
+            + (modelAgent === 'opencode' ? ', not hand-offs, whose TUI takes no --variant' : ' and hand-offs')
+            + ', never an agent already open'
+            + (modelAgent === 'copilot' ? ' · needs a model chosen, since auto takes none' : ''),
+      options: effort.options,
+      value: effort.value
     },
     {
       key: 'stream',

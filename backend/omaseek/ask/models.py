@@ -105,23 +105,47 @@ def list_models(agent):
     return {"ok": done.returncode == 0, "agent": agent_id, "models": models, "message": message}
 
 
-def with_model(agent, model):
-    """All supported CLIs accept --model, before the prompt-consuming flags.
+def chosen_effort(payload, config, agent):
+    """The level from the payload, else Settings' chat_efforts; '' — the CLI's
+    own — for anything its flag does not take. Translation never asks for one."""
+    if "effort" in payload:
+        value = payload.get("effort")
+    else:
+        efforts = config.get("chat_efforts")
+        value = efforts.get(agent["id"]) if isinstance(efforts, dict) else ""
+    return value if isinstance(value, str) and value in agent.get("efforts", []) else ""
+
+
+def with_flags(agent, flags, launch=True):
+    """`flags` before the prompt-consuming flags, in every print-mode command
+    and — unless `launch` is False — the interactive one.
 
     Keep the trailing prompt flag / -- in place: the chat appends its prompt,
     and the draft launcher removes that flag before starting an empty editor.
-    Login/setup commands keep their own model-selection flow.
+    Login/setup commands keep their own flow.
     """
-    if not model:
-        return agent
     selected = dict(agent)
     for kind in ("chat", "stream", "launch"):
-        if kind not in agent:
-            continue
-        if kind == "launch" and agent.get("launch_model") is False:
+        if kind not in agent or (kind == "launch" and not launch):
             continue
         command = list(agent[kind])
         at = 2 if command[1] in ("exec", "run", "chat") else 1
-        command[at:at] = ["--model", model]
+        command[at:at] = flags
         selected[kind] = command
     return selected
+
+
+def with_model(agent, model):
+    """All supported CLIs accept --model."""
+    if not model:
+        return agent
+    return with_flags(agent, ["--model", model], agent.get("launch_model") is not False)
+
+
+def with_effort(agent, effort):
+    """Each process is given its level on its own command line, so an agent
+    already open elsewhere keeps the effort it has."""
+    if not effort or effort not in agent.get("efforts", []):
+        return agent
+    flags = [part.replace("{}", effort) for part in agent["effort"]]
+    return with_flags(agent, flags, agent.get("launch_effort") is not False)

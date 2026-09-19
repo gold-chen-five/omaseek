@@ -11,6 +11,8 @@ from .config import fail
 
 # In omarchy-default-agent's order. `chat` is the print-mode command with the
 # prompt appended; `launch` is the interactive one, from omarchy-agent.
+# `efforts` are the levels its `effort` flag takes ({} is the level), mirrored
+# as EFFORT_CHOICES in src/settings/choices.mjs; change both.
 AGENTS = [
     {
         "id": "claude", "name": "Claude Code",
@@ -23,6 +25,8 @@ AGENTS = [
                    "--allowedTools", "WebSearch", "WebFetch", "--"],
         "stream_format": "claude",
         "launch": ["claude", "--permission-mode", "auto", "--"],
+        "effort": ["--effort", "{}"],
+        "efforts": ["low", "medium", "high", "xhigh", "max"],
         "login": ["claude", "auth", "login"],
     },
     {
@@ -33,6 +37,9 @@ AGENTS = [
         # reply arrives whole in one item.completed at the end — so streaming it
         # would buy nothing but tool chatter. It takes the whole-answer path.
         "launch": ["codex", "--approve-for-me", "--"],
+        # No flag of its own: -c overrides config.toml for this process only.
+        "effort": ["-c", 'model_reasoning_effort="{}"'],
+        "efforts": ["low", "medium", "high", "xhigh", "max"],
         "login": ["codex", "login"],
     },
     {
@@ -55,6 +62,11 @@ AGENTS = [
         "id": "opencode", "name": "OpenCode",
         "chat": ["opencode", "run"],
         "launch": ["opencode", "--auto", "--prompt"],
+        # A variant is the provider's reasoning effort. Only `opencode run`
+        # takes --variant, so a hand-off opens on the TUI's own choice.
+        "effort": ["--variant", "{}"],
+        "efforts": ["minimal", "low", "medium", "high", "max"],
+        "launch_effort": False,
         "login": ["opencode", "auth", "login"],
     },
     {
@@ -77,6 +89,8 @@ AGENTS = [
         "id": "copilot", "name": "GitHub Copilot",
         "chat": ["copilot", "-p"],
         "launch": ["copilot", "--allow-all", "--interactive"],
+        "effort": ["--effort", "{}"],
+        "efforts": ["none", "minimal", "low", "medium", "high", "xhigh", "max"],
         "login": ["copilot", "login"],
     },
     {
