@@ -14,12 +14,10 @@ set -euo pipefail
 REPO=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 PLUGIN_ID=omaseek
 PLUGINS_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins"
-BINDINGS="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/bindings.lua"
 SHELL_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/shell.json"
 MENU_EXT="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/extensions/omarchy-menu.jsonc"
 
 BIND_KEY="SUPER + D"
-BIND_LINE="o.bind(\"$BIND_KEY\", \"Search\", \"omarchy-shell shell toggle $PLUGIN_ID\")"
 LEGACY_MENU_LINE="  \"$PLUGIN_ID\": {\"icon\":\"\",\"label\":\"Search\",\"action\":\"omarchy-shell shell toggle $PLUGIN_ID\",\"description\":\"Web search and AI, with vim keys\"},"
 
 do_bind=1
@@ -88,23 +86,11 @@ say "enabled and added the search icon to the middle of the bar"
 
 # ---- the keybind ------------------------------------------------------------
 #
+# bin/keybind is the one place the line is written: Settings → Keys adds it too.
 # Left alone when SUPER + D is already bound to something else.
 
 if (( do_bind )); then
-  if [[ ! -f $BINDINGS ]]; then
-    say "no $BINDINGS — add this yourself:"
-    say "    $BIND_LINE"
-  elif grep -qF "toggle $PLUGIN_ID" "$BINDINGS"; then
-    say "keybind already there"
-  elif grep -qE "^[^-]*o\.bind\(\"SUPER[[:space:]]*\+[[:space:]]*D\"" "$BINDINGS"; then
-    say "SUPER + D is already bound to something else — left alone. To use it:"
-    say "    $BIND_LINE"
-  else
-    cp "$BINDINGS" "$BINDINGS.omaseek-backup"
-    printf '\n-- omaseek\n%s\n' "$BIND_LINE" >>"$BINDINGS"
-    say "bound $BIND_KEY (backup: $BINDINGS.omaseek-backup)"
-    hyprctl reload >/dev/null 2>&1 && say "reloaded hyprland" || say "run: hyprctl reload"
-  fi
+  "$REPO/bin/keybind" --add --yes
 fi
 
 # ---- old menu entry ---------------------------------------------------------

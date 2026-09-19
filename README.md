@@ -15,11 +15,12 @@ omarchy plugin add https://github.com/gold-chen-five/omaseek.git --enable
 Not in the Omarchy plugin marketplace yet, hence the repository URL. Plugins run
 unsandboxed inside `omarchy-shell`, so read the code before enabling it.
 
-**The keybind.** A plugin cannot edit your Hyprland config, so add this to
-`~/.config/hypr/bindings.lua` and run `hyprctl reload` — or run
-`~/.config/omarchy/plugins/omaseek/bin/install`, which appends it with a backup
-and leaves `SUPER + D` alone if you have already bound it. The bar icon opens
-the panel either way.
+**The keybind.** A plugin cannot bind a key on install, so the bar icon opens
+the panel at first. For `SUPER + D`, open Settings (`ctrl+s`) → Keys → **Open
+omaseek with** → **Add**: a terminal shows the line below, asks, backs up
+`~/.config/hypr/bindings.lua`, appends it and reloads Hyprland. It is offered
+only while `SUPER + D` is free; a key you already bound is never replaced. Or
+add the line yourself:
 
 ```lua
 o.bind("SUPER + D", "Search", "omarchy-shell shell toggle omaseek")
@@ -94,9 +95,10 @@ omarchy-restart-shell     # a loaded panel keeps its old code until then
 omarchy plugin remove omaseek
 ```
 
-A terminal opens and asks whether the SearXNG container and image should go
-too. `bin/uninstall` does the same from a terminal you already have open, and
-also removes the keybind `bin/install` added.
+A terminal opens and asks whether to take out the `SUPER + D` line omaseek
+added, and whether the SearXNG container and image should go too. A binding you
+wrote yourself is left alone. `bin/uninstall` does the same from a terminal you
+already have open.
 
 Left for you to delete: `~/.config/omaseek`, `~/.local/share/omaseek`,
 `~/.cache/omaseek` and `~/.config/searxng`.
@@ -120,8 +122,9 @@ Left for you to delete: `~/.config/omaseek`, `~/.local/share/omaseek`,
   telemetry.
 - **Files** — `~/.config/omaseek`, `~/.local/share/omaseek`, `~/.cache/omaseek`,
   `~/.config/searxng`, and removal scripts under `$XDG_RUNTIME_DIR`. Your
-  Hyprland config is touched only by `bin/install` and `bin/uninstall`, with a
-  backup.
+  Hyprland config is touched only when you ask — Settings → Keys → Add,
+  `bin/install`, or yes at removal — always through `bin/keybind`, one line,
+  with a backup.
 - **Hand-offs** open the agent's interactive CLI with the same auto-approve
   flags `omarchy-agent` uses. The prompt waits there as an editable draft;
   nothing is submitted for you.

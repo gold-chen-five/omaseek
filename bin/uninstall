@@ -14,8 +14,6 @@ set -euo pipefail
 
 REPO=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 PLUGIN_ID=omaseek
-BINDINGS="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/bindings.lua"
-BIND_LINE="o.bind(\"SUPER + D\", \"Search\", \"omarchy-shell shell toggle $PLUGIN_ID\")"
 SEARXNG_NAME=searxng
 SEARXNG_IMAGE=searxng/searxng:latest
 # bin/on-remove reads this: the question was put here, so it is not put twice.
@@ -74,13 +72,8 @@ elif searxng_present; then
   say "    docker rm -f $SEARXNG_NAME && docker image rm $SEARXNG_IMAGE"
 fi
 
-# Only the exact lines bin/install appends; a binding written by hand stays.
-if [[ -f $BINDINGS ]] && grep -qxF "$BIND_LINE" "$BINDINGS"; then
-  cp "$BINDINGS" "$BINDINGS.omaseek-backup"
-  awk -v line="$BIND_LINE" '$0 != line && $0 != "-- omaseek"' "$BINDINGS.omaseek-backup" >"$BINDINGS"
-  say "removed the SUPER + D keybind (backup: $BINDINGS.omaseek-backup)"
-  hyprctl reload >/dev/null 2>&1 || say "run: hyprctl reload"
-fi
+# Only the exact line bin/keybind adds; a binding written by hand stays.
+"$REPO/bin/keybind" --remove
 
 # Omarchy disables it, takes it off the bar, and deletes the clone.
 if [[ -n ${XDG_RUNTIME_DIR:-} ]]; then

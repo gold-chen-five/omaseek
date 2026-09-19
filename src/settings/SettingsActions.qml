@@ -3,12 +3,13 @@ import "settings.mjs" as SettingsLib
 
 // What the settings page's switches and buttons do, and what changing a value
 // sets off. The page raises intent — this key, this action — and knows nothing
-// of the instance or the config file; this does.
+// of the instance, the config file or the Hyprland bindings; this does.
 Item {
   id: actions
 
   property var config: null
   property var engine: null
+  property var shortcut: null
 
   // A value changed on the page. The engine reports describe the engines and
   // language as they were, so a new language clears them.
@@ -29,6 +30,10 @@ Item {
     }
     if (key === "engineTest" && action === "test") {
       engine.runTest()
+      return
+    }
+    if (key === "shortcut" && action === "add") {
+      shortcut.add()
       return
     }
     if (key === "engineSpeed" && action === "time") {

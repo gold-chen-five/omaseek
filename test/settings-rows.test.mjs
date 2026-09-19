@@ -7,7 +7,7 @@ import {
   readSettings, writeSettings, settingsRows, cycle, normalizeSequence, ENGINE_STATES,
   LAUNCHER_CHOICES, DEFAULT_AGENT,
   PAGE_SIZE_CHOICES, DEFAULTS, checkRow, FIXED_KEYS, changeSetting, selectedModel,
-  ENGINE_CHOICES, DEFAULT_ENGINES, LANGUAGE_CHOICES, toggleEngine, endpointTestText, searchSpeedText, versionText, nextAgent, translateAgentOf, SAME_AS_ASK
+  ENGINE_CHOICES, DEFAULT_ENGINES, LANGUAGE_CHOICES, toggleEngine, endpointTestText, searchSpeedText, versionText, nextAgent, translateAgentOf, SAME_AS_ASK, shortcutRow
 } from '../src/settings/settings.mjs'
 import { ACTIONS, settingKey } from '../src/shared/vim/keybinds.mjs'
 import { DEFAULT_TIMEOUT_MS } from '../src/shared/vim/keymap.mjs'
@@ -176,4 +176,27 @@ test('the page squares have a numbering of their own, apart from the lines', () 
   assert.equal(readSettings('{"line_numbers":"relative"}').pageNumbers, 'absolute', 'the two are set apart')
   const written = JSON.parse(writeSettings(changeSetting(readSettings(''), 'pageNumbers', 'relative'), ''))
   assert.equal(written.page_numbers, 'relative')
+})
+
+test('the shortcut row offers Add only while SUPER + D is free, and heads the keys', () => {
+  const free = shortcutRow({ ok: true, state: 'free', key: 'SUPER + D' })
+  assert.equal(free.type, 'action')
+  assert.equal(free.action, 'add')
+  assert.match(free.hint, /asks before writing/)
+
+  const bound = shortcutRow({ ok: true, state: 'bound', key: 'SUPER + S' })
+  assert.equal(bound.type, 'info', 'nothing to press once it is there')
+  assert.match(bound.hint, /^SUPER \+ S/, 'a key the user chose is the one shown')
+
+  const taken = shortcutRow({ ok: true, state: 'taken', key: 'SUPER + D', holder: 'o.bind("SUPER + D", "Notes", "obsidian")' })
+  assert.equal(taken.type, 'info', 'a binding the user has is never offered for replacing')
+  assert.match(taken.hint, /already opens Notes/)
+
+  assert.equal(shortcutRow({ ok: true, state: 'missing' }).type, 'info')
+  assert.match(shortcutRow(null).hint, /checking/)
+  assert.match(shortcutRow({ ok: false }).hint, /could not read/)
+
+  const rows = settingsRows(readSettings(''), 'running', null, null, null, null, null, null, { ok: true, state: 'free' })
+  const keys = rows.findIndex(r => r.type === 'section' && r.label === 'Keys')
+  assert.equal(rows[keys + 1].key, 'shortcut')
 })

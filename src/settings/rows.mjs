@@ -13,19 +13,48 @@ import { askRows, translateRows, displayRows } from './rows-ask.mjs'
  * instance answers, not a stored setting. `test` is the last endpoint test, and
  * `version` the last version check; null before either ran.
  */
-export function settingsRows (settings, engine = 'unknown', agents = null, catalog = null, test = null, version = null, speed = null, translateCatalog = null) {
+export function settingsRows (settings, engine = 'unknown', agents = null, catalog = null, test = null, version = null, speed = null, translateCatalog = null, shortcut = null) {
   const state = ENGINE_STATES.indexOf(engine) === -1 ? 'unknown' : engine
   return [].concat(
     [{ type: 'section', label: 'Search' }], searchRows(settings, state, version),
     [{ type: 'section', label: 'Ask' }], askRows(settings, agents, catalog),
     [{ type: 'section', label: 'Translate' }], translateRows(settings, agents, translateCatalog),
     [{ type: 'section', label: 'Display' }], displayRows(settings),
-    [{ type: 'section', label: 'Keys' }], keyRows(settings),
+    [{ type: 'section', label: 'Keys' }], [shortcutRow(shortcut)], keyRows(settings),
     // The engine switches sit below the keys: they are set once, when a search
     // feels slow, while every row above is changed more often.
     [{ type: 'section', label: 'Engines' }], engineRows(settings, test, speed),
     [{ type: 'section', label: 'Fixed keys' }], fixedRows()
   )
+}
+
+/**
+ * The key that opens the panel, as bin/keybind --status found it. A plugin
+ * cannot bind one itself, so this is the only row that offers to change the
+ * user's own Hyprland config — and only while the key is free: a key already
+ * bound is described, never replaced. null before the check has answered.
+ */
+export function shortcutRow (status) {
+  const row = { key: 'shortcut', label: 'Open omaseek with' }
+  const state = status && status.ok ? status.state : status ? 'unreadable' : 'checking'
+  const key = status && status.key ? status.key : 'SUPER + D'
+  if (state === 'free') {
+    return Object.assign(row, {
+      type: 'action',
+      hint: `${key} is free — Add shows the line for your Hyprland bindings and asks before writing it`,
+      action: 'add',
+      button: 'Add'
+    })
+  }
+  const holder = status && status.holder ? /"[^"]*"\s*,\s*"([^"]*)"/.exec(status.holder) : null
+  const hints = {
+    checking: 'checking your Hyprland bindings…',
+    bound: `${key} — in your Hyprland bindings`,
+    taken: `${key} already opens ${holder ? holder[1] : 'something else'} — bind another key to omarchy-shell shell toggle omaseek`,
+    missing: 'no ~/.config/hypr/bindings.lua to add a key to — the bar icon opens it',
+    unreadable: 'could not read your Hyprland bindings — the bar icon opens it'
+  }
+  return Object.assign(row, { type: 'info', hint: hints[state] || hints.unreadable })
 }
 
 /** The escape sequence, then a row per rebindable key, in ACTIONS' order. */

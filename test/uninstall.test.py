@@ -33,7 +33,7 @@ class UninstallTests(unittest.TestCase):
         # A copy of the plugin's bin, so its searxng-up is the one that runs.
         self.plugin = base / "omaseek"
         (self.plugin / "bin").mkdir(parents=True)
-        for name in ("uninstall", "searxng-up"):
+        for name in ("uninstall", "searxng-up", "keybind"):
             shutil.copy2(ROOT / "bin" / name, self.plugin / "bin" / name)
 
         log = self.log
@@ -54,7 +54,7 @@ class UninstallTests(unittest.TestCase):
         path.chmod(0o755)
 
     def run_uninstall(self, *args, answers="", tty=False, path=None):
-        env = dict(os.environ, XDG_CONFIG_HOME=str(self.config), GUM_ANSWERS=answers,
+        env = dict(os.environ, XDG_CONFIG_HOME=str(self.config), OMARCHY_PATH=str(self.config / "no-omarchy"), GUM_ANSWERS=answers,
                    XDG_RUNTIME_DIR=str(self.runtime),
                    PATH=path or f"{self.fake_bin}:{os.environ['PATH']}")
         command = [str(self.plugin / "bin" / "uninstall"), *args]
@@ -93,7 +93,7 @@ class UninstallTests(unittest.TestCase):
     def test_without_docker_there_is_nothing_to_ask(self):
         (self.fake_bin / "docker").unlink()
         # Only the tools the script needs, so a real docker cannot be found.
-        for tool in ("bash", "env", "awk", "grep", "cp", "cut", "dirname", "mkdir", "touch", "rm", "script"):
+        for tool in ("bash", "env", "awk", "grep", "cp", "cut", "dirname", "mkdir", "touch", "rm", "script", "sed", "head", "find"):
             (self.fake_bin / tool).symlink_to(shutil.which(tool))
         done = self.run_uninstall(answers="y", tty=True, path=str(self.fake_bin))
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)

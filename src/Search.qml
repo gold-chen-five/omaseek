@@ -35,7 +35,7 @@ Item {
 
   readonly property Item input: card.field
   readonly property var settingsRows: SettingsLib.settingsRows(config.settings, engine.state, ai.agents, ai.models,
-    engine.test, engine.version, engine.speed, translator.models)
+    engine.test, engine.version, engine.speed, translator.models, shortcut.status)
   // Every panel key, parsed, by action id; and the keys the field reads in
   // normal mode beyond vim's (L, H, U, gt, gT). Each falls back to its default.
   readonly property var chords: Keybinds.panelChords(config.settings)
@@ -96,6 +96,7 @@ Item {
   function openSettings () {
     view = States.VIEW.SETTINGS
     engine.probe()
+    shortcut.probe()
     ai.probeAgents()
     card.settingsPage.open()
   }
@@ -221,6 +222,11 @@ Item {
     onLaunching: root.dismiss()                // the terminal takes the screen
   }
 
+  Shortcut {
+    id: shortcut
+    onLaunching: root.dismiss()
+  }
+
   SearchSession {
     id: session
     backendPath: engine.backendPath
@@ -267,6 +273,7 @@ Item {
     id: settingsActions
     config: config
     engine: engine
+    shortcut: shortcut
   }
 
   // The field's signals: what Enter, the arrows and the panel keys ask for.

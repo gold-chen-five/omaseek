@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+# SUPER + D for omaseek, in the user's own Hyprland bindings.
+#
+# A plugin cannot declare a keybinding — the manifest has no field for one, and
+# `omarchy plugin add` never touches Hyprland — so this is the one place the
+# binding is written, and only ever on a request: Settings → Keys → Add, or
+# bin/install. It appends one line, after a backup, and never replaces a
+# binding the user already has. Removal takes out exactly that line again.
+#
+#   bin/keybind --status        one JSON object: bound | free | taken | missing
+#   bin/keybind --add           show the line, ask, then add it (in a terminal)
+#   bin/keybind --add --yes     add it without asking (bin/install)
+#   bin/keybind --present       exit 0 when the line this script adds is there
+#   bin/keybind --remove        take that line out again
+
+set -uo pipefail
+
+PLUGIN_ID=omaseek
+KEY="SUPER + D"
+BINDINGS="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/bindings.lua"
+# Omarchy's own defaults: read to see whether a key is taken, never written.
+DEFAULTS="${OMARCHY_PATH:-/usr/share/omarchy}/default/hypr"
+LINE="o.bind(\"$KEY\", \"Search\", \"omarchy-shell shell toggle $PLUGIN_ID\")"
+MARK="-- omaseek"
+
+# Lua comments start with --, so a commented-out binding binds nothing.
+live_lines () { grep -hvE '^[[:space:]]*--' "$@" 2>/dev/null; }
+
+# The key a live line binds omaseek to, or nothing: a binding written by hand
+# counts, whatever key it chose.
+bound_key () {
+  live_lines "$BINDINGS" | grep -F "toggle $PLUGIN_ID" | head -1 \
+    | sed -nE 's/.*o\.bind\([[:space:]]*"([^"]+)".*/\1/p'
+}
+
+# Whatever already holds SUPER + D, as its line: the user's file, then Omarchy's.
+key_holder () {
+  local files=("$BINDINGS")
+  [[ -d $DEFAULTS ]] && while IFS= read -r f; do files+=("$f"); done < <(find "$DEFAULTS" -name '*.lua' 2>/dev/null)
+  live_lines "${files[@]}" | grep -E 'o\.bind\([[:space:]]*"SUPER[[:space:]]*\+[[:space:]]*D"' | head -1
+}
+
+json_string () { printf '"%s"' "$(printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"; }
+
+status () {
+  if [[ ! -f $BINDINGS ]]; then
+    printf '{"ok":true,"state":"missing","key":%s,"file":%s,"line":%s}\n' \
+      "$(json_string "$KEY")" "$(json_string "$BINDINGS")" "$(json_string "$LINE")"
+    return
+  fi
+  local bound holder
+  bound=$(bound_key)
+  if [[ -n $bound ]]; then
+    printf '{"ok":true,"state":"bound","key":%s,"file":%s}\n' "$(json_string "$bound")" "$(json_string "$BINDINGS")"
+    return
+  fi
+  holder=$(key_holder)
+  if [[ -n $holder ]]; then
+    printf '{"ok":true,"state":"taken","key":%s,"file":%s,"holder":%s}\n' \
+      "$(json_string "$KEY")" "$(json_string "$BINDINGS")" "$(json_string "$(echo "$holder" | sed -E 's/^[[:space:]]+//')")"
+    return
+  fi
+  printf '{"ok":true,"state":"free","key":%s,"file":%s}\n' "$(json_string "$KEY")" "$(json_string "$BINDINGS")"
+}
+
+say () { printf '  %s\n' "$1"; }
+
+reload () { hyprctl reload >/dev/null 2>&1 && say "reloaded hyprland" || say "run: hyprctl reload"; }
+
+add () {
+  local yes=$1
+  if [[ ! -f $BINDINGS ]]; then
+    say "no $BINDINGS — add this line to your Hyprland bindings yourself:"
+    say "    $LINE"
+    return 0
+  fi
+  local bound holder
+  bound=$(bound_key)
+  if [[ -n $bound ]]; then
+    say "keybind already there: $bound opens omaseek"
+    return 0
+  fi
+  holder=$(key_holder)
+  if [[ -n $holder ]]; then
+    say "$KEY is already bound to something else — left alone:"
+    say "    $(echo "$holder" | sed -E 's/^[[:space:]]+//')"
+    say "to open omaseek with another key, add to $BINDINGS:"
+    say "    ${LINE/SUPER + D/SUPER + <key>}"
+    return 0
+  fi
+  if (( ! yes )); then
+    printf '\033[1m==>\033[0m omaseek can open with %s. This adds one line to\n    %s\n\n    %s\n\n' "$KEY" "$BINDINGS" "$LINE"
+    if ! gum confirm "Add it? (the file is backed up first)"; then
+      say "left as it was"
+      return 0
+    fi
+  fi
+  cp "$BINDINGS" "$BINDINGS.omaseek-backup" || return 1
+  printf '\n%s\n%s\n' "$MARK" "$LINE" >>"$BINDINGS" || return 1
+  say "bound $KEY (backup: $BINDINGS.omaseek-backup)"
+  reload
+}
+
+present () { [[ -f $BINDINGS ]] && grep -qxF "$LINE" "$BINDINGS"; }
+
+# Only the exact line --add writes, and its marker; a binding written by hand stays.
+remove () {
+  present || return 0
+  cp "$BINDINGS" "$BINDINGS.omaseek-backup" || return 1
+  # The blank line --add puts before the marker goes with it.
+  awk -v line="$LINE" -v mark="$MARK" '
+    held { if ($0 != mark) print ""; held = 0 }
+    $0 == "" { held = 1; next }
+    $0 != line && $0 != mark { print }
+    END { if (held) print "" }
+  ' "$BINDINGS.omaseek-backup" >"$BINDINGS" || return 1
+  say "removed the $KEY keybind (backup: $BINDINGS.omaseek-backup)"
+  reload
+}
+
+case "${1:-}" in
+  --status)  status ;;
+  --add)     add "$([[ ${2:-} == --yes ]] && echo 1 || echo 0)" ;;
+  --present) present ;;
+  --remove)  remove ;;
+  -h|--help) awk 'NR > 1 { if ($0 !~ /^#/) exit; sub(/^# ?/, ""); print }' "$0" ;;
+  *) echo "usage: $0 --status | --add [--yes] | --present | --remove" >&2; exit 1 ;;
+esac

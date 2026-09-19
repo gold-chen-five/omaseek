@@ -46,7 +46,8 @@ class InstallTests(unittest.TestCase):
         self.plugin = self.config / "omarchy" / "plugins" / "omaseek"
         self.plugin.parent.mkdir(parents=True)
         subprocess.run(["git", "clone", "--quiet", str(ROOT), str(self.plugin)], check=True)
-        shutil.copy2(ROOT / "bin" / "install", self.plugin / "bin" / "install")
+        for name in ("install", "keybind"):
+            shutil.copy2(ROOT / "bin" / name, self.plugin / "bin" / name)
 
     def fake(self, name, body):
         path = self.fake_bin / name
@@ -55,7 +56,7 @@ class InstallTests(unittest.TestCase):
 
     def install(self):
         env = dict(os.environ, HOME=str(self.home), XDG_CONFIG_HOME=str(self.config),
-                   XDG_DATA_HOME=str(self.data), PATH=f"{self.fake_bin}:{os.environ['PATH']}")
+                   XDG_DATA_HOME=str(self.data), OMARCHY_PATH=str(self.home / "no-omarchy"), PATH=f"{self.fake_bin}:{os.environ['PATH']}")
         done = subprocess.run([str(self.plugin / "bin" / "install")], capture_output=True, text=True, env=env)
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
         return done.stdout + done.stderr

@@ -109,7 +109,7 @@ empty value restores the default.
 
 | key | does |
 |---|---|
-| `super+d` | summon or dismiss (Hyprland, not the panel — `omarchy-shell shell toggle omaseek`) |
+| `super+d` | summon or dismiss (Hyprland, not the panel — `omarchy-shell shell toggle omaseek`). Not bound on install: Settings → Keys → *Open omaseek with* → Add writes it, only while the key is free |
 | `ctrl+s` (Settings), `ctrl+,` | open or close settings |
 | `ctrl+k` (Look up keys) | every key in the panel as `key — what it does`, grouped by where it works and showing your current bindings. Type to filter — any words, in any case (`trans`, `ctrl+x`, `undo`); `↓` `↑`, `ctrl+n` `ctrl+p`, `ctrl+d` `ctrl+u` scroll; `esc` or `ctrl+k` closes it and the keyboard goes back where it was, in the mode it was in |
 | `tab` (Switch search / ask) | switch between searching and asking without changing Vim mode |

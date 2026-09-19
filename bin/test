@@ -12,5 +12,6 @@ python3 test/search.test.py
 python3 test/install.test.py
 python3 test/uninstall.test.py
 python3 test/on-remove.test.py
+python3 test/keybind.test.py
 python3 test/ask.test.py
 exec node --test test/*.test.mjs

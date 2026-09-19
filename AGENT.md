@@ -59,7 +59,7 @@ feature's folder holds its QML *and* its pure `.mjs` side by side.
 | `src/search/` | searching: `SearchSession`, `ResultList`/`ResultRow`, `PageTabs`, `HistoryStore`, and `search`, `history`, `pager` |
 | `src/ask/` | asking: `AiSession` and its parts (`AskTurns`, `AgentCli`), `ChatCommands`, `SessionStore`/`SessionTabs`, `AnswerView` with its parts in `ask/answer/`, and `sessions`, `transcript`, `markdown` |
 | `src/translate/` | `Translator`, `TranslatePanel`, `translate.mjs` |
-| `src/settings/` | `SettingsPage`, `SettingRow`, `SettingsDropdown`, `SettingsRows`, `ConfigStore`, `SettingsActions`, `KeysLookup` (ctrl+k), and the settings modules |
+| `src/settings/` | `SettingsPage`, `SettingRow`, `SettingsDropdown`, `SettingsRows`, `ConfigStore`, `SettingsActions`, `Shortcut`, `KeysLookup` (ctrl+k), and the settings modules |
 | `src/engine/` | the SearXNG instance: `Engine`, `SetupPrompt` |
 | `src/shared/` | what more than one feature uses: `JsonFile`, `JsonProcess`, `TabSquare`, `json`, `html`, `states`, `urls`, `thinking` |
 | `src/shared/vim/` | vim itself, pure, used by the field and both reading panes: motions, text objects, the answer's grammar, finds, key tables and bindings; `chord.js`, `measure.js`, `Finder`, `MatchHighlight` |
@@ -201,6 +201,19 @@ panel is destroyed with the manifest present, and it is gone a second later.
 `bin/uninstall` asks in its own terminal and touches `searxng-decided` there,
 so the question is not put twice. A plugin already disabled when it is removed
 is never unloaded, so that removal cannot ask.
+
+**The key that opens the panel is the user's to add.** The manifest has no
+keybinding field and `omarchy plugin add` never touches Hyprland, so a
+marketplace install opens from the bar icon only. `bin/keybind` is the one
+place the line is written — Settings → Keys → *Open omaseek with* → Add (in a
+terminal that shows the line and asks), `bin/install --yes` — and it appends
+one marked line after a backup, only while `SUPER + D` is free: `--status`
+reads the user's bindings *and* Omarchy's defaults, skips commented lines, and
+calls a hand-written binding to omaseek `bound` whatever its key. `--remove`
+takes out exactly that line, its `-- omaseek` marker and the blank line before
+it, so add then remove gives back the file byte for byte; `on-remove` stages
+the script and offers it at removal, and a binding written by hand is never
+asked about. `Shortcut.qml` holds the status, probed each time Settings opens.
 
 **Speed**: one request per page is the budget. `emit_page` fills the buffer to
 exactly the page — an earlier lookahead row cost a whole extra request whenever

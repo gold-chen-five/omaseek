@@ -29,7 +29,7 @@ class OnRemoveTests(unittest.TestCase):
         self.plugin = config / "omarchy" / "plugins" / "omaseek"
         (self.plugin / "bin").mkdir(parents=True)
         (self.plugin / "manifest.json").write_text("{}")
-        for name in ("on-remove", "searxng-up"):
+        for name in ("on-remove", "searxng-up", "keybind"):
             shutil.copy2(ROOT / "bin" / name, self.plugin / "bin" / name)
 
         self.fake_bin = base / "fakes"
@@ -40,7 +40,13 @@ class OnRemoveTests(unittest.TestCase):
         self.fake("gum", f'echo "gum $*" >> {log}; [[ $GUM_ANSWER == y ]]')
         self.fake("sleep", "exit 0")
 
+        self.bindings = config / "hypr" / "bindings.lua"
+        self.bindings.parent.mkdir(parents=True)
+        self.bindings.write_text('o.bind("SUPER + RETURN", "Terminal", "x")\n')
+        self.fake("hyprctl", f'echo "hyprctl $*" >> {log}')
+
         self.env = dict(os.environ, XDG_RUNTIME_DIR=str(self.runtime), XDG_CONFIG_HOME=str(config),
+                        OMARCHY_PATH=str(base / "no-omarchy"),
                         PATH=f"{self.fake_bin}:{os.environ['PATH']}", GUM_ANSWER="n")
 
     def fake(self, name, body):
@@ -65,6 +71,7 @@ class OnRemoveTests(unittest.TestCase):
         self.stage_and_remove()
         self.assertTrue((self.stage / "on-remove").is_file())
         self.assertTrue((self.stage / "searxng-up").is_file())
+        self.assertTrue((self.stage / "keybind").is_file())
 
     def test_a_disable_or_reload_asks_nothing(self):
         self.run_script(self.plugin / "bin" / "on-remove", "--stage")
@@ -109,6 +116,38 @@ class OnRemoveTests(unittest.TestCase):
         done = self.run_script(self.stage / "on-remove", "--ask")
         self.assertNotIn("docker rm", self.calls())
         self.assertIn("kept", done.stdout)
+
+    def add_keybind(self):
+        subprocess.run(["bash", str(self.plugin / "bin" / "keybind"), "--add", "--yes"],
+                       capture_output=True, env=self.env, check=True)
+
+    def test_the_keybind_alone_is_worth_asking_about(self):
+        self.fake("docker", f'echo "docker $*" >> {self.log}; [[ $1 == info ]]')
+        self.add_keybind()
+        self.stage_and_remove()
+        self.run_script(self.stage / "on-remove", "--watch")
+        self.assertIn("--ask", self.calls())
+
+    def test_yes_takes_out_the_line_it_added_and_nothing_else(self):
+        self.env["GUM_ANSWER"] = "y"
+        self.add_keybind()
+        self.stage_and_remove()
+        self.run_script(self.stage / "on-remove", "--ask")
+        self.assertEqual(self.bindings.read_text(), 'o.bind("SUPER + RETURN", "Terminal", "x")\n')
+
+    def test_no_keeps_the_line(self):
+        self.add_keybind()
+        self.stage_and_remove()
+        self.run_script(self.stage / "on-remove", "--ask")
+        self.assertIn("toggle omaseek", self.bindings.read_text())
+
+    def test_a_binding_written_by_hand_is_not_asked_about(self):
+        self.env["GUM_ANSWER"] = "y"
+        self.bindings.write_text('o.bind("SUPER + D", "Web search", "omarchy-shell shell toggle omaseek")\n')
+        self.stage_and_remove()
+        self.run_script(self.stage / "on-remove", "--ask")
+        self.assertNotIn("SUPER + D line", self.calls())
+        self.assertIn("Web search", self.bindings.read_text())
 
 
 if __name__ == "__main__":
