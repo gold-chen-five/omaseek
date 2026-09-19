@@ -219,6 +219,9 @@ class DraftTests(unittest.TestCase):
         self.assertEqual(choose({}, config, gemini), '', 'gemini has no effort flag')
         self.assertEqual(choose({'effort': 'max'}, config, claude), 'max')
         self.assertEqual(choose({'effort': 'ultra'}, config, claude), '')
+        translating = {'chat_efforts': {'claude': 'max'}, 'translate_efforts': {'claude': 'low'}}
+        self.assertEqual(choose({}, translating, claude, 'translate_efforts'), 'low')
+        self.assertEqual(choose({}, {'chat_efforts': {'claude': 'max'}}, claude, 'translate_efforts'), '')
         for efforts in (None, [], 'high', {'claude': 42}, {'claude': '--yolo'}):
             self.assertEqual(choose({}, {'chat_efforts': efforts}, claude), '')
 

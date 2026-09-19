@@ -16,6 +16,7 @@ export function askRows (settings, agents, catalog) {
   const modelAgent = chatAgent !== DEFAULT_AGENT ? chatAgent : defaultId
   const model = modelSelection(settings, modelAgent, catalog)
   const effort = effortSelection(settings, modelAgent)
+  const where = modelAgent === 'opencode' ? ', not hand-offs, whose TUI takes no --variant' : ' and hand-offs'
   return [
     {
       key: 'chatAgent',
@@ -45,15 +46,7 @@ export function askRows (settings, agents, catalog) {
       type: 'choice',
       control: 'dropdown',
       label: 'Effort',
-      hint: !modelAgent ? 'choose an installed agent first'
-        : effort.options.length === 1
-          ? (modelAgent === 'cursor-agent'
-              ? 'cursor-agent reads effort from the model name — choose it under Model'
-              : `${modelAgent} takes no effort on its command line; it uses its own setting`)
-          : `${modelAgent} — default uses the CLI's own; only omaseek's questions`
-            + (modelAgent === 'opencode' ? ', not hand-offs, whose TUI takes no --variant' : ' and hand-offs')
-            + ', never an agent already open'
-            + (modelAgent === 'copilot' ? ' · needs a model chosen, since auto takes none' : ''),
+      hint: effortHint(modelAgent, effort, `only omaseek's questions${where}, never an agent already open`),
       options: effort.options,
       value: effort.value
     },
@@ -78,11 +71,24 @@ export function askRows (settings, agents, catalog) {
   ]
 }
 
-/** Into which language, and which agent and model translate. */
+// What an Effort row says: why it offers nothing, or where the level applies.
+function effortHint (agent, effort, applies) {
+  if (!agent) return 'choose an installed agent first'
+  if (effort.options.length === 1) {
+    return agent === 'cursor-agent'
+      ? 'cursor-agent reads effort from the model name — choose it under Model'
+      : `${agent} takes no effort on its command line; it uses its own setting`
+  }
+  return `${agent} — default uses the CLI's own; ${applies}`
+    + (agent === 'copilot' ? ' · needs a model chosen, since auto takes none' : '')
+}
+
+/** Into which language, and which agent, model and effort translate. */
 export function translateRows (settings, agents, translateCatalog) {
   const { ids } = agentChoices(agents)
   const translator = translateAgentOf(settings, agents)
   const translateModel = modelSelection(settings, translator, translateCatalog, 'translateModels')
+  const translateEffort = effortSelection(settings, translator, 'translateEfforts')
   return [
     {
       key: 'translateLanguage',
@@ -120,6 +126,15 @@ export function translateRows (settings, agents, translateCatalog) {
         : 'choose an installed agent first',
       options: translateModel.options,
       value: translateModel.value
+    },
+    {
+      key: 'translateEffort:' + translator,
+      type: 'choice',
+      control: 'dropdown',
+      label: 'Translation effort',
+      hint: effortHint(translator, translateEffort, 'kept apart from Ask\'s; a low one translates fastest'),
+      options: translateEffort.options,
+      value: translateEffort.value
     },
   ]
 }

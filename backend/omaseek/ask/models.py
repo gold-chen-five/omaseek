@@ -105,13 +105,13 @@ def list_models(agent):
     return {"ok": done.returncode == 0, "agent": agent_id, "models": models, "message": message}
 
 
-def chosen_effort(payload, config, agent):
-    """The level from the payload, else Settings' chat_efforts; '' — the CLI's
-    own — for anything its flag does not take. Translation never asks for one."""
+def chosen_effort(payload, config, agent, stored="chat_efforts"):
+    """The level from the payload, else Settings' chat_efforts (translate_efforts
+    for a translation); '' — the CLI's own — for anything its flag does not take."""
     if "effort" in payload:
         value = payload.get("effort")
     else:
-        efforts = config.get("chat_efforts")
+        efforts = config.get(stored)
         value = efforts.get(agent["id"]) if isinstance(efforts, dict) else ""
     return value if isinstance(value, str) and value in agent.get("efforts", []) else ""
 

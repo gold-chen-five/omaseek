@@ -75,6 +75,7 @@ export const DEFAULTS = {
   translateLanguage: FOLLOW_SEARCH,
   translateAgent: SAME_AS_ASK,
   translateModels: {},
+  translateEfforts: {},
   searxngLanguage: LANGUAGE_CHOICES[0]
 }
 for (let i = 0; i < ACTIONS.length; i++) DEFAULTS[settingKey(ACTIONS[i])] = ACTIONS[i].default

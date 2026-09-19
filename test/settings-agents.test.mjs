@@ -132,3 +132,20 @@ test('effort edits keep a level per agent, only one its flag takes', () => {
   settings = changeSetting(settings, 'chatAgent', 'cursor-agent')
   assert.match(row().hint, /model name/)
 })
+
+test('translation effort is its own, for whoever translates', () => {
+  const agents = { agents: [{ id: 'claude' }, { id: 'codex' }], default: 'claude' }
+  const source = '{"chat_efforts":{"claude":"max"},"translate_efforts":{"codex":"low","claude":"bogus"}}'
+  let settings = readSettings(source)
+  assert.deepEqual(settings.translateEfforts, { codex: 'low' })
+  const row = () => settingsRows(settings, 'running', agents, null).find(r => r.label === 'Translation effort')
+  assert.equal(row().key, 'chatEffort:claude'.replace('chat', 'translate'))
+  assert.equal(row().value, 'default', 'Ask\'s max is not the translation\'s')
+  settings = changeSetting(settings, 'translateAgent', 'codex')
+  assert.equal(row().key, 'translateEffort:codex')
+  assert.equal(row().value, 'low')
+  settings = changeSetting(settings, 'translateEffort:codex', 'medium')
+  const saved = JSON.parse(writeSettings(settings, source))
+  assert.deepEqual(saved.translate_efforts, { codex: 'medium' })
+  assert.deepEqual(saved.chat_efforts, { claude: 'max' })
+})

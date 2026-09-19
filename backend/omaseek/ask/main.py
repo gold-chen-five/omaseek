@@ -13,7 +13,7 @@ from .stream import stream_chat
 
 
 def translate(payload, config, available):
-    """--translate: one translation through its own agent and model. The panel
+    """--translate: one translation through its own agent, model and effort. The panel
     names both; from the command line they fall back to Settings → Translate,
     whose agent 'same' means the one Ask uses."""
     text = str(payload.get("text") or "").strip()
@@ -29,7 +29,8 @@ def translate(payload, config, available):
         models = config.get("translate_models")
         model = chosen_model({"model": models.get(agent["id"], "") if isinstance(models, dict) else ""},
                              config, agent)
-    agent = with_model(without_web(agent), model)
+    effort = chosen_effort(payload, config, agent, "translate_efforts")
+    agent = with_effort(with_model(without_web(agent), model), effort)
     outcome = run_chat_outcome(agent, build_translation_prompt(text, target))
     if outcome.get("ok"):
         outcome.update({"agent": agent["id"], "model": model, "target": target})

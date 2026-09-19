@@ -39,6 +39,7 @@ export function readSettings (source) {
     translateAgent: config.translate_agent === undefined || config.translate_agent === 'same'
       ? SAME_AS_ASK : agentId(config.translate_agent),
     translateModels: readModels(config.translate_models),
+    translateEfforts: readEfforts(config.translate_efforts),
     searxngLanguage: readLanguage(config.searxng_language),
     sequences: keymap.sequences
   }
@@ -127,12 +128,15 @@ export function changeSetting (settings, key, value) {
     }
     return next
   }
-  if (key.indexOf('chatEffort:') === 0) {
-    const id = key.slice('chatEffort:'.length)
-    next.chatEfforts = readEfforts(settings.chatEfforts)
+  const effortKeys = { 'chatEffort:': 'chatEfforts', 'translateEffort:': 'translateEfforts' }
+  for (const prefix of Object.keys(effortKeys)) {
+    if (key.indexOf(prefix) !== 0) continue
+    const id = key.slice(prefix.length)
+    const stored = effortKeys[prefix]
+    next[stored] = readEfforts(settings[stored])
     const levels = EFFORT_CHOICES[id]
-    if (Array.isArray(levels) && levels.indexOf(value) !== -1) next.chatEfforts[id] = value
-    else delete next.chatEfforts[id]
+    if (Array.isArray(levels) && levels.indexOf(value) !== -1) next[stored][id] = value
+    else delete next[stored][id]
     return next
   }
   if (key.indexOf('chatModel:') === 0) {
@@ -167,6 +171,7 @@ export function writeSettings (settings, source) {
   config.translate_agent = !settings.translateAgent || settings.translateAgent === SAME_AS_ASK
     ? 'same' : agentId(settings.translateAgent)
   config.translate_models = readModels(settings.translateModels)
+  config.translate_efforts = readEfforts(settings.translateEfforts)
   const language = readLanguage(settings.searxngLanguage)
   if (language === LANGUAGE_CHOICES[0]) delete config.searxng_language   // absent is the instance's default
   else config.searxng_language = language

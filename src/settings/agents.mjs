@@ -30,10 +30,10 @@ export function modelSelection (settings, agent, catalog, stored = 'chatModels')
 }
 
 /** The effort row: 'default', then the levels the agent's flag takes, if any. */
-export function effortSelection (settings, agent) {
+export function effortSelection (settings, agent, stored = 'chatEfforts') {
   const levels = EFFORT_CHOICES[agent]
   const options = ['default'].concat(Array.isArray(levels) ? levels : [])
-  const saved = readEfforts(settings.chatEfforts)[agent] || ''
+  const saved = readEfforts(settings[stored])[agent] || ''
   return { options: options, value: options.indexOf(saved) !== -1 ? saved : 'default' }
 }
 
