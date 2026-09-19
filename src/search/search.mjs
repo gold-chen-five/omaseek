@@ -77,12 +77,12 @@ export function statusText ({
   view = VIEW.SEARCH, panelMode = PANEL.SEARCH, status, count = 0, query = '', page = 1,
   hasNext = false, loadingPage = false, errorMessage = '', backend = '', pageTarget = 0,
   pageError = '', nextPageKey = 'l',
-  agent = '', selecting = false, link = '', session = '',
+  agent = '', effort = '', selecting = false, link = '', session = '',
   stopKey = 'esc', retryKey = 'ctrl+shift+r', canRetry = false, address = ''
 } = {}) {
   if (view === VIEW.SETTINGS) return 'j/k rows · h/l change · enter opens · saved as you go · esc back'
   if (view === VIEW.SETUP) return 'h/l choose · enter confirm · esc not now'
-  if (panelMode === PANEL.AI) return askStatusText({ status, errorMessage, agent, selecting, link, session, stopKey, retryKey, canRetry })
+  if (panelMode === PANEL.AI) return askStatusText({ status, errorMessage, agent, effort, selecting, link, session, stopKey, retryKey, canRetry })
   // The field holds an address: Enter opens it rather than searching, so say so first.
   if (address) return `enter opens ${hostOf(address)} · gx too, from normal mode`
 
@@ -112,12 +112,15 @@ export function statusText ({
  * is one. Kept short on purpose: the strip shows the conversations and KEYS.md
  * has the rest, so a line that elides teaches nothing.
  */
-function askStatusText ({ status, errorMessage, agent, selecting, link, session, stopKey, retryKey, canRetry }) {
+function askStatusText ({ status, errorMessage, agent, effort, selecting, link, session, stopKey, retryKey, canRetry }) {
   const where = session ? session + ' · ' : ''
+  // The level chosen in Settings, since it cannot be seen anywhere else; the
+  // CLI's own default is unknown here, so it goes unsaid.
+  const level = effort ? `${effort} effort · ` : ''
   const retry = canRetry && retryKey ? ` · ${retryKey} retries` : ''
   switch (status) {
     case 'thinking':
-      return where + (agent ? `asking ${agent}…` : 'asking…') + (stopKey ? ` · ${stopKey} stops` : '')
+      return where + (agent ? `asking ${agent}` : 'asking') + (effort ? ` (${effort} effort)…` : '…') + (stopKey ? ` · ${stopKey} stops` : '')
     case 'error':
       return errorMessage + retry
     case 'stopped':
@@ -126,11 +129,11 @@ function askStatusText ({ status, errorMessage, agent, selecting, link, session,
       if (selecting && link) return `gx opens ${hostOf(link)} · y yank · p to ask · esc drops`
       if (selecting) return 'enter hands off · y yank · p to ask · esc drops'
       if (link) return `gx opens ${hostOf(link)} · v select · yy yank`
-      return where + 'v select · yy yank · enter hands off · ctrl+n next'
+      return where + level + 'v select · yy yank · enter hands off · ctrl+n next'
     default:
       // An interrupted question — the shell restarted under it — still retries.
       if (canRetry) return where + 'not answered' + retry
-      return where + 'enter asks · tab search · ctrl+s settings'
+      return where + level + 'enter asks · tab search · ctrl+s settings'
   }
 }
 

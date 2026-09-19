@@ -17,6 +17,7 @@ Item {
   property string askPath: ""
   property string chatAgent: "default"         // from settings: 'default' or an id
   property string chatModel: ""                 // validated discovery result; empty is CLI default
+  property string chatEffort: ""                // the level for chatAgent; empty is CLI default
   property string launcher: "terminal"
 
   property string status: "idle"               // idle | thinking | ok | error | stopped
@@ -160,7 +161,8 @@ Item {
   function ask (question) {
     if (status === "thinking") return
     errorMessage = ""
-    const payload = { question: question, history: Sessions.promptTurns(history), agent: chatAgent, model: chatModel }
+    const payload = { question: question, history: Sessions.promptTurns(history), agent: chatAgent, model: chatModel,
+                      effort: chatEffort }
     history = [...history, { role: "user", text: question }]   // remember() gives it its id
     status = "thinking"
     turns.startTurn(liveId, payload)

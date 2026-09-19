@@ -44,6 +44,7 @@ StatusLine {
       errorMessage: asking ? ai.errorMessage : session.errorMessage,
       backend: session.backend,
       agent: ai.agentName,
+      effort: ai.chatEffort,
       selecting: answer.selecting,
       link: answer.cursorLink,
       session: ai.sessionLabel,

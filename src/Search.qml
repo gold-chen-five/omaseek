@@ -245,6 +245,7 @@ Item {
     askPath: Qt.resolvedUrl("../bin/ask").toString().replace(/^file:\/\//, "")
     chatAgent: config.settings.chatAgent
     chatModel: SettingsLib.selectedModel(config.settings, ai.agents, ai.models)
+    chatEffort: SettingsLib.selectedEffort(config.settings, ai.agents)
     launcher: config.settings.launcher
     streaming: config.settings.stream
 

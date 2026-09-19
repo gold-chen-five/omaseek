@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import {
   readSettings, writeSettings, settingsRows, cycle, normalizeSequence, ENGINE_STATES,
   LAUNCHER_CHOICES, DEFAULT_AGENT,
-  PAGE_SIZE_CHOICES, DEFAULTS, checkRow, FIXED_KEYS, changeSetting, selectedModel,
+  PAGE_SIZE_CHOICES, DEFAULTS, checkRow, FIXED_KEYS, changeSetting, selectedModel, selectedEffort,
   ENGINE_CHOICES, DEFAULT_ENGINES, LANGUAGE_CHOICES, toggleEngine, endpointTestText, searchSpeedText, versionText, nextAgent, translateAgentOf, SAME_AS_ASK
 } from '../src/settings/settings.mjs'
 import { ACTIONS, settingKey } from '../src/shared/vim/keybinds.mjs'
@@ -148,4 +148,13 @@ test('translation effort is its own, for whoever translates', () => {
   const saved = JSON.parse(writeSettings(settings, source))
   assert.deepEqual(saved.translate_efforts, { codex: 'medium' })
   assert.deepEqual(saved.chat_efforts, { claude: 'max' })
+})
+
+test('the effort asked at is the resolved agent\'s', () => {
+  const agents = { agents: [{ id: 'claude' }, { id: 'gemini' }], default: 'claude' }
+  let settings = readSettings('{"chat_efforts":{"claude":"high"}}')
+  assert.equal(selectedEffort(settings, agents), 'high', 'default stands for claude')
+  assert.equal(selectedEffort(settings, null), '', 'nothing before discovery')
+  settings = changeSetting(settings, 'chatAgent', 'gemini')
+  assert.equal(selectedEffort(settings, agents), '')
 })

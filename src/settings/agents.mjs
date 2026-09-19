@@ -61,6 +61,16 @@ export function selectedModel (settings, agents = null, catalog = null) {
   return selected === 'default' ? '' : selected
 }
 
+/** The effort the next question is asked at; empty is the CLI's own. */
+export function selectedEffort (settings, agents = null) {
+  const choices = agentChoices(agents)
+  const requested = agentId(settings.chatAgent)
+  const agent = requested !== DEFAULT_AGENT && choices.ids.indexOf(requested) !== -1
+    ? requested : choices.defaultId
+  const selected = effortSelection(settings, agent).value
+  return selected === 'default' ? '' : selected
+}
+
 /**
  * Who translates: the agent chosen under Translate, or — as it is by default —
  * whoever answers Ask. '' before discovery has found anyone.

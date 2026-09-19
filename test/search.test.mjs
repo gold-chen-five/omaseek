@@ -122,6 +122,16 @@ test('the settings and setup views name their keys instead of search state', () 
   assert.match(statusText({ view: VIEW.SEARCH, status: 'ok', count: 10, page: 1 }), /^page 1/)
 })
 
+test('AI mode names the chosen effort, and says nothing of the CLI\'s own', () => {
+  assert.equal(statusText({ panelMode: PANEL.AI, status: 'thinking', agent: 'claude', effort: 'high' }),
+    'asking claude (high effort)… · esc stops')
+  assert.equal(statusText({ panelMode: PANEL.AI, status: 'idle', effort: 'low', session: '3 saved' }),
+    '3 saved · low effort · enter asks · tab search · ctrl+s settings')
+  assert.match(statusText({ panelMode: PANEL.AI, status: 'ok', effort: 'max' }), /^max effort · v select/)
+  assert.doesNotMatch(statusText({ panelMode: PANEL.AI, status: 'idle' }), /effort/)
+  assert.doesNotMatch(statusText({ status: 'idle', effort: 'max' }), /effort/, 'search has no effort')
+})
+
 test('AI mode names the agent while it thinks and its keys once it has answered', () => {
   assert.equal(statusText({ panelMode: PANEL.AI, status: 'thinking', agent: 'claude' }), 'asking claude… · esc stops')
   assert.match(statusText({ panelMode: PANEL.AI, status: 'ok' }), /v select/)
