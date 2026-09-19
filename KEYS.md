@@ -24,6 +24,7 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 | Delete all sessions | `clear_sessions_key` | `ctrl+shift+x` | ask: forget every saved conversation, on the second press |
 | Retry answer | `retry_answer_key` | `ctrl+shift+r` | ask: ask the last question again after a failure, a stop, or an interruption |
 | Settings | `settings_key` | `ctrl+s` | anywhere: open or close settings (`ctrl+,` always works too) |
+| Look up keys | `keys_help_key` | `ctrl+k` | anywhere, insert mode too: every key in the panel, as bound now, in a list you type into to filter |
 | Switch search / ask | `switch_mode_key` | `tab` | anywhere, without changing Vim mode |
 | Switch agent | `switch_agent_key` | `shift+tab` | anywhere: the next installed agent answers from now on, wrapping; the conversation so far goes with it |
 | Open | `open_key` | `enter` | results: open the result and dismiss · answer: the link under the cursor or in the selection |
@@ -110,6 +111,7 @@ empty value restores the default.
 |---|---|
 | `super+d` | summon or dismiss (Hyprland, not the panel — `omarchy-shell shell toggle omaseek`) |
 | `ctrl+s` (Settings), `ctrl+,` | open or close settings |
+| `ctrl+k` (Look up keys) | every key in the panel as `key — what it does`, grouped by where it works and showing your current bindings. Type to filter — any words, in any case (`trans`, `ctrl+x`, `undo`); `↓` `↑`, `ctrl+n` `ctrl+p`, `ctrl+d` `ctrl+u` scroll; `esc` or `ctrl+k` closes it and the keyboard goes back where it was, in the mode it was in |
 | `tab` (Switch search / ask) | switch between searching and asking without changing Vim mode |
 | `shift+tab` (Switch agent) | the next installed agent answers from now on, wrapping — the status line says who. A conversation already under way goes with it: every question carries the turns before it (the last eight), whichever agent wrote them |
 | `esc` | leave one step: close an open `/` prompt, drop a search and its highlight, cancel a pending/active find, drop a selection, normal mode from insert, the field from a list, the panel from the field |

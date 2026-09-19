@@ -42,6 +42,7 @@ FocusScope {
   signal appendRequested()                     // a
   signal normalRequested()                     // gn: the field, normal mode
   signal settingsRequested()
+  signal keysRequested()                       // ctrl+k: the key lookup
   signal tabbed()
   signal agentSwitchRequested()
 
@@ -53,6 +54,7 @@ FocusScope {
     navigation = step.state
     switch (step.command) {
     case "settings":     settingsRequested(); break
+    case "keysHelp":     keysRequested(); break
     case "toggleMode":   tabbed(); break
     case "switchAgent":  agentSwitchRequested(); break
     case "closeSession": closed(); break

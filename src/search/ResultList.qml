@@ -28,6 +28,7 @@ ListView {
   signal insertRequested()               // i: back to the field, insert before the cursor
   signal appendRequested()               // a: back to the field, insert after the cursor
   signal settingsRequested()
+  signal keysRequested()                 // ctrl+k: the key lookup
   signal tabbed()                        // the panel switches search <-> ai
   signal agentSwitchRequested()          // shift+tab: the next installed agent answers
   signal closeSessionRequested()         // ctrl+x: close the translation beside the list
@@ -108,6 +109,7 @@ ListView {
 
     switch (command) {
     case "settings":     settingsRequested(); break
+    case "keysHelp":     keysRequested(); break
     case "toggleMode":   tabbed(); break
     case "switchAgent":  agentSwitchRequested(); break
     // ctrl+x: the translation panel, when it is open — the list has no

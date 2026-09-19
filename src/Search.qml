@@ -30,6 +30,8 @@ Item {
   property string focusArea: States.FOCUS.FIELD  // who has the keyboard
   property string setupReason: ""              // what the backend said when the instance was down
   property string notice: ""                   // what a key just did, on the status line for a beat
+  property bool keysOpen: false                // the ctrl+k lookup is over the card
+  property string keysReturnTo: ""             // the focusArea it was opened from
 
   readonly property Item input: card.field
   readonly property var settingsRows: SettingsLib.settingsRows(config.settings, engine.state, ai.agents, ai.models,
@@ -65,6 +67,7 @@ Item {
 
   function close () {
     opened = false
+    keysOpen = false
     session.cancel()
   }
 
@@ -145,6 +148,25 @@ Item {
   function focusReading () {
     if (hasBody()) focusResults()
     else focusSearch("normal")
+  }
+
+  // ctrl+k: the key lookup takes the keyboard, and closing it gives the
+  // keyboard back where it was — the field in the mode it was in, or the pane.
+  function openKeys () {
+    if (keysOpen) {
+      closeKeys()
+      return
+    }
+    keysReturnTo = focusArea
+    keysOpen = true
+    Qt.callLater(() => card.keysLookup.open())
+  }
+
+  function closeKeys () {
+    keysOpen = false
+    if (keysReturnTo === States.FOCUS.TRANSLATION && translator.open) focusTranslation()
+    else if (keysReturnTo === States.FOCUS.RESULTS && hasBody()) focusResults()
+    else focusSearch(input.mode)
   }
 
   // Through setMode, so leaving insert steps the cursor left and clears any
@@ -262,6 +284,7 @@ Item {
     // the field is not typing, hence the flag.
     function onTextChanged () { if (!commands.applyingHistory) commands.historyIndex = -1 }
     function onRequestedSettings () { root.openSettings() }
+    function onKeysRequested () { root.openKeys() }
     function onTabbed () { root.toggleMode() }
     function onAgentSwitchRequested () { chat.switchAgent() }
     function onTranslateRequested (text) { commands.translateText(text) }

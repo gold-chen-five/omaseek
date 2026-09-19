@@ -80,6 +80,7 @@ Item {
     const times = count === undefined ? 1 : Math.max(1, count)
     switch (command) {
     case "settings":     view.settingsRequested(); break
+    case "keysHelp":     view.keysRequested(); break
     case "toggleMode":   view.tabbed(); break
     case "switchAgent":  view.agentSwitchRequested(); break
     // L / H walk the ring, as h and l page the results; ctrl+n lands here too.

@@ -14,6 +14,7 @@ Item {
   function panelCommand (chord) {
     if (chord === "") return ""
     if (chord === field.chords.settings || chord === "C-,") return "settings"
+    if (chord === field.chords.keysHelp) return "keysHelp"
     if (chord === field.chords.newSession) return "newSession"
     if (chord === field.chords.nextSession) return "nextSession"
     if (chord === field.chords.clearSessions) return "clearSessions"
@@ -29,6 +30,7 @@ Item {
   function raisePanel (command) {
     switch (command) {
     case "settings":      field.requestedSettings(); break
+    case "keysHelp":      field.insertKeys.clearEscapePending(); field.keysRequested(); break
     case "newSession":    field.newSessionRequested(); break
     case "nextSession":   field.nextSessionRequested(); break
     case "clearSessions": field.clearSessionsRequested(); break

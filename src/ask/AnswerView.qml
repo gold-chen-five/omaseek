@@ -160,6 +160,7 @@ FocusScope {
   signal insertRequested()                     // i: back to the field, insert before the cursor
   signal appendRequested()                     // a: back to the field, insert after the cursor
   signal settingsRequested()
+  signal keysRequested()                       // ctrl+k: the key lookup
   signal tabbed()
   signal newSessionRequested()                 // the new-session chord, or the button
   signal agentSwitchRequested()                // shift+tab: the next installed agent answers

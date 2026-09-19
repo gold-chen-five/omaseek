@@ -59,7 +59,7 @@ feature's folder holds its QML *and* its pure `.mjs` side by side.
 | `src/search/` | searching: `SearchSession`, `ResultList`/`ResultRow`, `PageTabs`, `HistoryStore`, and `search`, `history`, `pager` |
 | `src/ask/` | asking: `AiSession` and its parts (`AskTurns`, `AgentCli`), `ChatCommands`, `SessionStore`/`SessionTabs`, `AnswerView` with its parts in `ask/answer/`, and `sessions`, `transcript`, `markdown` |
 | `src/translate/` | `Translator`, `TranslatePanel`, `translate.mjs` |
-| `src/settings/` | `SettingsPage`, `SettingRow`, `SettingsDropdown`, `SettingsRows`, `ConfigStore`, `SettingsActions`, and the settings modules |
+| `src/settings/` | `SettingsPage`, `SettingRow`, `SettingsDropdown`, `SettingsRows`, `ConfigStore`, `SettingsActions`, `KeysLookup` (ctrl+k), and the settings modules |
 | `src/engine/` | the SearXNG instance: `Engine`, `SetupPrompt` |
 | `src/shared/` | what more than one feature uses: `JsonFile`, `JsonProcess`, `TabSquare`, `json`, `html`, `states`, `urls`, `thinking` |
 | `src/shared/vim/` | vim itself, pure, used by the field and both reading panes: motions, text objects, the answer's grammar, finds, key tables and bindings; `chord.js`, `measure.js`, `Finder`, `MatchHighlight` |
@@ -118,6 +118,7 @@ The pure modules, by folder:
 - `ask/transcript.mjs`, `ask/markdown.mjs` — reading the transcript back; the agent's Markdown → the rich-text subset a TextEdit colours
 - `translate/translate.mjs` — the languages a translation goes into, and which by default
 - `settings/settings.mjs` — the front door over `choices`, `config`, `agents`, `reports` and `rows` (with `rows-search`, `rows-ask`)
+- `settings/keylist.mjs` — the ctrl+k lookup's entries: `ACTIONS` as bound now plus `FIXED_KEYS` split into lines, grouped, and filtered by every typed word
 - `settings/popup.mjs` — where a settings dropdown's list opens so it stays on screen
 
 `VimTextField.qml` is therefore only the mode machine's state and a router — if

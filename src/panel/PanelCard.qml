@@ -33,6 +33,7 @@ BorderSurface {
   readonly property Item translationReader: reading.translationReader
   readonly property alias settingsPage: settingsPage
   readonly property alias setupPrompt: setupPrompt
+  readonly property alias keysLookup: keysLookup
 
   radius: Style.cornerRadius
   color: host.background
@@ -167,5 +168,21 @@ BorderSurface {
       accent: panelCard.host.accent
       fontFamily: panelCard.host.fontFamily
     }
+  }
+
+  // ctrl+k, over everything else on the card until it closes.
+  KeysLookup {
+    id: keysLookup
+
+    visible: panelCard.host.keysOpen
+    anchors.fill: content
+    z: 10
+    settings: panelCard.config.settings
+    closeChord: panelCard.host.chords.keysHelp
+    foreground: panelCard.host.foreground
+    accent: panelCard.host.accent
+    fontFamily: panelCard.host.fontFamily
+
+    onClosed: panelCard.host.closeKeys()
   }
 }

@@ -76,6 +76,7 @@ TextArea {
   signal historyPrevRequested()             // Up in the one-line search field: an older query
   signal historyNextRequested()             // Down there: back toward what was being typed
   signal requestedSettings()                // Ctrl+S (or Ctrl+,) in any mode
+  signal keysRequested()                    // ctrl+k in any mode: the key lookup
   signal tabbed()                           // Tab in any mode: the panel switches search <-> ai
   signal agentSwitchRequested()             // shift+tab: the next installed agent answers
   signal translateRequested(string text)    // gt on a selection, gT or ctrl+t on the whole bar
