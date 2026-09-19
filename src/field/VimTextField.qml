@@ -79,6 +79,12 @@ TextArea {
   signal tabbed()                           // Tab in any mode: the panel switches search <-> ai
   signal agentSwitchRequested()             // shift+tab: the next installed agent answers
   signal translateRequested(string text)    // gt on a selection, gT or ctrl+t on the whole bar
+  signal handedOff(string text, bool everything) // ga: the bar or the selection; gA: everything below too
+  // gd, gj, gs: the bar or the selection, asked about now, put in the ask bar,
+  // or searched for. `whole` says it was all of the bar rather than a selection.
+  signal askNowRequested(string text, bool whole)
+  signal askAboutRequested(string text)
+  signal searchRequested(string text)
   signal newSessionRequested()              // the new-session chord: start over
   signal nextSessionRequested()             // the next saved conversation
   signal sessionWalked(int delta)           // L / H in normal mode: through the ring
@@ -104,9 +110,12 @@ TextArea {
       visualAnchor = -1
       deselect()
     }
+    const leavingInsert = mode === "insert" && next !== "insert"
     mode = next
     clearPending()
     if (next === "normal") clampCursor()
+    // The visit to insert, and the command that opened it, end here as one step.
+    if (leavingInsert) undoHistory.mark()
   }
 
   // Enter from a reading pane exactly as the matching normal-mode command
@@ -191,6 +200,7 @@ TextArea {
   FieldNormal { id: normalPart; field: field }
   FieldPending { id: pendingPart; field: field }
   FieldEdits { id: editsPart; field: field }
+  FieldUndo { id: undoPart; field: field }
 
   // The parts, reached from each other as field.<part>.
   readonly property var panelKeys: panelKeysPart
@@ -198,6 +208,7 @@ TextArea {
   readonly property var normalKeys: normalPart
   readonly property var pending: pendingPart
   readonly property var edits: editsPart
+  readonly property var undoHistory: undoPart
 
   Keys.priority: Keys.BeforeItem
   Keys.onPressed: event => {
@@ -208,7 +219,13 @@ TextArea {
       event.accepted = true
       return
     }
-    if (mode === "insert") insertKeys.handleInsertKey(event)
-    else normalKeys.press(event)
+    if (mode === "insert") {
+      insertKeys.handleInsertKey(event)
+    } else {
+      normalKeys.press(event)
+      // A command that went into insert (c, s, o, A) is still going: its step
+      // ends when insert does.
+      if (mode !== "insert") undoHistory.mark()
+    }
   }
 }

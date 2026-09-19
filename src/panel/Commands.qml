@@ -3,6 +3,7 @@ import Quickshell
 import "../search/search.mjs" as SearchLib
 import "../search/history.mjs" as History
 import "../ask/sessions.mjs" as Sessions
+import "../ask/transcript.mjs" as Transcript
 import "../shared/states.mjs" as States
 import "../shared/urls.mjs" as Urls
 
@@ -131,6 +132,33 @@ Item {
   // gd on a result: its title and URL, the way Y copies them.
   function askNowResult (index) {
     askNow(session.yankText(index, true))
+  }
+
+  // ga and gA in the field: what was typed, as an editable draft in the agent.
+  // gA puts first what gA below would hand off — the page's URLs in search, the
+  // conversation in ask — so the draft reads as a question about it.
+  function handOffBar (text, everything) {
+    const bar = String(text || "").split(host.input.lineBreak).join("\n").trim()
+    let draft = bar
+    if (everything) {
+      const below = host.panelMode === States.PANEL.AI
+        ? Transcript.conversationText(ai.history) : session.handoffText(-1)
+      draft = [String(below || "").trim(), bar].filter(part => part !== "").join("\n\n")
+    }
+    if (draft) ai.launch(draft)
+  }
+
+  // gd in the field: all of the bar is asked as Enter in the ask bar would,
+  // and leaves it, since the question then lives in the transcript; a
+  // selection is asked and the rest of the bar stays to be edited.
+  function askFromBar (text, whole) {
+    const question = String(text || "").split(host.input.lineBreak).join("\n").trim()
+    if (!question) return
+    askNow(question)
+    if (whole) {
+      resetHistoryWalk()
+      host.input.clear()
+    }
   }
 
   // gs: the other way. A selection is already a whole query, so this one runs.

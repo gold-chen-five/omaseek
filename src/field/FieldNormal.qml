@@ -24,8 +24,7 @@ Item {
     }
 
     if (ctrl && event.key === Qt.Key_R) {
-      field.redo()
-      field.clampCursor()
+      field.undoHistory.redo(field.takeCount(1))
       event.accepted = true
       return
     }
@@ -55,7 +54,9 @@ Item {
       return
     }
 
-    // After g: gg, gx, and the translate keys (gt, gT) bound in settings.
+    // After g: gg, gx, and the keys the panes read, bound in settings — translate
+    // (gt, gT), hand off (ga, gA), ask (gd), into the ask bar (gj), search (gs).
+    // Each takes the selection in visual mode, else everything in the bar.
     if (field.pendingG) {
       const counted = field.pendingCount
       field.pendingG = false
@@ -78,6 +79,17 @@ Item {
         field.translateRequested(selected)
       } else if (sequence === field.normalChords.translateBar && field.mode !== "visual") {
         field.translateRequested(field.text)
+      } else if (sequence === field.normalChords.handoff) {
+        field.handedOff(barOrSelection(), false)
+      } else if (sequence === field.normalChords.handoffAll && field.mode !== "visual") {
+        field.handedOff(field.text, true)
+      } else if (sequence === field.normalChords.askNow) {
+        const whole = field.mode !== "visual"
+        field.askNowRequested(barOrSelection(), whole)
+      } else if (sequence === field.normalChords.askAbout) {
+        field.askAboutRequested(barOrSelection())
+      } else if (sequence === field.normalChords.searchFor) {
+        field.searchRequested(barOrSelection())
       } else if (key === "x") {
         field.pending.openLinkUnderCursor()
       }
@@ -104,6 +116,15 @@ Item {
     }
 
     handleNormalKey(key)
+  }
+
+  // The selection, ending visual mode, or everything in the bar.
+  function barOrSelection () {
+    if (field.mode !== "visual") return field.text
+    const range = field.edits.visualRange()
+    const text = field.text.substring(range.start, range.end)
+    field.setMode("normal")
+    return text
   }
 
   function handleNormalKey (key) {
@@ -261,7 +282,7 @@ Item {
         field.edits.put(key === "p", "")
       }
       return
-    case "u": field.undo(); field.clampCursor(); return
+    case "u": field.undoHistory.undo(count); return
     }
   }
 }

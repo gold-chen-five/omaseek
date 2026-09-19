@@ -108,6 +108,7 @@ The pure modules, by folder:
 - `shared/vim/motions.mjs` — cursor motions (`w b e f t 0 ^ $ h l`), `(text, pos) -> pos`
 - `shared/vim/textobjects.mjs` — `iw aw i" a(` … `(text, pos) -> {start, end}`
 - `shared/vim/keymap.mjs` — the insert-mode escape sequence (`jk`) and its config
+- `shared/vim/undo.mjs` — the field's undo, a step per change as vim's is: Qt's own undo made the `j` that `jk` takes back a step, so `u` after `ciw…jk` gave back a `j`. `FieldUndo` marks a step after each normal-mode key that ends outside insert, and on leaving insert
 - `shared/vim/keybinds.mjs` — `ACTIONS`, every rebindable key; binding text ↔ chords (`gA` ↔ `g A`); `panelChords()` and `normalChords()`
 - `shared/vim/keys.mjs` — chord → command name for the reading panes, the `gg`/`gv` prefix machine, and the clash check for a rebound key
 - `shared/vim/grammar.mjs`, `shared/vim/find.mjs` — the answer's key grammar, and `/` search

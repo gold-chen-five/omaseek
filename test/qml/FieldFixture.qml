@@ -23,6 +23,8 @@ Item {
   property int agentSwitches: 0
   property int tabs: 0
   property var translated: []
+  property var handedOff: []                 // [text, everything] per ga / gA
+  property var barCommands: []               // [command, text] per gd / gj / gs
   property int cancels: 0
   property var opened: []
 
@@ -39,6 +41,10 @@ Item {
     function onAgentSwitchRequested () { agentSwitches++ }
     function onTabbed () { tabs++ }
     function onTranslateRequested (text) { translated = translated.concat([text]) }
+    function onHandedOff (text, everything) { handedOff = handedOff.concat([[text, everything]]) }
+    function onAskNowRequested (text, whole) { barCommands = barCommands.concat([[whole ? "ask" : "askSelection", text]]) }
+    function onAskAboutRequested (text) { barCommands = barCommands.concat([["askAbout", text]]) }
+    function onSearchRequested (text) { barCommands = barCommands.concat([["search", text]]) }
   }
 
 }

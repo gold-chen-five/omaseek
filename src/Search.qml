@@ -147,9 +147,9 @@ Item {
     else focusSearch("normal")
   }
 
-  // half-typed operator.
   // Through setMode, so leaving insert steps the cursor left and clears any
   function focusSearch (mode) {
+  // half-typed operator.
     focusArea = States.FOCUS.FIELD
     if (mode === "i" || mode === "a") input.enterInsert(mode)
     else input.setMode(mode)
@@ -186,13 +186,13 @@ Item {
 
     // Closed by ctrl+x, ×, or anything else while it had the keyboard.
     onOpenChanged: if (!open && root.focusArea === States.FOCUS.TRANSLATION) root.focusReading()
-
     // The reader appears when a translation lands and goes when another starts;
     // the keyboard follows whichever of it and the panel is showing.
     onStatusChanged: if (open && root.focusArea === States.FOCUS.TRANSLATION) root.focusTranslation()
-    modelAgent: SettingsLib.translateAgentOf(config.settings, ai.agents)
+
     askPath: Qt.resolvedUrl("../bin/ask").toString().replace(/^file:\/\//, "")
   }
+    modelAgent: SettingsLib.translateAgentOf(config.settings, ai.agents)
 
   Engine {
     id: engine
@@ -272,6 +272,10 @@ Item {
     function onClearSessionsRequested () { chat.clearChats() }
     function onStopRequested () { chat.stopAnswer() }
     function onRetryRequested () { chat.retryAnswer() }
+    function onHandedOff (text, everything) { commands.handOffBar(text, everything) }
+    function onAskNowRequested (text, whole) { commands.askFromBar(text, whole) }
+    function onAskAboutRequested (text) { commands.askAboutText(text) }
+    function onSearchRequested (text) { commands.searchFor(String(text).split(root.input.lineBreak).join(" ")) }
     function onLinkOpened (url) { commands.openUrl(url) }
   }
 

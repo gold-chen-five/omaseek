@@ -80,7 +80,8 @@ test('L and H are the answer’s, rebindable, and the field walks the ring with 
   const moved = readerKeys('answer', { nextChatKey: 'gN' })
   assert.equal(moved['g N'], 'nextSession', 'rebinding moves it')
   assert.equal(moved['L'], undefined, 'and frees the old key')
-  const own = { translateBar: 'g T', previousAsked: 'U', translate: 'g t' }
+  const own = { translateBar: 'g T', previousAsked: 'U', translate: 'g t', handoff: 'g a', handoffAll: 'g A',
+    askNow: 'g d', askAbout: 'g j', searchFor: 'g s' }
   assert.deepEqual(normalChords({}), { ...own, nextChat: 'L', previousChat: 'H' })
   assert.deepEqual(normalChords({ nextChatKey: 'ctrl+l' }), { ...own, previousChat: 'H' },
     'a ctrl chord is the panel’s; the field takes a key, or g and one more')
@@ -221,9 +222,10 @@ test('no two default keys collide', () => {
 })
 
 test('a key already taken is refused with what takes it', () => {
-  assert.match(bindingProblem('handoff', 'gx', DEFAULTS), /Open link/)
-  assert.match(bindingProblem('handoff', 'gg', DEFAULTS), /the top/)
-  assert.match(bindingProblem('handoff', 'g', DEFAULTS), /the top/, 'g alone would swallow gg')
+  assert.match(bindingProblem('normal', 'gx', DEFAULTS), /Open link/)
+  assert.match(bindingProblem('handoff', 'gx', DEFAULTS), /vim uses gx/, 'ga is read in the field too, where gx opens a link')
+  assert.match(bindingProblem('normal', 'gg', DEFAULTS), /the top/)
+  assert.match(bindingProblem('openLink', 'g', DEFAULTS), /the top/, 'g alone would swallow gg')
   assert.match(bindingProblem('handoff', 'f', DEFAULTS), /vim uses f/)
   assert.match(bindingProblem('handoff', '3', DEFAULTS), /count/)
   assert.match(bindingProblem('nextPage', 'j', DEFAULTS), /move down/)
@@ -250,8 +252,8 @@ test('keys the field would type are refused for the keys it catches', () => {
 
 test('a binding is checked against the others as they are now, not the defaults', () => {
   const binds = { ...DEFAULTS, [settingKey(ACTIONS.find(a => a.id === 'openLink'))]: 'go' }
-  assert.equal(bindingProblem('handoff', 'gx', binds), '', 'gx was freed')
-  assert.match(bindingProblem('handoff', 'go', binds), /Open link/)
+  assert.equal(bindingProblem('normal', 'gx', binds), '', 'gx was freed')
+  assert.match(bindingProblem('normal', 'go', binds), /Open link/)
 })
 
 test('the answer pane walks and closes sessions through its own table', () => {

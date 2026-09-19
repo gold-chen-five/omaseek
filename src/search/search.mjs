@@ -189,8 +189,8 @@ export function handoffText (rows, index = -1) {
 }
 
 /**
- * gc in the answer: the passage into the ask bar as it was written, with a
- * blank line under it for the question. Unsent, as the results' gc is: the
+ * gj in the answer: the passage into the ask bar as it was written, with a
+ * blank line under it for the question. Unsent, as the results' gj is: the
  * question still has to be written. Only the whitespace around it goes.
  */
 export function passageForQuestion (text) {

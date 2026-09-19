@@ -14,6 +14,7 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 | Search / ask | `search_key` | `enter` | field: runs the query or asks the question |
 | Translate the bar (any mode) | `translate_bar_anywhere_key` | `ctrl+t` | field, insert mode too: everything in the search or ask bar |
 | Translate the bar | `translate_bar_key` | `gT` | field, normal mode: everything in the search or ask bar |
+| Translate | `translate_key` | `gt` | answer: the selection, or the word under the cursor · field: the selection, in visual mode |
 | Previous query / question | `previous_asked_key` | `U` | field, normal mode: what you searched or asked before, one step back each press (`up` on the first line too) |
 | New session | `new_session_key` | `ctrl+c` | field and answer: forget the conversation and start one |
 | Next session | `next_session_key` | `ctrl+n` | ask: the next saved conversation, newest first, wrapping |
@@ -26,12 +27,11 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 | Switch search / ask | `switch_mode_key` | `tab` | anywhere, without changing Vim mode |
 | Switch agent | `switch_agent_key` | `shift+tab` | anywhere: the next installed agent answers from now on, wrapping; the conversation so far goes with it |
 | Open | `open_key` | `enter` | results: open the result and dismiss · answer: the link under the cursor or in the selection |
-| Hand off to agent | `handoff_key` | `ga` | results: the selected result's URL, alone · answer: the selection, else the reply under the cursor with its question |
-| Hand off everything | `handoff_all_key` | `gA` | results: every URL on the page · answer: the whole conversation |
+| Hand off to agent | `handoff_key` | `ga` | results: the selected result's URL, alone · answer: the selection, else the reply under the cursor with its question · field: the bar, or the selection |
+| Hand off everything | `handoff_all_key` | `gA` | results: every URL on the page · answer: the whole conversation · field: that, with the bar's text under it |
 | Ask about this | `ask_now_key` | `gd` | results: the selected result's title and URL · answer and translation: the selection, or the line under the cursor — asked straight away, and you land in the answer |
 | Put in the ask bar | `ask_about_key` | `gj` | results: the selected URL over in the ask bar · answer and translation: the selection, or the line under the cursor — unsent |
 | Search for this | `search_for_key` | `gs` | results: search for the selected result's title · answer: search the web for the selection, or the word under the cursor |
-| Translate | `translate_key` | `gt` | answer: the selection, or the word under the cursor · field: the selection, in visual mode |
 | Open link | `open_link_key` | `gx` | answer: the URL under the cursor or in the selection |
 | Next page | `next_page_key` | `l` | results (`right` always works too) |
 | Previous page | `previous_page_key` | `h` | results (`left` always works too) |
@@ -135,6 +135,11 @@ Insert mode:
 | `gT` (Translate the bar) | normal mode: translate everything in the bar — search or ask — into the panel on the right |
 | `ctrl+t` (Translate the bar, any mode) | the same from insert mode, without leaving it: type, press it, keep typing |
 | `gt` (Translate) | visual mode: translate the selection |
+| `ga` (Hand off to agent) | normal mode: everything in the bar, as an editable draft in the agent; visual mode: the selection |
+| `gA` (Hand off everything) | normal mode: what `gA` below would hand off — the page's URLs in search, the conversation in ask — with the bar's text under it |
+| `gd` (Ask about this) | the bar, or the selection, asked straight away — as Enter in the ask bar, from search too; you land in the answer |
+| `gj` (Put in the ask bar) | the selection, or a search moved over, into the ask bar unsent |
+| `gs` (Search for this) | the bar, or the selection, searched — as Enter in search, from ask too |
 | `U` (Previous query / question) | normal mode: one step back through what was searched or asked before, as `up` is — in either half, a count stepping further (`3U`) |
 | `enter` (Search / ask) | search and focus the first result when it arrives — or, when the field holds an address, open it in the browser; asking moves you into the answer |
 
@@ -160,7 +165,9 @@ Normal mode uses vim editing: `h l w W b B e 0 ^ _ $` (on the line under the cur
 after a find, `f`/`F` keep walking that character forward/backward, and `;`/`,`
 also repeat/reverse. All matches on the line are highlighted; the current one
 uses the accent colour. `i a I A`, `o O` (open a line below/above in AI mode), `r{char}`, `x`, `d c y` with a motion or doubled (`dd cc yy`), `v`,
-counts (`3w`, `2dw`), and text objects (`diw`, `ci"`, `da(`). `p` `P` put
+counts (`3w`, `2dw`), and text objects (`diw`, `ci"`, `da(`). `u` undoes and
+`ctrl+r` redoes a whole change at a time, as vim does: `ciw`, the word typed and
+the `jk` that left insert are one `u`, and a count undoes several (`3u`). `p` `P` put
 the system clipboard after or before the cursor — every yank in the panel,
 field or answer, lands there — and in visual mode replace the selection.
 `Shift+V` (`V`) selects whole lines in normal mode. `j`/`k` and up/down
@@ -331,7 +338,7 @@ selected row visible. Values are written as they change; there is no save.
 - `src/shared/vim/keys.mjs` — the fixed keys of the two panes that are *read* (results, answer); `readerKeys` merges in the rebound ones, chord → command name; `bindingProblem` is the clash check the settings page runs
 - `src/settings/rows.mjs` — the Keys rows (one per action); `src/settings/choices.mjs` — the Fixed keys rows (`FIXED_KEYS`)
 - `src/shared/vim/chord.js` — Qt key events → chord strings
-- `src/field/` — the field: `VimTextField.qml` routes each key to `FieldPanelKeys` (the panel's keys, every mode), `FieldInsert` (insert mode and `jk`), `FieldNormal` (normal and visual), `FieldPending` (the key after `f`/`t`, `r`, `i`/`a`, `g`) and `FieldEdits` (what they do to the text)
+- `src/field/` — the field: `VimTextField.qml` routes each key to `FieldPanelKeys` (the panel's keys, every mode), `FieldInsert` (insert mode and `jk`), `FieldNormal` (normal and visual), `FieldPending` (the key after `f`/`t`, `r`, `i`/`a`, `g`), `FieldEdits` (what they do to the text) and `FieldUndo` (`u` and `ctrl+r`, a step per change — the rules are `src/shared/vim/undo.mjs`)
 - `src/ask/answer/AnswerKeys.qml` — the answer's dispatch; `src/search/ResultList.qml`, `src/settings/SettingsPage.qml`, `src/engine/SetupPrompt.qml` — each view's own
 - `src/panel/Commands.qml`, `src/ask/ChatCommands.qml` — what a key asks the panel to do
 - `src/ask/sessions.mjs` — the ring of saved conversations the session keys walk
