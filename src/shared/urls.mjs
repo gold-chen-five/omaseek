@@ -14,7 +14,7 @@ function count (s, ch) {
 
 // Trailing punctuation belongs to the sentence; a closing bracket belongs to
 // the URL only when the URL opened one, as in Rust_(programming_language).
-function trim (url) {
+function trimSentenceEnd (url) {
   let end = url.length
   while (end > 0) {
     const body = url.slice(0, end)
@@ -34,7 +34,7 @@ export function urlAt (text, pos) {
   let m
   while ((m = re.exec(source)) !== null) {
     const leading = /^[(\[]*/.exec(m[0])[0].length
-    const token = trim(m[0].slice(leading))
+    const token = trimSentenceEnd(m[0].slice(leading))
     const url = urlFromSelection(token)
     const start = m.index + leading
     if (url && pos >= start && pos < start + token.length) return url
@@ -52,7 +52,7 @@ export function hostOf (url) {
 export function urlFromSelection (text) {
   const raw = String(text == null ? '' : text).replace(/[\u2028\u2029\r\n]+/g, '').trim()
   if (!raw || /\s/.test(raw)) return ''
-  const url = trim(raw.replace(/^[(<[]+/, ''))
+  const url = trimSentenceEnd(raw.replace(/^[(<[]+/, ''))
   if (isOpenable(url)) return url
   if (/^[a-z][a-z0-9+.-]*:(?!\d)/i.test(url)) return ''       // some other scheme; host:8080 is a port
   const host = url.split(/[/?#]/)[0]
