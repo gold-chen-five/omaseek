@@ -148,8 +148,8 @@ Item {
   }
 
   // Through setMode, so leaving insert steps the cursor left and clears any
-  function focusSearch (mode) {
   // half-typed operator.
+  function focusSearch (mode) {
     focusArea = States.FOCUS.FIELD
     if (mode === "i" || mode === "a") input.enterInsert(mode)
     else input.setMode(mode)
@@ -191,8 +191,8 @@ Item {
     onStatusChanged: if (open && root.focusArea === States.FOCUS.TRANSLATION) root.focusTranslation()
 
     askPath: Qt.resolvedUrl("../bin/ask").toString().replace(/^file:\/\//, "")
-  }
     modelAgent: SettingsLib.translateAgentOf(config.settings, ai.agents)
+  }
 
   Engine {
     id: engine
@@ -265,6 +265,10 @@ Item {
     function onTabbed () { root.toggleMode() }
     function onAgentSwitchRequested () { chat.switchAgent() }
     function onTranslateRequested (text) { commands.translateText(text) }
+    function onHandedOff (text, everything) { commands.handOffBar(text, everything) }
+    function onAskNowRequested (text, whole) { commands.askFromBar(text, whole) }
+    function onAskAboutRequested (text) { commands.askAboutText(text) }
+    function onSearchRequested (text) { commands.searchFor(String(text).split(root.input.lineBreak).join(" ")) }
     function onNewSessionRequested () { chat.newChat() }
     function onNextSessionRequested () { chat.nextChat() }
     function onSessionWalked (delta) { chat.walkChats(delta) }
@@ -272,10 +276,6 @@ Item {
     function onClearSessionsRequested () { chat.clearChats() }
     function onStopRequested () { chat.stopAnswer() }
     function onRetryRequested () { chat.retryAnswer() }
-    function onHandedOff (text, everything) { commands.handOffBar(text, everything) }
-    function onAskNowRequested (text, whole) { commands.askFromBar(text, whole) }
-    function onAskAboutRequested (text) { commands.askAboutText(text) }
-    function onSearchRequested (text) { commands.searchFor(String(text).split(root.input.lineBreak).join(" ")) }
     function onLinkOpened (url) { commands.openUrl(url) }
   }
 
