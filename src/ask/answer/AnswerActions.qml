@@ -4,7 +4,7 @@ import "../../shared/urls.mjs" as Urls
 import "../../shared/vim/textobjects.mjs" as TextObjects
 
 // What the answer hands to the rest of the panel: text into the ask bar (p,
-// gf), a question asked (gd), a search (gs), a translation (gt), a link to open (gx), or the reply and
+// gj), a question asked (gd), a search (gs), a translation (gt), a link to open (gx), or the reply and
 // its question to the agent (ga, gA). Each takes the selection when there is
 // one, drops it, and raises the view's signal.
 Item {
@@ -21,8 +21,8 @@ Item {
     view.putRequested(value, after)
   }
 
-  // gf and gd: the selection, else the displayed line under the cursor — the
-  // same unit yy takes. gf puts it in the ask bar to type a question about; gd
+  // gj and gd: the selection, else the displayed line under the cursor — the
+  // same unit yy takes. gj puts it in the ask bar to type a question about; gd
   // asks about it straight away.
   function askAbout () {
     const text = passage()

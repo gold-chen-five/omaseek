@@ -47,7 +47,7 @@ JSON API on.
 | `v` `V` then `y` | select in an answer and copy |
 | `/` `?` `n` `N` | search the results or the answer |
 | `ga` `gA` | hand off to the agent in a terminal: this result, or everything |
-| `gd` `gf` `gs` | ask the AI about a result or a selected passage now, put it in the ask bar unsent, or search for a selection |
+| `gd` `gj` `gs` | ask the AI about a result or a selected passage now, put it in the ask bar unsent, or search for a selection |
 | `gt` `gT` | translate the selection, or the whole bar (`ctrl+t` while typing), into a panel on the right; `ctrl+x` closes it |
 | `ctrl+c` `ctrl+n` `ctrl+x` | a new conversation, the next saved one, forget this one |
 | `L` `H` | in ask mode: the next saved conversation, or the one before |

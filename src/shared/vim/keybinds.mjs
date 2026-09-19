@@ -60,7 +60,7 @@ export const ACTIONS = [
     label: 'Hand off everything', hint: 'every URL on the results page, or the whole conversation, as a draft' },
   { id: 'askNow', config: 'ask_now_key', default: 'gd', scope: 'reader', panes: ['results', 'answer', 'translation'], command: 'askNow',
     label: 'Ask about this', hint: 'results: the selected result · answer and translation: the selection, or the line under the cursor — asked straight away' },
-  { id: 'askAbout', config: 'ask_about_key', default: 'gf', scope: 'reader', panes: ['results', 'answer', 'translation'], command: 'askAbout',
+  { id: 'askAbout', config: 'ask_about_key', default: 'gj', scope: 'reader', panes: ['results', 'answer', 'translation'], command: 'askAbout',
     label: 'Put in the ask bar', hint: 'results: the selected URL · answer and translation: the selection, or the line under the cursor — unsent, to type a question under' },
   { id: 'searchFor', config: 'search_for_key', default: 'gs', scope: 'reader', panes: ['results', 'answer', 'translation'], command: 'searchFor',
     label: 'Search for this', hint: 'results: search for the selected result’s title · answer: the selection, or the word under the cursor' },

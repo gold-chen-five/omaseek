@@ -98,7 +98,7 @@ Item {
     host.say(SearchLib.yankNotice(withTitle))
   }
 
-  // gf: the result over in the ask bar. Deliberately unsent — a question still
+  // gj: the result over in the ask bar. Deliberately unsent — a question still
   // has to be typed around the URL.
   function askAboutResult (index) {
     const url = session.yankText(index, false)
@@ -108,7 +108,7 @@ Item {
     host.focusSearch("insert")
   }
 
-  // gf in the answer or the translation: the passage in the ask bar, the
+  // gj in the answer or the translation: the passage in the ask bar, the
   // cursor under it.
   function askAboutText (text) {
     const passage = SearchLib.passageForQuestion(text)

@@ -19,7 +19,7 @@ ListView {
   signal handedOff(int index)
   signal pageHandedOff()
   signal yanked(int index, bool withTitle)   // y / Y: the URL, or the title above it
-  signal askRequested(int index)             // gf: this result, over in the ask bar
+  signal askRequested(int index)             // gj: this result, over in the ask bar
   signal askNowRequested(int index)          // gd: asked about straight away
   signal searchRequested(int index)          // gs: search for this result's title
   signal activated(int index)

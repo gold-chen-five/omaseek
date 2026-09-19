@@ -172,7 +172,7 @@ FocusScope {
   signal stopRequested()                       // stop the reply being written
   signal retryRequested()                      // ask the last question again
   signal putRequested(string text, bool after) // p and P: the selection, or "" for the clipboard
-  signal askRequested(string text)             // gf: this text, into the ask bar
+  signal askRequested(string text)             // gj: this text, into the ask bar
   signal askNowRequested(string text)          // gd: this text, asked straight away
 
   onActiveFocusChanged: {
