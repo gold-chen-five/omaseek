@@ -5,10 +5,23 @@ import { ACTIONS } from '../src/shared/vim/keybinds.mjs'
 
 test('every rebindable key is listed, with the key it is bound to now', () => {
   const entries = keyEntries({})
-  for (const action of ACTIONS) assert.ok(entries.some(e => e.text.indexOf(action.label + ' — ') === 0), action.id)
+  for (const action of ACTIONS) assert.ok(entries.some(e => e.label === action.label && e.hint === action.hint), action.id)
   const rebound = keyEntries({ askNowKey: 'gz' })
-  assert.ok(rebound.some(e => e.keys === 'gz' && e.text.indexOf('Ask about this') === 0), 'a rebound key shows as bound')
-  assert.ok(entries.some(e => e.keys === 'ctrl+k' && /Look up keys/.test(e.text)), 'the lookup lists itself')
+  assert.ok(rebound.some(e => e.keys === 'gz' && e.label === 'Ask about this'), 'a rebound key shows as bound')
+  assert.ok(entries.some(e => e.keys === 'ctrl+k' && /Look up keys/.test(e.label)), 'the lookup lists itself')
+})
+
+test('a row is a settings row: a label, the key beside it, the hint under it', () => {
+  const entries = keyEntries({})
+  for (const entry of entries) {
+    assert.equal(typeof entry.label, 'string')
+    assert.equal(typeof entry.hint, 'string')
+    assert.ok(entry.label !== '', 'every row says what it does')
+    // A fixed key is a line of vim's own keys: it has no binding to show.
+    if (entry.fixed) assert.equal(entry.keys, '')
+    else assert.ok(entry.keys !== '', entry.label + ' shows its key')
+  }
+  assert.ok(entries.some(e => e.fixed), 'the fixed keys are listed too')
 })
 
 test('groups come in one order, each together', () => {
@@ -20,12 +33,13 @@ test('groups come in one order, each together', () => {
   assert.deepEqual(known, [...known].sort((a, b) => GROUP_ORDER.indexOf(a) - GROUP_ORDER.indexOf(b)))
 })
 
-test('typed words filter by key, meaning or group, in any case', () => {
+test('typed words filter by key, meaning, hint or group, in any case', () => {
   const entries = keyEntries({})
   const translate = filterEntries(entries, 'TRANS')
   assert.ok(translate.some(e => e.keys === 'gt') && translate.some(e => e.keys === 'gT') && translate.some(e => e.keys === 'ctrl+t'))
   assert.ok(filterEntries(entries, 'ctrl+x').length > 0)
-  assert.ok(filterEntries(entries, 'ask now').every(e => /ask/i.test(e.keys + e.text + e.group) && /now/i.test(e.keys + e.text + e.group)), 'every word must match')
+  const words = e => (e.keys + ' ' + e.label + ' ' + e.hint + ' ' + e.group).toLowerCase()
+  assert.ok(filterEntries(entries, 'ask now').every(e => /ask/.test(words(e)) && /now/.test(words(e))), 'every word must match')
   assert.equal(filterEntries(entries, '').length, entries.length)
   assert.equal(filterEntries(entries, 'zzzz nothing').length, 0)
 })

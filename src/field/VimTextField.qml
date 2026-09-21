@@ -73,6 +73,7 @@ TextArea {
   signal submitted()
   signal cancelled()                        // Esc from normal mode
   signal steppedDown()                      // j / Down: the results are the "line" below
+  signal steppedUp()                        // k with no line above: the lookup's list moves instead
   signal historyPrevRequested()             // Up in the one-line search field: an older query
   signal historyNextRequested()             // Down there: back toward what was being typed
   signal requestedSettings()                // Ctrl+S (or Ctrl+,) in any mode

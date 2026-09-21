@@ -178,7 +178,8 @@ BorderSurface {
     anchors.fill: content
     z: 10
     settings: panelCard.config.settings
-    closeChord: panelCard.host.chords.keysHelp
+    keymap: panelCard.config.keymap
+    chords: panelCard.host.chords
     foreground: panelCard.host.foreground
     accent: panelCard.host.accent
     fontFamily: panelCard.host.fontFamily
