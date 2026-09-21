@@ -339,7 +339,7 @@ Item {
       id: card
 
       // Wider while a translation is split off, so the pane beside it keeps its width.
-      width: Math.min(Style.space(translator.open ? 1200 : 820), panel.width - Style.gapsOut * 2)
+      width: Math.min(Style.space(translator.open ? 1100 : 820), panel.width - Style.gapsOut * 2)
       height: Math.min(Style.space(560), panel.height - Style.gapsOut * 2)
       anchors.centerIn: parent
       host: root

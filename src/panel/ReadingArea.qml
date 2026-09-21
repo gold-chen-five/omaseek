@@ -38,7 +38,7 @@ Item {
     anchors.left: parent.left
     anchors.top: parent.top
     anchors.bottom: parent.bottom
-    width: area.translator.open ? Math.round(parent.width * 0.58) : parent.width
+    width: area.translator.open ? Math.round(parent.width * 0.66) : parent.width
 
     AnswerView {
       id: answer
