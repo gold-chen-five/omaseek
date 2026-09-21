@@ -9,7 +9,14 @@ FocusScope {
   id: page
 
   property alias incomingRows: rowState.source
-  readonly property var rows: rowState.rows
+  // What the filter over the page has typed; the page shows the rows it finds.
+  // Every index here (cursor, editing, dropdown) is into those shown rows, and
+  // a key's clash check reads them all (allRows), not just the ones on screen.
+  property string filterText: ""
+  property bool filterFocused: false         // the filter has the keyboard: no row is lit
+  readonly property var allRows: rowState.rows
+  readonly property var rows: SettingsLib.filterRows(rowState.rows, filterText)
+  property bool pendingG: false              // g awaiting its second key: gg, gn, gi
   property int cursor: 0
   property int editingIndex: -1              // which text row is being typed into
   property int dropdownIndex: -1             // which choice row has its list open
@@ -46,7 +53,8 @@ FocusScope {
 
   signal changed(string key, var value)
   signal activated(string key, string action) // a toggle was flipped or an action pressed
-  signal closed()                            // /, esc, or the chord that opened the page
+  signal closed()                            // esc, or the chord that opened the page
+  signal filterRequested(string mode)        // /, gn, gi, or k on the first row: up to the filter
   signal keysRequested()                     // ctrl+k: the key lookup, as from anywhere else
   signal editingFinished()                   // hand the keyboard back to Search.qml
 
@@ -93,11 +101,33 @@ FocusScope {
   }
 
   function open () {
+    pendingG = false
     cursor = firstSetting()
     refusedIndex = -1
     keptContentY = -1
     scroll.contentY = 0
     Qt.callLater(() => page.forceActiveFocus())
+  }
+
+  // A new filter starts the reader at its first row, scrolled to the top: the
+  // rows under the cursor before are likely gone.
+  function setFilter (text) {
+    if (text === filterText) return
+    keptContentY = 0
+    filterText = text
+    cursor = firstSetting()
+    scroll.contentY = 0
+  }
+
+  // Down from the filter: onto the first row, if the filter left any.
+  function focusRows () {
+    let any = false
+    for (let i = 0; i < rows.length; i++) if (selectable(rows[i])) any = true
+    if (!any) return false
+    cursor = firstSetting()
+    pendingG = false
+    forceActiveFocus()
+    return true
   }
 
   function beginEdit (index) {
@@ -183,14 +213,29 @@ FocusScope {
     if (editingIndex !== -1 || dropdownIndex !== -1) return
 
     const chord = Chord.of(event)
-    if (event.key === Qt.Key_Escape || event.text === "/" || (chord !== "" && (chord === page.settingsChord || chord === "C-,"))) {
+    // After g: gg is the first row, and gn and gi go up to the filter, as they
+    // go back to the field from the results.
+    if (pendingG) {
+      pendingG = false
+      if (event.text === "g") cursor = firstSetting()
+      else if (event.text === "n") filterRequested("normal")
+      else if (event.text === "i") filterRequested("i")
+      event.accepted = true
+      return
+    }
+    if (event.key === Qt.Key_Escape || (chord !== "" && (chord === page.settingsChord || chord === "C-,"))) {
       closed()
     } else if (chord !== "" && chord === page.keysChord) {
       keysRequested()
+    } else if (event.text === "/") {
+      filterRequested("i")
     } else if (event.key === Qt.Key_Down || event.text === "j") {
       moveCursor(1)
     } else if (event.key === Qt.Key_Up || event.text === "k") {
-      moveCursor(-1)
+      // Nothing above the first row but the filter: k goes up to it, as j
+      // came down from it.
+      if (cursor === firstSetting()) filterRequested("normal")
+      else moveCursor(-1)
     } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.text === "i") {
       press()
     } else if (event.key === Qt.Key_Right || event.text === "l") {
@@ -198,7 +243,7 @@ FocusScope {
     } else if (event.key === Qt.Key_Left || event.text === "h") {
       cycle(-1)
     } else if (event.text === "g") {
-      cursor = firstSetting()
+      pendingG = true
     } else if (event.text === "G") {
       cursor = lastSetting()
     }
@@ -232,5 +277,16 @@ FocusScope {
         }
       }
     }
+  }
+
+  Text {
+    anchors.centerIn: parent
+    visible: page.filterText !== "" && page.rows.length === 0
+    textFormat: Text.PlainText
+    text: "no setting matches “" + page.filterText + "”"
+    color: page.foreground
+    opacity: 0.5
+    font.family: page.fontFamily
+    font.pixelSize: Style.font.body
   }
 }

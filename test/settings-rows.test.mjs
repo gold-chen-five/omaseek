@@ -7,7 +7,8 @@ import {
   readSettings, writeSettings, settingsRows, cycle, normalizeSequence, ENGINE_STATES,
   LAUNCHER_CHOICES, DEFAULT_AGENT,
   PAGE_SIZE_CHOICES, DEFAULTS, checkRow, FIXED_KEYS, changeSetting, selectedModel,
-  ENGINE_CHOICES, DEFAULT_ENGINES, LANGUAGE_CHOICES, toggleEngine, endpointTestText, searchSpeedText, versionText, nextAgent, translateAgentOf, SAME_AS_ASK, shortcutRow
+  ENGINE_CHOICES, DEFAULT_ENGINES, LANGUAGE_CHOICES, toggleEngine, endpointTestText, searchSpeedText, versionText, nextAgent, translateAgentOf, SAME_AS_ASK, shortcutRow,
+  filterRows
 } from '../src/settings/settings.mjs'
 import { ACTIONS, settingKey } from '../src/shared/vim/keybinds.mjs'
 import { DEFAULT_TIMEOUT_MS } from '../src/shared/vim/keymap.mjs'
@@ -127,7 +128,7 @@ test('the fixed keys close the page as read-only rows, so it lists everything pr
     assert.equal(row.key, undefined, 'nothing to write')
     assert.ok(row.hint)
   }
-  assert.match(FIXED_KEYS.find(entry => entry.label === 'Settings').keys, /\/ field normal/)
+  assert.match(FIXED_KEYS.find(entry => entry.label === 'Settings').keys, /\/ filter the page/)
   // The two strips and the keys that walk them are a row each, not a clause
   // buried in a pane's line: they are how a reader finds out they exist.
   assert.match(FIXED_KEYS.find(entry => entry.label === 'Sessions (ask)').keys, /read in the answer and in the field/)
@@ -199,4 +200,21 @@ test('the shortcut row offers Add only while SUPER + D is free, and heads the ke
   const rows = settingsRows(readSettings(''), 'running', null, null, null, null, null, null, { ok: true, state: 'free' })
   const keys = rows.findIndex(r => r.type === 'section' && r.label === 'Keys')
   assert.equal(rows[keys + 1].key, 'shortcut')
+})
+
+test('a typed filter keeps the matching rows under their section headings', () => {
+  const rows = settingsRows(readSettings(''))
+  assert.equal(filterRows(rows, ''), rows, 'an empty filter is the whole page')
+  const effort = filterRows(rows, 'EFFORT')
+  assert.ok(effort.length > 0 && effort.every(r => r.type === 'section' || /effort/i.test(r.label + ' ' + r.hint + ' ' + r.value)),
+    'every row kept has the word — or its section does')
+  assert.ok(effort.some(r => r.type === 'section' && r.label === 'Ask') && effort.some(r => r.type === 'section' && r.label === 'Translate'),
+    'each section with a match keeps its heading')
+  const keys = filterRows(rows, 'keys')
+  assert.ok(keys.some(r => r.label === 'Look up keys'), 'the section name finds its rows')
+  assert.ok(filterRows(rows, 'translate bar').some(r => r.label === 'Translate the bar'), 'every word must match, in any order')
+  for (let i = 0; i < effort.length; i++) {
+    if (effort[i].type === 'section') assert.ok(effort[i + 1] && effort[i + 1].type !== 'section', 'no heading is left with nothing under it')
+  }
+  assert.deepEqual(filterRows(rows, 'zzzz nothing'), [])
 })

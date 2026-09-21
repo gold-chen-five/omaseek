@@ -127,3 +127,35 @@ export function cycle (row, delta) {
   const next = (index + delta + row.options.length) % row.options.length
   return row.options[next]
 }
+
+/**
+ * The rows every typed word appears in, whatever the case: in the label, the
+ * hint, the value shown, or the name of the section the row sits in. A section
+ * heading stays when any row under it does. An empty query keeps every row.
+ */
+export function filterRows (rows, query) {
+  const words = String(query || '').toLowerCase().split(/\s+/).filter(word => word !== '')
+  if (words.length === 0) return rows
+  const out = []
+  let heading = null
+  let sectionLabel = ''
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]
+    if (row.type === 'section') {
+      heading = row
+      sectionLabel = row.label || ''
+      continue
+    }
+    const value = row.value === undefined || row.value === null || typeof row.value === 'object' ? '' : String(row.value)
+    const hay = [row.label || '', row.hint || '', value, sectionLabel].join(' ').toLowerCase()
+    let all = true
+    for (let w = 0; w < words.length; w++) if (hay.indexOf(words[w]) === -1) all = false
+    if (!all) continue
+    if (heading) {
+      out.push(heading)
+      heading = null
+    }
+    out.push(row)
+  }
+  return out
+}

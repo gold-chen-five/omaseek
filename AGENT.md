@@ -59,7 +59,7 @@ feature's folder holds its QML *and* its pure `.mjs` side by side.
 | `src/search/` | searching: `SearchSession`, `ResultList`/`ResultRow`, `PageTabs`, `HistoryStore`, and `search`, `history`, `pager` |
 | `src/ask/` | asking: `AiSession` and its parts (`AskTurns`, `AgentCli`), `ChatCommands`, `SessionStore`/`SessionTabs`, `AnswerView` with its parts in `ask/answer/`, and `sessions`, `transcript`, `markdown` |
 | `src/translate/` | `Translator`, `TranslatePanel`, `translate.mjs` |
-| `src/settings/` | `SettingsPage`, `SettingRow`, `SettingsDropdown`, `SettingsRows`, `ConfigStore`, `SettingsActions`, `Shortcut`, `KeysLookup` (ctrl+k: the search page in miniature — a `VimTextField` filter over the page's own key rows, read with the results' keys), and the settings modules |
+| `src/settings/` | `SettingsPage`, `SettingRow`, `SettingsDropdown`, `SettingsRows`, `ConfigStore`, `SettingsActions`, `Shortcut`, `KeysLookup` (ctrl+k: the search page in miniature — a `VimTextField` filter over the page's own key rows, read with the results' keys), `FilterBar` (the lookup's and the settings page's filter, a `VimTextField` in the search bar's frame), and the settings modules |
 | `src/engine/` | the SearXNG instance: `Engine`, `SetupPrompt` |
 | `src/shared/` | what more than one feature uses: `JsonFile`, `JsonProcess`, `TabSquare`, `json`, `html`, `states`, `urls`, `thinking` |
 | `src/shared/vim/` | vim itself, pure, used by the field and both reading panes: motions, text objects, the answer's grammar, finds, key tables and bindings; `chord.js`, `measure.js`, `Finder`, `MatchHighlight` |

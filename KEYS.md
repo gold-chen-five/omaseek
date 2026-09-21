@@ -111,7 +111,7 @@ empty value restores the default.
 |---|---|
 | `super+d` | summon or dismiss (Hyprland, not the panel — `omarchy-shell shell toggle omaseek`). Not bound on install: Settings → Keys → *Open omaseek with* → Add writes it, only while the key is free |
 | `ctrl+s` (Settings), `ctrl+,` | open or close settings |
-| `ctrl+k` (Look up keys) | every key in the panel, on a page that works like the search page. First the Settings → Keys rows, in the same order and shape (what it does, the key beside it, the hint under it, as you bound it); then the fixed keys, one row per group as Settings lists them. The filter is the panel's own field, with every Vim key (`jk`, `db`, `ciw`, `u`), and any words in any case filter (`trans`, `ctrl+x`, `undo`). `enter`, `j` or `↓` step into the list, which is numbered like the results and read with their keys (`j` `k`, `gg` `G`, `ctrl+d` `ctrl+u`, counts such as `3j`). `gn`, `esc` go back to the filter in normal mode, and `gi` `i` `a` `/` in insert. A panel key (`ctrl+s`, `tab`, `shift+tab`, the session keys) closes the lookup and does what it does anywhere. `esc` from the filter's normal mode or `ctrl+k` closes the lookup, and the keyboard goes back where it was, in the mode it was in |
+| `ctrl+k` (Look up keys) | every key in the panel, on a page that works like the search page. First the Settings → Keys rows, in the same order and shape (what it does, the key beside it, the hint under it, as you bound it); then the fixed keys, one row per group as Settings lists them. The filter is the panel's own field, with every Vim key (`jk`, `db`, `ciw`, `u`), and any words in any case filter (`trans`, `ctrl+x`, `undo`). `enter`, `j` or `↓` step into the list, which is numbered like the results and read with their keys (`j` `k`, `gg` `G`, `ctrl+d` `ctrl+u`, counts such as `3j`); `k` on the first row goes back up to the filter. `gn`, `esc` go back to the filter in normal mode, and `gi` `i` `a` `/` in insert. A panel key (`ctrl+s`, `tab`, `shift+tab`, the session keys) closes the lookup and does what it does anywhere. `esc` from the filter's normal mode or `ctrl+k` closes the lookup, and the keyboard goes back where it was, in the mode it was in |
 | `tab` (Switch search / ask) | switch between searching and asking without changing Vim mode |
 | `shift+tab` (Switch agent) | the next installed agent answers from now on, wrapping — the status line says who. A conversation already under way goes with it: every question carries the turns before it (the last eight), whichever agent wrote them |
 | `esc` | leave one step: close an open `/` prompt, drop a search and its highlight, cancel a pending/active find, drop a selection, normal mode from insert, the field from a list, the panel from the field |
@@ -201,7 +201,7 @@ typing in the field never looks like it would act on a row.
 
 | key | does |
 |---|---|
-| `j` `k`, `down` `up` | move the cursor; a count repeats the move (`2j`, `10k`) |
+| `j` `k`, `down` `up` | move the cursor; a count repeats the move (`2j`, `10k`). On the first row, `k` goes back up to the field in normal mode, as `j` came down from it |
 | `ctrl+d` `ctrl+u` | half a screen |
 | `gg` `G` | first, last |
 | `l` (Next page), `right` | next page; after `page failed` on the status line, it retries that page. A count walks several: `5l` is five pages on |
@@ -235,7 +235,7 @@ follow the layout when the panel width changes and are excluded from copied text
 
 | key | does |
 |---|---|
-| `j` `k` `h` `l`, arrows | move the cursor by line and character |
+| `j` `k` `h` `l`, arrows | move the cursor by line and character. On the first line, `k` goes back up to the field in normal mode (not while selecting) |
 | `w` `W` `b` `B` `e` `E` | by word |
 | `0` `^` `_` `home`, `$` `end` | line ends |
 | `f` `F` `t` `T` {char}, `;` `,` | find on the line; matches are highlighted with the current one accented, and `f`/`F` keep walking forward/backward |
@@ -311,8 +311,18 @@ search.
 
 ## Settings
 
+Settings has its own bar where the web bar sits: a filter over the page, typed
+as the key lookup's is — the panel's own field, with every Vim key. Any words,
+in any case, keep the rows they appear in (label, hint, value or section name:
+`effort`, `engine`, `keys`), each under its section's heading. The page opens
+with the keyboard on the rows and the filter empty.
+
 | key | does |
 |---|---|
+| `/` | up to the filter, insert mode |
+| `k` on the first row, `gn` | up to the filter, normal mode (`gi` in insert) |
+| `enter`, `j`, `down` in the filter | back down to the rows, on the first one the filter left |
+| `esc` in the filter's normal mode, `ctrl+s` | back to the panel |
 | `j` `k` | move between rows, stepping over section headings and the fixed-key list |
 | `h` `l` | change the value under the cursor; on a switch (SearXNG, each engine), off and on |
 | `enter`, `i` | open a typed row for editing, flip a switch, press a button (Update, Test), or open a dropdown |
@@ -320,7 +330,6 @@ search.
 | `enter` while editing | commit — a refused key says why under its label until the cursor moves |
 | `esc` while editing | cancel |
 | `j` `k`, `enter`, `esc` in an open dropdown | walk it, pick, close |
-| `/` | back to the field, normal mode |
 | `esc`, `ctrl+s` (Settings), `ctrl+,` | back to the panel |
 | `ctrl+k` (Look up keys) | the key lookup, over the page; closing it comes back here with the cursor where it was |
 

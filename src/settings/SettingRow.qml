@@ -19,7 +19,7 @@ Rectangle {
   property var owner: null
   readonly property bool isSection: modelData.type === "section"
   readonly property bool isInfo: modelData.type === "info"
-  readonly property bool hasCursor: index === settingRow.owner.cursor && !isSection && !isInfo
+  readonly property bool hasCursor: index === settingRow.owner.cursor && !isSection && !isInfo && !settingRow.owner.filterFocused
   readonly property bool isChoice: modelData.type === "choice"
   readonly property bool isAction: modelData.type === "action"
   readonly property bool isDropdown: isChoice && modelData.control === "dropdown"
@@ -267,7 +267,7 @@ Rectangle {
 
         // A refused key keeps the old one and says why under the label.
         function commit () {
-          const checked = SettingsLib.checkRow(settingRow.modelData, sequenceField.text, settingRow.owner.rows)
+          const checked = SettingsLib.checkRow(settingRow.modelData, sequenceField.text, settingRow.owner.allRows)
           if (checked.error) settingRow.owner.refuse(settingRow.index, checked.error)
           else if (checked.value !== null) settingRow.owner.changed(settingRow.modelData.key, checked.value)
           // Back to a binding, on the new value or the old one if refused.

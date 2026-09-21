@@ -80,7 +80,7 @@ export function statusText ({
   agent = '', effort = '', selecting = false, link = '', session = '',
   stopKey = 'esc', retryKey = 'ctrl+shift+r', canRetry = false, address = ''
 } = {}) {
-  if (view === VIEW.SETTINGS) return 'j/k rows · h/l change · enter opens · saved as you go · esc back'
+  if (view === VIEW.SETTINGS) return 'j/k rows · h/l change · enter opens · / filter · esc back'
   if (view === VIEW.SETUP) return 'h/l choose · enter confirm · esc not now'
   if (panelMode === PANEL.AI) return askStatusText({ status, errorMessage, agent, effort, selecting, link, session, stopKey, retryKey, canRetry })
   // The field holds an address: Enter opens it rather than searching, so say so first.

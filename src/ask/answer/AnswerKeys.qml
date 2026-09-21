@@ -42,6 +42,12 @@ Item {
     if (action.type !== "find" && action.type !== "repeatFind") view.repeatFindReady = false
     switch (action.type) {
     case "command": {
+      // k on the first line: nothing above it but the field, so k goes up to
+      // the field, as j from the field came down. Not mid-selection or mid-y.
+      if (action.command === "up" && !action.operator && !view.selecting && view.mover.lineFrom(view.cursor, -1, 0) === -1) {
+        view.normalRequested()
+        break
+      }
       const target = view.mover.motionTarget(action.command, action.count, action.operator)
       if (target) view.mover.go(target, action.operator)
       else if (!action.operator) run(action.command, action.count)   // y then a non-motion: dropped, as vim does

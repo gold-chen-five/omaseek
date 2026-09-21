@@ -34,6 +34,7 @@ BorderSurface {
   readonly property alias settingsPage: settingsPage
   readonly property alias setupPrompt: setupPrompt
   readonly property alias keysLookup: keysLookup
+  readonly property alias settingsFilter: settingsFilter
 
   radius: Style.cornerRadius
   color: host.background
@@ -48,7 +49,7 @@ BorderSurface {
     // The view below fills what the field, the strip and the status line
     // leave; a strip is there in one mode or the other — pages in search,
     // conversations in AI — and takes a gap with it.
-    readonly property real viewHeight: Math.max(0, height - fieldBar.height - statusBar.height
+    readonly property real viewHeight: Math.max(0, height - (fieldBar.visible ? fieldBar.height : settingsFilter.height) - statusBar.height
       - Style.spacing.md * 2
       - (sessionTabs.visible ? sessionTabs.height + Style.spacing.md : 0)
       - (pageTabs.visible ? pageTabs.height + Style.spacing.md : 0))
@@ -63,6 +64,7 @@ BorderSurface {
     FieldBar {
       id: fieldBar
 
+      visible: panelCard.host.view !== States.VIEW.SETTINGS
       width: parent.width
       panelMode: panelCard.host.panelMode
       ai: panelCard.ai
@@ -78,6 +80,37 @@ BorderSurface {
       onStopClicked: panelCard.chat.stopAnswer()
       onRetryClicked: panelCard.chat.retryAnswer()
       onNewSessionClicked: panelCard.chat.newChat()
+    }
+
+    // Settings has a bar of its own where the web bar sits: a filter over the
+    // page, typed as the key lookup's is. / or k on the first row comes up to
+    // it, and Enter, j or Down go back down to the rows.
+    FilterBar {
+      id: settingsFilter
+
+      visible: panelCard.host.view === States.VIEW.SETTINGS
+      width: parent.width
+      placeholderText: "engine, effort, language …"
+      keymap: panelCard.config.keymap
+      chords: panelCard.host.chords
+      foreground: panelCard.host.foreground
+      accent: panelCard.host.accent
+      fontFamily: panelCard.host.fontFamily
+
+      onTextChanged: settingsPage.setFilter(text)
+    }
+
+    Connections {
+      target: settingsFilter.field
+
+      function onSubmitted () { settingsPage.focusRows() }
+      function onSteppedDown () { settingsPage.focusRows() }
+      function onHistoryNextRequested () { settingsPage.focusRows() }   // Down
+      // esc from normal mode, and the settings key, leave settings as they do
+      // from the rows; ctrl+k is the lookup, over the page.
+      function onCancelled () { panelCard.host.closeSettings() }
+      function onRequestedSettings () { panelCard.host.closeSettings() }
+      function onKeysRequested () { panelCard.host.openKeys() }
     }
 
     StatusBar {
@@ -144,11 +177,13 @@ BorderSurface {
       incomingRows: panelCard.host.settingsRows
       settingsChord: panelCard.host.chords.settings
       keysChord: panelCard.host.chords.keysHelp
+      filterFocused: settingsFilter.field.activeFocus
 
       onChanged: (key, value) => panelCard.settingsActions.change(key, value)
       onActivated: (key, action) => panelCard.settingsActions.run(key, action)
       onClosed: panelCard.host.closeSettings()
       onKeysRequested: panelCard.host.openKeys()
+      onFilterRequested: mode => settingsFilter.focusField(mode)
       onEditingFinished: Qt.callLater(() => settingsPage.forceActiveFocus())
     }
 

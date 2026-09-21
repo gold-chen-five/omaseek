@@ -4,7 +4,6 @@ import qs.Ui
 import "keylist.mjs" as KeyList
 import "../shared/vim/keys.mjs" as KeysLib
 import "../shared/vim/chord.js" as Chord
-import "../field"
 
 // ctrl+k: every key in the panel, to look one up without leaving for Settings.
 // The page is the search page in miniature — the same field over a list read
@@ -13,7 +12,8 @@ import "../field"
 //   · the filter is a VimTextField like the bar's, with every vim key in it
 //   · Enter, j or Down step into the list, as they step into the results
 //   · the list runs the reading keys (j k, gg G, ctrl+d ctrl+u, counts), and
-//     gn, gi, i, a, / and esc go back to the filter, as they go back to the bar
+//     gn, gi, i, a, / and esc go back to the filter, as they go back to the bar,
+//     and so does k on the first row
 //   · a panel key means here what it means anywhere: it closes the lookup and
 //     acts, which is what these signals are for
 //
@@ -30,7 +30,7 @@ FocusScope {
   property color accent: Color.menu.selectedText
   property string fontFamily: Style.font.menuFamily
 
-  readonly property var entries: KeyList.filterEntries(KeyList.keyEntries(settings), filter.text)
+  readonly property var entries: KeyList.filterEntries(KeyList.keyEntries(settings), filterBar.text)
   readonly property var readerKeys: KeysLib.readerKeys("results", settings)
   // Numbered as the results are, so a count (5j) can be read off the rows.
   readonly property string lineNumbers: settings && settings.lineNumbers ? settings.lineNumbers : "relative"
@@ -48,17 +48,13 @@ FocusScope {
 
   // Opened afresh each time: the last search is not what the next one is after.
   function open () {
-    filter.text = ""
+    filterBar.clear()
     list.currentIndex = 0
     list.positionViewAtBeginning()
     focusFilter("i")
   }
 
-  function focusFilter (mode) {
-    if (mode === "i" || mode === "a") filter.enterInsert(mode)
-    else filter.setMode(mode)
-    filter.forceActiveFocus()
-  }
+  function focusFilter (mode) { filterBar.focusField(mode) }
 
   // Nothing to read means nothing to step into, as an empty result list does.
   function focusList () {
@@ -73,7 +69,7 @@ FocusScope {
   }
 
   // The card under it would take clicks otherwise.
-  MouseArea { anchors.fill: parent; onClicked: lookup.focusFilter(filter.mode) }
+  MouseArea { anchors.fill: parent; onClicked: lookup.focusFilter(filterBar.field.mode) }
 
   Text {
     id: title
@@ -89,75 +85,40 @@ FocusScope {
     font.letterSpacing: 1.5
   }
 
-  // The field's frame, drawn as the bar draws its own: the field scrolls inside
-  // it, so a frame the field drew would scroll with it.
-  BorderSurface {
-    id: filterFrame
-
-    readonly property real insetTop: Border.top(filter.borderSpec) + filter.verticalPadding
-    readonly property real insetBottom: Border.bottom(filter.borderSpec) + filter.verticalPadding
+  FilterBar {
+    id: filterBar
 
     anchors.left: parent.left
     anchors.right: parent.right
     anchors.top: title.bottom
     anchors.topMargin: Style.spacing.sm
-    height: Math.round(filter.lineHeight + insetTop + insetBottom)
-    radius: Style.cornerRadius
-    color: Style.controlFill(filter.activeFocus, filter.hovered, lookup.foreground, lookup.accent)
-    borderSpec: filter.borderSpec
+    focus: true
+    placeholderText: "translate, ctrl+x, undo, gd …"
+    keymap: lookup.keymap
+    // The panel's keys are the field's here too, so each one closes the
+    // lookup and does what it does anywhere else.
+    chords: lookup.chords
+    foreground: lookup.foreground
+    accent: lookup.accent
+    fontFamily: lookup.fontFamily
+  }
 
-    Flickable {
-      id: filterScroll
+  Connections {
+    target: filterBar.field
 
-      anchors.fill: parent
-      anchors.leftMargin: Border.left(filter.borderSpec) + filter.horizontalPadding
-      anchors.rightMargin: Border.right(filter.borderSpec) + filter.horizontalPadding
-      anchors.topMargin: filterFrame.insetTop
-      anchors.bottomMargin: filterFrame.insetBottom
-      clip: true
-      interactive: false
-      contentWidth: filter.width
-      contentHeight: filter.height
-
-      VimTextField {
-        id: filter
-
-        width: Math.max(filterScroll.width, implicitWidth)
-        height: Math.max(filterScroll.height, implicitHeight)
-        focus: true
-        placeholderText: "translate, ctrl+x, undo, gd …"
-        foreground: lookup.foreground
-        accent: lookup.accent
-        font.family: lookup.fontFamily
-        font.pixelSize: Style.font.body
-        verticalPadding: Style.spacing.md
-        escapeSequences: lookup.keymap.sequences
-        escapeTimeout: lookup.keymap.timeoutMs
-        // The panel's keys are the field's here too, so each one closes the
-        // lookup and does what it does anywhere else.
-        chords: lookup.chords
-
-        onSubmitted: lookup.focusList()          // Enter: into the list, as it goes to the results
-        onSteppedDown: lookup.focusList()
-        onHistoryNextRequested: lookup.focusList()   // Down; there is no history to walk here
-        onCancelled: lookup.closed()             // esc from normal mode
-        onKeysRequested: lookup.closed()
-        onRequestedSettings: lookup.settingsRequested()
-        onTabbed: lookup.tabbed()
-        onAgentSwitchRequested: lookup.agentSwitchRequested()
-        onNewSessionRequested: lookup.newSessionRequested()
-        onNextSessionRequested: lookup.nextSessionRequested()
-        onCloseSessionRequested: lookup.closeSessionRequested()
-        onClearSessionsRequested: lookup.clearSessionsRequested()
-        onRetryRequested: lookup.retryRequested()
-
-        onCursorRectangleChanged: {
-          const r = cursorRectangle
-          if (r.x < filterScroll.contentX) filterScroll.contentX = r.x
-          else if (r.x + r.width > filterScroll.contentX + filterScroll.width) filterScroll.contentX = r.x + r.width - filterScroll.width
-        }
-      }
-    }
+    function onSubmitted () { lookup.focusList() }          // Enter: into the list, as it goes to the results
+    function onSteppedDown () { lookup.focusList() }
+    function onHistoryNextRequested () { lookup.focusList() }   // Down; there is no history to walk here
+    function onCancelled () { lookup.closed() }             // esc from normal mode
+    function onKeysRequested () { lookup.closed() }
+    function onRequestedSettings () { lookup.settingsRequested() }
+    function onTabbed () { lookup.tabbed() }
+    function onAgentSwitchRequested () { lookup.agentSwitchRequested() }
+    function onNewSessionRequested () { lookup.newSessionRequested() }
+    function onNextSessionRequested () { lookup.nextSessionRequested() }
+    function onCloseSessionRequested () { lookup.closeSessionRequested() }
+    function onClearSessionsRequested () { lookup.clearSessionsRequested() }
+    function onRetryRequested () { lookup.retryRequested() }
   }
 
   ListView {
@@ -165,7 +126,7 @@ FocusScope {
 
     anchors.left: parent.left
     anchors.right: parent.right
-    anchors.top: filterFrame.bottom
+    anchors.top: filterBar.bottom
     anchors.bottom: parent.bottom
     anchors.topMargin: Style.spacing.md
     clip: true
@@ -200,7 +161,9 @@ FocusScope {
 
       switch (command) {
       case "down":         moveCursor(times); break
-      case "up":           moveCursor(-times); break
+      // On the first row there is nothing above but the filter: k goes back
+      // up to it, as j came down from it.
+      case "up":           if (currentIndex === 0) lookup.focusFilter("normal"); else moveCursor(-times); break
       case "halfPageDown": moveCursor(pageStep * times); break
       case "halfPageUp":   moveCursor(-pageStep * times); break
       case "top":          moveCursorTo(0); break
@@ -366,7 +329,7 @@ FocusScope {
       anchors.centerIn: parent
       visible: list.count === 0
       textFormat: Text.PlainText
-      text: "no key matches “" + filter.text + "”"
+      text: "no key matches “" + filterBar.text + "”"
       color: lookup.foreground
       opacity: 0.5
       font.family: lookup.fontFamily

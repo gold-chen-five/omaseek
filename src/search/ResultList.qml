@@ -132,7 +132,8 @@ ListView {
     case "halfPageDown": moveCursor(pageStep * times); break
     case "halfPageUp":   moveCursor(-pageStep * times); break
     case "down":         moveCursor(times); break
-    case "up":           moveCursor(-times); break
+    // The first row has only the field above it: k goes up to it, as j came down.
+    case "up":           if (currentIndex === 0) normalRequested(); else moveCursor(-times); break
     case "nextPage":     nextPageRequested(times); break
     case "goToPage":     pageJumpRequested(times); break
     case "previousPage": previousPageRequested(times); break
