@@ -189,10 +189,10 @@ BorderSurface {
     // A panel key means in the lookup what it means anywhere: it puts the
     // lookup away first, so what it does happens on the panel behind it.
     onClosed: panelCard.host.closeKeys()
+    // ctrl+s goes to settings; opened over them, closing the lookup is enough.
     onSettingsRequested: {
       panelCard.host.closeKeys()
-      if (panelCard.host.view === States.VIEW.SETTINGS) panelCard.host.closeSettings()
-      else panelCard.host.openSettings()
+      if (panelCard.host.view !== States.VIEW.SETTINGS) panelCard.host.openSettings()
     }
     onTabbed: { panelCard.host.closeKeys(); panelCard.host.toggleMode() }
     onAgentSwitchRequested: { panelCard.host.closeKeys(); panelCard.chat.switchAgent() }
