@@ -16,6 +16,7 @@ FocusScope {
   property int refusedIndex: -1              // a key just refused, and why, until the cursor moves
   property string refusal: ""
   property string settingsChord: "C-s"       // the key that opened the page closes it
+  property string keysChord: "C-k"           // the key lookup, which opens over the page
 
   // The widest row of chips on the page, measured as laid out. A dropdown takes
   // this width, so it lines up with the chips under it edge for edge.
@@ -46,6 +47,7 @@ FocusScope {
   signal changed(string key, var value)
   signal activated(string key, string action) // a toggle was flipped or an action pressed
   signal closed()                            // /, esc, or the chord that opened the page
+  signal keysRequested()                     // ctrl+k: the key lookup, as from anywhere else
   signal editingFinished()                   // hand the keyboard back to Search.qml
 
   implicitHeight: layout.implicitHeight
@@ -183,6 +185,8 @@ FocusScope {
     const chord = Chord.of(event)
     if (event.key === Qt.Key_Escape || event.text === "/" || (chord !== "" && (chord === page.settingsChord || chord === "C-,"))) {
       closed()
+    } else if (chord !== "" && chord === page.keysChord) {
+      keysRequested()
     } else if (event.key === Qt.Key_Down || event.text === "j") {
       moveCursor(1)
     } else if (event.key === Qt.Key_Up || event.text === "k") {

@@ -165,7 +165,9 @@ Item {
 
   function closeKeys () {
     keysOpen = false
-    if (keysReturnTo === States.FOCUS.TRANSLATION && translator.open) focusTranslation()
+    // Opened over settings: back to the page, its cursor where it was.
+    if (view === States.VIEW.SETTINGS) Qt.callLater(() => card.settingsPage.forceActiveFocus())
+    else if (keysReturnTo === States.FOCUS.TRANSLATION && translator.open) focusTranslation()
     else if (keysReturnTo === States.FOCUS.RESULTS && hasBody()) focusResults()
     else focusSearch(input.mode)
   }

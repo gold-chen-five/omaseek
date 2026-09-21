@@ -143,10 +143,12 @@ BorderSurface {
       height: content.viewHeight
       incomingRows: panelCard.host.settingsRows
       settingsChord: panelCard.host.chords.settings
+      keysChord: panelCard.host.chords.keysHelp
 
       onChanged: (key, value) => panelCard.settingsActions.change(key, value)
       onActivated: (key, action) => panelCard.settingsActions.run(key, action)
       onClosed: panelCard.host.closeSettings()
+      onKeysRequested: panelCard.host.openKeys()
       onEditingFinished: Qt.callLater(() => settingsPage.forceActiveFocus())
     }
 
@@ -187,7 +189,11 @@ BorderSurface {
     // A panel key means in the lookup what it means anywhere: it puts the
     // lookup away first, so what it does happens on the panel behind it.
     onClosed: panelCard.host.closeKeys()
-    onSettingsRequested: { panelCard.host.closeKeys(); panelCard.host.openSettings() }
+    onSettingsRequested: {
+      panelCard.host.closeKeys()
+      if (panelCard.host.view === States.VIEW.SETTINGS) panelCard.host.closeSettings()
+      else panelCard.host.openSettings()
+    }
     onTabbed: { panelCard.host.closeKeys(); panelCard.host.toggleMode() }
     onAgentSwitchRequested: { panelCard.host.closeKeys(); panelCard.chat.switchAgent() }
     onNewSessionRequested: { panelCard.host.closeKeys(); panelCard.chat.newChat() }

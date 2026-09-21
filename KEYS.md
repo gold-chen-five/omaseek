@@ -322,6 +322,7 @@ search.
 | `j` `k`, `enter`, `esc` in an open dropdown | walk it, pick, close |
 | `/` | back to the field, normal mode |
 | `esc`, `ctrl+s` (Settings), `ctrl+,` | back to the panel |
+| `ctrl+k` (Look up keys) | the key lookup, over the page; closing it comes back here with the cursor where it was |
 
 The settings page scrolls within the panel; keyboard navigation keeps the
 selected row visible. Values are written as they change; there is no save.
