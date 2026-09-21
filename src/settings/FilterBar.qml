@@ -2,6 +2,7 @@ import QtQuick
 import qs.Commons
 import qs.Ui
 import "../field"
+import "../shared/pixels.mjs" as Pixels
 
 // A filter typed into the panel's own vim field, in the frame the search bar
 // draws round its field: the key lookup's and the settings page's. The frame is
@@ -16,6 +17,7 @@ BorderSurface {
   property color foreground: Color.menu.text
   property color accent: Color.menu.selectedText
   property string fontFamily: Style.font.menuFamily
+  property real outputScale: 1                 // the monitor's, for a whole-pixel frame
   property alias placeholderText: filter.placeholderText
 
   readonly property alias field: filter
@@ -32,7 +34,8 @@ BorderSurface {
     filter.forceActiveFocus()
   }
 
-  height: Math.round(filter.lineHeight + insetTop + insetBottom)
+  // Whole device pixels, as the search bar's frame (pixels.mjs).
+  height: Pixels.snapToDevice(filter.lineHeight + insetTop + insetBottom, bar.outputScale)
   radius: Style.cornerRadius
   color: Style.controlFill(filter.activeFocus, filter.hovered, bar.foreground, bar.accent)
   borderSpec: filter.borderSpec

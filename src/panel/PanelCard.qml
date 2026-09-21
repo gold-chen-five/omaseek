@@ -71,6 +71,7 @@ BorderSurface {
       keymap: panelCard.config.keymap
       chords: panelCard.host.chords
       normalChords: panelCard.host.normalChords
+      outputScale: panelCard.host.outputScale
       foreground: panelCard.host.foreground
       accent: panelCard.host.accent
       fontFamily: panelCard.host.fontFamily
@@ -91,6 +92,7 @@ BorderSurface {
       visible: panelCard.host.view === States.VIEW.SETTINGS
       width: parent.width
       placeholderText: "engine, effort, language …"
+      outputScale: panelCard.host.outputScale
       keymap: panelCard.config.keymap
       chords: panelCard.host.chords
       foreground: panelCard.host.foreground
@@ -217,6 +219,7 @@ BorderSurface {
     settings: panelCard.config.settings
     keymap: panelCard.config.keymap
     chords: panelCard.host.chords
+    outputScale: panelCard.host.outputScale
     foreground: panelCard.host.foreground
     accent: panelCard.host.accent
     fontFamily: panelCard.host.fontFamily

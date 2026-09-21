@@ -2,6 +2,7 @@ import QtQuick
 import qs.Commons
 import qs.Ui
 import "../shared/states.mjs" as States
+import "../shared/pixels.mjs" as Pixels
 import "../field"
 
 // The field in its frame, and the buttons beside it: translate, then search —
@@ -18,6 +19,7 @@ Item {
   property color foreground: Color.menu.text
   property color accent: Color.menu.selectedText
   property string fontFamily: Style.font.menuFamily
+  property real outputScale: 1                 // the monitor's, for whole-pixel frames
 
   readonly property alias field: input
   readonly property bool asking: panelMode === States.PANEL.AI
@@ -41,10 +43,12 @@ Item {
 
     readonly property real insetTop: Border.top(input.borderSpec) + input.verticalPadding
     readonly property real insetBottom: Border.bottom(input.borderSpec) + input.verticalPadding
-    readonly property real oneLineHeight: Math.round(input.lineHeight + insetTop + insetBottom)
+    // Whole device pixels, or at a fractional scale the bottom border can
+    // straddle two rows and draw heavier than the top (pixels.mjs).
+    readonly property real oneLineHeight: Pixels.snapToDevice(input.lineHeight + insetTop + insetBottom, bar.outputScale)
 
     width: parent.width - actions.width - Style.spacing.sm
-    height: Math.round(Math.min(input.lineCount, 6) * input.lineHeight + insetTop + insetBottom)
+    height: Pixels.snapToDevice(Math.min(input.lineCount, 6) * input.lineHeight + insetTop + insetBottom, bar.outputScale)
     radius: Style.cornerRadius
     color: Style.controlFill(input.activeFocus, input.hovered, bar.foreground, bar.accent)
     borderSpec: input.borderSpec

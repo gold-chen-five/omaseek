@@ -26,6 +26,7 @@ FocusScope {
   property var settings: null
   property var keymap: ({ sequences: [], timeoutMs: 0 })
   property var chords: ({})
+  property real outputScale: 1
   property color foreground: Color.menu.text
   property color accent: Color.menu.selectedText
   property string fontFamily: Style.font.menuFamily
@@ -98,6 +99,7 @@ FocusScope {
     // The panel's keys are the field's here too, so each one closes the
     // lookup and does what it does anywhere else.
     chords: lookup.chords
+    outputScale: lookup.outputScale
     foreground: lookup.foreground
     accent: lookup.accent
     fontFamily: lookup.fontFamily

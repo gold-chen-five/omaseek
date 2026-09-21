@@ -1,5 +1,6 @@
 import Quickshell
 import Quickshell.Wayland
+import Quickshell.Hyprland
 import QtQuick
 import qs.Commons
 import qs.Ui
@@ -52,6 +53,13 @@ Item {
   readonly property color scrim: Color.menu.scrim
   readonly property var borderSpec: Border.surfaceSpec("menu", "border", Color.menu.border, Math.max(1, Style.space(2)))
   readonly property string fontFamily: Style.font.menuFamily
+  // The monitor's own scale (1.25), which Qt does not report: it draws at a
+  // whole 2x and Hyprland scales that down. The bars size their frames to
+  // whole monitor pixels with it (pixels.mjs).
+  readonly property real outputScale: {
+    const monitor = Hyprland.monitorFor(panel.screen)
+    return monitor && monitor.scale > 0 ? monitor.scale : 1
+  }
 
   // ---- shell contract -----------------------------------------------------
 
