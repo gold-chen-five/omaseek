@@ -36,7 +36,6 @@ Item {
       return
     }
     if (down) field.steppedDown()
-    else field.steppedUp()
   }
 
   function openLine (below) {

@@ -184,6 +184,16 @@ BorderSurface {
     accent: panelCard.host.accent
     fontFamily: panelCard.host.fontFamily
 
+    // A panel key means in the lookup what it means anywhere: it puts the
+    // lookup away first, so what it does happens on the panel behind it.
     onClosed: panelCard.host.closeKeys()
+    onSettingsRequested: { panelCard.host.closeKeys(); panelCard.host.openSettings() }
+    onTabbed: { panelCard.host.closeKeys(); panelCard.host.toggleMode() }
+    onAgentSwitchRequested: { panelCard.host.closeKeys(); panelCard.chat.switchAgent() }
+    onNewSessionRequested: { panelCard.host.closeKeys(); panelCard.chat.newChat() }
+    onNextSessionRequested: { panelCard.host.closeKeys(); panelCard.chat.nextChat() }
+    onCloseSessionRequested: { panelCard.host.closeKeys(); panelCard.chat.closeChat() }
+    onClearSessionsRequested: { panelCard.host.closeKeys(); panelCard.chat.clearChats() }
+    onRetryRequested: { panelCard.host.closeKeys(); panelCard.chat.retryAnswer() }
   }
 }

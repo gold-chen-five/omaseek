@@ -24,13 +24,15 @@ test('a row is a settings row: a label, the key beside it, the hint under it', (
   assert.ok(entries.some(e => e.fixed), 'the fixed keys are listed too')
 })
 
-test('groups come in one order, each together', () => {
-  const groups = keyEntries({}).map(e => e.group)
+test('the keys come first, in the settings page’s own order, the fixed ones under them', () => {
+  const entries = keyEntries({})
+  const groups = entries.map(e => e.group)
   const seen = []
   for (const g of groups) if (seen[seen.length - 1] !== g) seen.push(g)
-  assert.equal(new Set(seen).size, seen.length, 'no group is split in two')
-  const known = seen.filter(g => GROUP_ORDER.indexOf(g) !== -1)
-  assert.deepEqual(known, [...known].sort((a, b) => GROUP_ORDER.indexOf(a) - GROUP_ORDER.indexOf(b)))
+  assert.deepEqual(seen, GROUP_ORDER, 'two sections, as the page has them')
+  const keys = entries.filter(e => e.group === 'Keys')
+  assert.equal(keys[0].label, 'Leave insert with', 'the escape sequence opens the section, as it opens the page’s')
+  assert.deepEqual(keys.slice(1).map(e => e.label), ACTIONS.map(a => a.label), 'then ACTIONS, in order')
 })
 
 test('typed words filter by key, meaning, hint or group, in any case', () => {
