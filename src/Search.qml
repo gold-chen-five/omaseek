@@ -7,6 +7,7 @@ import qs.Ui
 import "settings/settings.mjs" as SettingsLib
 import "shared/vim/keybinds.mjs" as Keybinds
 import "shared/states.mjs" as States
+import "shared/pixels.mjs" as Pixels
 import "ask"
 import "engine"
 import "panel"
@@ -353,10 +354,16 @@ Item {
     PanelCard {
       id: card
 
+      // The inside of the card, where the bars' frames start, lands on whole
+      // monitor pixels. Centred as it was, the left edge fell on a fraction and
+      // the bar's left border drew two columns thick (pixels.mjs).
+      readonly property real insetX: contentLeftInset + contentRightInset
+
       // Wider while a translation is split off, so the pane beside it keeps its width.
-      width: Math.min(Style.space(translator.open ? 1000 : 820), panel.width - Style.gapsOut * 2)
+      width: Pixels.snapToDevice(Math.min(Style.space(translator.open ? 1000 : 820), panel.width - Style.gapsOut * 2) - insetX, root.outputScale) + insetX
       height: Math.min(Style.space(560), panel.height - Style.gapsOut * 2)
-      anchors.centerIn: parent
+      x: Pixels.snapToDevice((parent.width - width) / 2 + contentLeftInset, root.outputScale) - contentLeftInset
+      y: Pixels.snapToDevice((parent.height - height) / 2 + contentTopInset, root.outputScale) - contentTopInset
       host: root
       config: config
       ai: ai

@@ -47,7 +47,7 @@ Item {
     // straddle two rows and draw heavier than the top (pixels.mjs).
     readonly property real oneLineHeight: Pixels.snapToDevice(input.lineHeight + insetTop + insetBottom, bar.outputScale)
 
-    width: parent.width - actions.width - Style.spacing.sm
+    width: Pixels.snapToDevice(parent.width - actions.width - Style.spacing.sm, bar.outputScale)
     height: Pixels.snapToDevice(Math.min(input.lineCount, 6) * input.lineHeight + insetTop + insetBottom, bar.outputScale)
     radius: Style.cornerRadius
     color: Style.controlFill(input.activeFocus, input.hovered, bar.foreground, bar.accent)
