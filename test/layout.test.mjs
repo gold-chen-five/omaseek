@@ -32,7 +32,7 @@ for (const [w, h, scale] of SCREENS) {
       const inner = width - INSETS
       const reading = readingWidth(inner, true)
       const translation = inner - reading - SPLIT_GAP
-      assert.ok(reading >= 500, `results or answer keep room to read: ${reading}`)
+      assert.ok(reading >= 450, `results or answer keep room to read: ${reading}`)
       assert.ok(translation >= 250, `the translation keeps room for a line: ${translation}`)
     }
   })
@@ -49,5 +49,5 @@ test('a screen with room gets the sizes asked for, and a theme scale grows them'
 
 test('the reading pane is all of the card, or its share beside a translation', () => {
   assert.equal(readingWidth(800, false), 800)
-  assert.equal(readingWidth(1000, true), 660)
+  assert.equal(readingWidth(1000, true), 600)
 })

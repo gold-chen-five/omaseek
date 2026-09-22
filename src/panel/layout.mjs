@@ -7,7 +7,7 @@
 export const CARD_WIDTH = 820                 // search or ask on its own
 export const CARD_WIDTH_TRANSLATING = 1000    // wider while a translation is split off
 export const CARD_HEIGHT = 560
-export const READING_SHARE = 0.66             // of the card's inside, left of the translation
+export const READING_SHARE = 0.6              // of the card's inside, left of the translation: 40% for it
 
 /**
  * { width, height } of the card on a screen of `screenWidth` × `screenHeight`
