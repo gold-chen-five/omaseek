@@ -1,6 +1,7 @@
 import QtQuick
 import qs.Commons
 import "../shared/states.mjs" as States
+import "layout.mjs" as Layout
 import "../ask"
 import "../search"
 import "../translate"
@@ -38,7 +39,7 @@ Item {
     anchors.left: parent.left
     anchors.top: parent.top
     anchors.bottom: parent.bottom
-    width: area.translator.open ? Math.round(parent.width * 0.66) : parent.width
+    width: Layout.readingWidth(parent.width, area.translator.open)
 
     AnswerView {
       id: answer

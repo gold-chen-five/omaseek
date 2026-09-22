@@ -8,6 +8,7 @@ import "settings/settings.mjs" as SettingsLib
 import "shared/vim/keybinds.mjs" as Keybinds
 import "shared/states.mjs" as States
 import "shared/pixels.mjs" as Pixels
+import "panel/layout.mjs" as Layout
 import "ask"
 import "engine"
 import "panel"
@@ -354,9 +355,12 @@ Item {
       // the bar's left border drew two columns thick (pixels.mjs).
       readonly property real insetX: contentLeftInset + contentRightInset
 
-      // Wider while a translation is split off, so the pane beside it keeps its width.
-      width: Pixels.snapToDevice(Math.min(Style.space(translator.open ? 1000 : 820), panel.width - Style.gapsOut * 2) - insetX, root.outputScale) + insetX
-      height: Math.min(Style.space(560), panel.height - Style.gapsOut * 2)
+      // Wider while a translation is split off, and never bigger than the
+      // screen: layout.mjs, checked against laptop and desktop screens.
+      readonly property var size: Layout.cardSize(panel.width, panel.height, translator.open, Style.gapsOut, px => Style.space(px))
+
+      width: Pixels.snapToDevice(size.width - insetX, root.outputScale) + insetX
+      height: size.height
       x: Pixels.snapToDevice((parent.width - width) / 2 + contentLeftInset, root.outputScale) - contentLeftInset
       y: Pixels.snapToDevice((parent.height - height) / 2 + contentTopInset, root.outputScale) - contentTopInset
       host: root

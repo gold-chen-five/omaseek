@@ -113,6 +113,7 @@ The pure modules, by folder:
 - `shared/vim/keybinds.mjs` — `ACTIONS`, every rebindable key; binding text ↔ chords (`gA` ↔ `g A`); `panelChords()` and `normalChords()`
 - `shared/vim/keys.mjs` — chord → command name for the reading panes, the `gg`/`gv` prefix machine, and the clash check for a rebound key
 - `shared/vim/grammar.mjs`, `shared/vim/find.mjs` — the answer's key grammar, and `/` search
+- `panel/layout.mjs` — the card's size (820, 1000 while translating, 560 tall) clamped to the screen less Hyprland's gap, and the reading pane's share beside a translation; `test/layout.test.mjs` checks it fits common laptop and desktop screens at their usual scales, with room left in both panes
 - `search/search.mjs` — result normalising, de-duplication, status/error strings
 - `search/history.mjs`, `search/pager.mjs` — the query history walk; which page squares show
 - `ask/sessions.mjs` — the ring of ten saved conversations: recording, walking, forgetting, and its file
