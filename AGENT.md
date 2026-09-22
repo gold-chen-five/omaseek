@@ -105,7 +105,7 @@ The pure modules, by folder:
 - `shared/states.mjs` — the panel's `VIEW`, `PANEL` and `FOCUS` values; never write them as bare strings
 - `shared/urls.mjs` — the bare URL under the cursor for `gx`, and which links may open (http/https only)
 - `shared/thinking.mjs` — the waiting dot's clock, shared by the answer and the translation panel
-- `shared/pixels.mjs` — a size in whole monitor pixels. Qt reports a device pixel ratio of 2 and Hyprland scales that down to the monitor's own (1.25, read as `outputScale` from `Hyprland.monitorFor`), so a 30px frame is 37.5 monitor pixels and its bottom border drew two rows thick until something rebuilt it. The bars' frames snap to it
+- `shared/pixels.mjs` — a size in whole monitor pixels. Qt reports a device pixel ratio of 2 and Hyprland scales that down to the monitor's own (1.25, read as `outputScale` from `Hyprland.monitorFor`), so a 30px frame is 37.5 monitor pixels and its bottom border drew two rows thick until something rebuilt it. The bars' frames snap to it, the card is placed on it, and PanelCard sizes every row above the view (status line, strips, the gaps) to it, so the view starts on a whole pixel and a pane's buttons (the translation's copy and ×) draw even borders
 - `shared/vim/motions.mjs` — cursor motions (`w b e f t 0 ^ $ h l`), `(text, pos) -> pos`
 - `shared/vim/textobjects.mjs` — `iw aw i" a(` … `(text, pos) -> {start, end}`
 - `shared/vim/keymap.mjs` — the insert-mode escape sequence (`jk`) and its config

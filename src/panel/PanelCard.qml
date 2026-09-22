@@ -2,6 +2,7 @@ import QtQuick
 import qs.Commons
 import qs.Ui
 import "../shared/states.mjs" as States
+import "../shared/pixels.mjs" as Pixels
 import "../ask"
 import "../engine"
 import "../search"
@@ -41,6 +42,9 @@ BorderSurface {
   borderSpec: host.borderSpec
   padding: Style.spacing.panelPadding
 
+  // A size in whole monitor pixels (pixels.mjs).
+  function snap (value) { return Pixels.snapToDevice(value, host.outputScale) }
+
   MouseArea { anchors.fill: parent; onClicked: {} }
 
   Column {
@@ -50,16 +54,20 @@ BorderSurface {
     // leave; a strip is there in one mode or the other — pages in search,
     // conversations in AI — and takes a gap with it.
     readonly property real viewHeight: Math.max(0, height - (fieldBar.visible ? fieldBar.height : settingsFilter.height) - statusBar.height
-      - Style.spacing.md * 2
-      - (sessionTabs.visible ? sessionTabs.height + Style.spacing.md : 0)
-      - (pageTabs.visible ? pageTabs.height + Style.spacing.md : 0))
+      - spacing * 2
+      - (sessionTabs.visible ? sessionTabs.height + spacing : 0)
+      - (pageTabs.visible ? pageTabs.height + spacing : 0))
 
     anchors.fill: parent
     anchors.topMargin: panelCard.contentTopInset
     anchors.rightMargin: panelCard.contentRightInset
     anchors.bottomMargin: panelCard.contentBottomInset
     anchors.leftMargin: panelCard.contentLeftInset
-    spacing: Style.spacing.md
+    // Every row above the view, and the gaps between them, is a whole number
+    // of monitor pixels, so the view starts on one: a pane that began on a
+    // fraction drew its buttons' bottom borders two rows thick (the
+    // translation's copy and ×). The card's inside already starts whole.
+    spacing: panelCard.snap(Style.spacing.md)
 
     FieldBar {
       id: fieldBar
@@ -119,6 +127,7 @@ BorderSurface {
       id: statusBar
 
       width: parent.width
+      height: panelCard.snap(implicitHeight)
       host: panelCard.host
       session: panelCard.session
       ai: panelCard.ai
@@ -135,6 +144,7 @@ BorderSurface {
       visible: panelCard.host.view === States.VIEW.SEARCH && panelCard.host.panelMode === States.PANEL.SEARCH
         && panelCard.session.status === "ok" && (panelCard.session.pageCount > 1 || panelCard.session.hasNext)
       width: parent.width
+      height: visible ? panelCard.snap(implicitHeight) : 0
       pageCount: panelCard.session.pageCount
       current: panelCard.session.pageIndex
       hasNext: panelCard.session.hasNext
@@ -151,6 +161,7 @@ BorderSurface {
       visible: panelCard.host.view === States.VIEW.SEARCH && panelCard.host.panelMode === States.PANEL.AI
         && panelCard.ai.sessionCount > 0
       width: parent.width
+      height: visible ? panelCard.snap(implicitHeight) : 0
       sessions: panelCard.ai.sessions
       pending: panelCard.ai.pendingIds
       current: panelCard.ai.sessionIndex
