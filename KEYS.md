@@ -331,7 +331,7 @@ with the keyboard on the rows and the filter empty.
 | `esc` while editing | cancel |
 | `j` `k`, `enter`, `esc` in an open dropdown | walk it, pick, close |
 | `esc`, `ctrl+s` (Settings), `ctrl+,` | back to the panel |
-| `ctrl+k` (Look up keys) | the key lookup, over the page; closing it comes back here with the cursor where it was |
+| `ctrl+k` (Look up keys) | the key lookup, over the page; closing it (`esc`, `ctrl+k`) goes back to the search or ask page, not to settings |
 
 The settings page scrolls within the panel; keyboard navigation keeps the
 selected row visible. Values are written as they change; there is no save.

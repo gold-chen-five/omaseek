@@ -34,7 +34,6 @@ Item {
   property string notice: ""                   // what a key just did, on the status line for a beat
   property bool keysOpen: false                // the ctrl+k lookup is over the card
   property string keysReturnTo: ""             // the focusArea it was opened from
-  property bool keysFromSettingsFilter: false   // over settings, from the filter rather than the rows
 
   readonly property Item input: card.field
   readonly property var settingsRows: SettingsLib.settingsRows(config.settings, engine.state, ai.agents, ai.models,
@@ -170,19 +169,15 @@ Item {
       return
     }
     keysReturnTo = focusArea
-    keysFromSettingsFilter = view === States.VIEW.SETTINGS && card.settingsFilter.field.activeFocus
     keysOpen = true
     Qt.callLater(() => card.keysLookup.open())
   }
 
   function closeKeys () {
     keysOpen = false
-    // Opened over settings: back to the filter or the page, whichever had the
-    // keyboard, the page's cursor where it was.
-    if (view === States.VIEW.SETTINGS) {
-      if (keysFromSettingsFilter) Qt.callLater(() => card.settingsFilter.field.forceActiveFocus())
-      else Qt.callLater(() => card.settingsPage.forceActiveFocus())
-    }
+    // Opened over settings: closing it leaves settings too, back to the search
+    // or ask page underneath, as esc there would.
+    if (view === States.VIEW.SETTINGS) closeSettings()
     else if (keysReturnTo === States.FOCUS.TRANSLATION && translator.open) focusTranslation()
     else if (keysReturnTo === States.FOCUS.RESULTS && hasBody()) focusResults()
     else focusSearch(input.mode)
