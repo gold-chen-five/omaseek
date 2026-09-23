@@ -7,6 +7,7 @@ import os
 import signal
 import subprocess
 import sys
+import tempfile
 
 from .config import TIMEOUT, WORK_DIR, emit
 from .outcome import chat_outcome
@@ -35,30 +36,31 @@ def die_with_parent():
 def run_chat_outcome(agent, prompt):
     """One whole answer, as a payload. Never exits, so --stream can wrap it."""
     os.makedirs(WORK_DIR, exist_ok=True)
-    last = os.path.join(WORK_DIR, f"{agent['id']}.last")
-    # A stale file from an earlier answer would be read as this one's.
-    if os.path.exists(last):
-        os.remove(last)
-    command = [part.replace("{last}", last) for part in agent["chat"]] + [prompt]
-    try:
-        done = subprocess.run(
-            command, cwd=WORK_DIR, env=chat_env(agent),
-            # Closed stdin: given the panel's, `codex exec` waits on it and never answers.
-            stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=TIMEOUT,
-            preexec_fn=die_with_parent,
-        )
-    except FileNotFoundError:
-        return {"ok": False, "error": "agent", "message": f"{agent['id']} is not installed"}
-    except subprocess.TimeoutExpired:
-        return {"ok": False, "error": "agent",
-                "message": f"{agent['name']} did not answer within {TIMEOUT}s"}
-    text = done.stdout.strip()
-    if "{last}" in "".join(agent["chat"]):
+    # A directory of this run's own: turns run side by side — a question left
+    # running behind ctrl+c, a translation beside a reply — and a file shared
+    # per agent let one read the other's answer.
+    with tempfile.TemporaryDirectory(dir=WORK_DIR, prefix=f"{agent['id']}-") as scratch:
+        last = os.path.join(scratch, "last")
+        command = [part.replace("{last}", last) for part in agent["chat"]] + [prompt]
         try:
-            with open(last, encoding="utf-8") as handle:
-                text = handle.read().strip()
-        except OSError:
-            pass
+            done = subprocess.run(
+                command, cwd=WORK_DIR, env=chat_env(agent),
+                # Closed stdin: given the panel's, `codex exec` waits on it and never answers.
+                stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=TIMEOUT,
+                preexec_fn=die_with_parent,
+            )
+        except FileNotFoundError:
+            return {"ok": False, "error": "agent", "message": f"{agent['id']} is not installed"}
+        except subprocess.TimeoutExpired:
+            return {"ok": False, "error": "agent",
+                    "message": f"{agent['name']} did not answer within {TIMEOUT}s"}
+        text = done.stdout.strip()
+        if "{last}" in "".join(agent["chat"]):
+            try:
+                with open(last, encoding="utf-8") as handle:
+                    text = handle.read().strip()
+            except OSError:
+                pass
     return chat_outcome(agent, done.returncode, done.stdout, done.stderr, text)
 
 

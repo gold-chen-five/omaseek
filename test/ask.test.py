@@ -6,6 +6,7 @@ import json
 import os
 import pathlib
 import tempfile
+import threading
 import unittest
 
 
@@ -84,6 +85,42 @@ class CrushTests(unittest.TestCase):
 
     def test_signing_in_opens_crush_itself_rather_than_charm_hyper(self):
         self.assertEqual(self.ask.fix_command(self.crush, "login"), ["crush"])
+
+
+class LastFileTests(unittest.TestCase):
+    """Codex answers into a file (`-o {last}`). Turns run side by side — one left
+    running behind ctrl+c, a translation beside a reply — and one file per agent
+    let a turn read another's answer as its own."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.ask = load_ask()
+        import omaseek.ask.run
+        cls.turn = omaseek.ask.run
+
+    def test_turns_side_by_side_each_read_their_own_answer(self):
+        # $1 the answer file, $2 how long to think; the prompt ($3) is the answer.
+        # Only B writes the file: A's reply is its stdout.
+        agent = {"id": "fake", "name": "Fake",
+                 "chat": ["sh", "-c", 'sleep "$2"; [ "$3" = B ] && printf B > "$1"; echo "stdout $3"',
+                          "sh", "{last}"]}
+        with tempfile.TemporaryDirectory() as work:
+            saved = self.turn.WORK_DIR
+            self.turn.WORK_DIR = work
+            try:
+                outcomes = {}
+                turns = [threading.Thread(target=lambda name=name, delay=delay: outcomes.__setitem__(
+                    name, self.turn.run_chat_outcome(dict(agent, chat=agent["chat"] + [delay]), name)))
+                    for name, delay in (("A", "0.6"), ("B", "0.1"))]
+                for turn in turns:
+                    turn.start()
+                for turn in turns:
+                    turn.join()
+                self.assertEqual(outcomes["B"]["text"], "B")
+                self.assertEqual(outcomes["A"]["text"], "stdout A", "not B's file")
+                self.assertEqual(os.listdir(work), [], "each run clears up after itself")
+            finally:
+                self.turn.WORK_DIR = saved
 
 
 class TranslateTests(unittest.TestCase):
