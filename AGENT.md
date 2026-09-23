@@ -234,7 +234,8 @@ engine — the slow path. Measured locally: **brave** (20 rows, pages),
 Google through its embeddable search box (`cse.google.com/cse/element/v1` with a
 borrowed `cx`, no key), which answered 20 rows in ~0.5 s on 2026-09-17 while
 plain google was suspended. The shipped default is **google cse, bing,
-brave**; plain google is offered as a switch but off, since it CAPTCHAs. google
+brave, duckduckgo** — duckduckgo since 2026-09-18, when it answered 10 rows in
+~0.6 s here; plain google is offered as a switch but off, since it CAPTCHAs. google
 cse was dropped once before (2026-09-14) for quota-suspending fastest of all,
 which is why brave stays in the defaults to carry paging if it goes quiet. Most of the rest answer with a CAPTCHA, a parsing
 error, or nothing at all, and `wikipedia`/`wikidata` return *no rows by
@@ -243,15 +244,16 @@ SearXNG ignores an engine name its instance lacks, so the list is safe to ship;
 an explicit `[]` is the escape hatch that hands the choice back to SearXNG.
 The settings page switches google cse, bing, brave, google, duckduckgo,
 startpage, yep, yandex and yahoo (`ENGINE_CHOICES`, with `ENGINE_LABELS` for the
-two whose SearXNG name capitalises wrong; `DEFAULT_ENGINES` is the first four),
+two whose SearXNG name capitalises wrong; `DEFAULT_ENGINES` is the first three and duckduckgo),
 and shows any other name found in the list as a switch too, so a hand-typed
 engine survives a toggle. The four added on 2026-09-18 are what answered when
 28 of SearXNG's 58 general engines were each asked three queries here:
 **startpage** the most rows (33-37) but 1-2 s, **yep** a steady 20, **yandex**
 10, **yahoo** 7. mojeek and qwant refused every query, mwmbl suspended itself
 after one, and google and duckduckgo answered or CAPTCHAd depending on the hour
-— which is why neither is a default, and why the Test row sits at the top of
-the section. `searxng_language` is sent as `language=`; `default` is
+— which is why google is not a default and the Test row sits at the top of the
+section. duckduckgo is one anyway: engines are asked together, so a quiet one
+costs the page nothing while the others answer. `searxng_language` is sent as `language=`; `default` is
 written as an absent key. Both are part of the buffer's cache key, or switching
 language would serve page 2 from the old language's buffer.
 

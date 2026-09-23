@@ -54,8 +54,9 @@ CURRENT = Current
 # google cse is Google through its embeddable search box, which answered while
 # plain google was suspended on a CAPTCHA — so plain google is a switch, not a
 # default. brave and google cse page (google cse five pages deep); bing fills
-# page one only. SearXNG silently ignores a name its instance does not have, so
-# naming these is safe even where one is missing.
+# page one only; duckduckgo answers or CAPTCHAs by the hour. SearXNG silently
+# ignores a name its instance does not have, so naming these is safe even where
+# one is missing.
 DEFAULT_ENGINES = ("google cse", "bing", "brave", "duckduckgo")
 
 

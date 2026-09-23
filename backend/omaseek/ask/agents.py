@@ -80,7 +80,6 @@ AGENTS = [
         "chat": ["hermes", "chat", "-Q", "-q"],
         "launch": ["hermes", "chat", "--yolo", "--tui", "--query"],
         "launch_env_unset": ["HERMES_SESSION_SOURCE"],
-        "launch_joined_value": True,       # --query=<prompt>, as omarchy-agent spells it
         "login": ["hermes", "login"],
         "setup": ["hermes", "model"],      # signed in but with no provider chosen
         "installer": "omarchy-install-hermes-cli",

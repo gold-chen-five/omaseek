@@ -23,8 +23,9 @@ export const PAGE_SIZE_CHOICES = [5, 10, 15, 20]
 // Measured against a local instance on 2026-09-18, three queries each: the
 // defaults answer in 0.2-0.6 s, startpage brings the most rows but takes
 // 1-2 s, yep 20 rows, yandex 10, yahoo 7. google and duckduckgo answer or
-// CAPTCHA depending on the hour, which is why they are switches rather than
-// defaults, and why Test SearXNG exists. mojeek and qwant refused every query
+// CAPTCHA depending on the hour, which is why google is a switch rather than a
+// default, and why Test SearXNG exists. duckduckgo is a default anyway: engines
+// are asked together, so a quiet one costs the page nothing. mojeek and qwant refused every query
 // here, and mwmbl suspended itself after one, so none of them is offered —
 // SearXNG knows 58 general engines and any of them can still be named by hand
 // in searxng_engines, which keeps its own switch.
