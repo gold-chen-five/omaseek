@@ -360,13 +360,12 @@ test('gg and G are the field’s own in normal mode', () => {
   assert.match(bindingProblem('translateBar', 'gg', DEFAULTS), /vim uses gg/)
 })
 
-test('copy and paste are the agents’ terminals’ keys, and ctrl+c copies only a selection', () => {
-  assert.equal(clipboardCommand('C-S-c', false), 'copy', 'ctrl+shift+c always copies')
-  assert.equal(clipboardCommand('C-c', true), 'copy', 'ctrl+c copies what is selected')
-  assert.equal(clipboardCommand('C-c', false), '', 'with nothing selected it stays New session')
-  assert.equal(clipboardCommand('C-v', false), 'paste')
-  assert.equal(clipboardCommand('C-S-v', false), 'paste')
-  assert.equal(clipboardCommand('v', false), '')
+test('copy and paste are the agents’ terminals’ keys, and ctrl+c is never copy', () => {
+  assert.equal(clipboardCommand('C-S-c'), 'copy')
+  assert.equal(clipboardCommand('C-c'), '', 'ctrl+c is New session')
+  assert.equal(clipboardCommand('C-v'), 'paste')
+  assert.equal(clipboardCommand('C-S-v'), 'paste')
+  assert.equal(clipboardCommand('v'), '')
   for (const pane of ['results', 'answer', 'translation']) {
     const keys = readerKeys(pane, null)
     assert.equal(resolve(keys, '', 'C-S-c').command, 'copy', pane)

@@ -2,8 +2,8 @@ import QtQuick
 import QtTest
 
 // Copy and paste as the agents' terminals have them: ctrl+shift+c copies,
-// ctrl+c copies what is selected and is New session otherwise, and ctrl+v or
-// ctrl+shift+v pastes where the cursor is.
+// ctrl+v or ctrl+shift+v pastes where the cursor is, and ctrl+c is New
+// session, selection or not.
 Item {
   width: 480
   height: 160
@@ -30,36 +30,37 @@ Item {
       field.forceActiveFocus()
     }
 
-    function test_ctrl_c_with_nothing_selected_is_still_a_new_session() {
+    function test_ctrl_c_is_a_new_session_even_over_a_selection() {
       fixture.newSessions = 0
+      field.register = ""
       typeText("half a question")
       keyClick(Qt.Key_C, Qt.ControlModifier)
       compare(fixture.newSessions, 1)
+      field.select(0, 4)
+      keyClick(Qt.Key_C, Qt.ControlModifier)
+      compare(fixture.newSessions, 2, "a selection does not make it copy")
+      compare(field.register, "")
       compare(field.text, "half a question")
     }
 
-    function test_ctrl_c_copies_a_visual_selection_as_y_does() {
-      fixture.newSessions = 0
+    function test_ctrl_shift_c_copies_a_visual_selection_as_y_does() {
       field.register = ""
       setNormal("copy these words", 5)
       keyClick(Qt.Key_V)
       keyClick(Qt.Key_E)
-      keyClick(Qt.Key_C, Qt.ControlModifier)
+      keyClick(Qt.Key_C, Qt.ControlModifier | Qt.ShiftModifier)
       compare(field.register, "these")
       compare(field.mode, "normal", "copied, as y leaves visual mode")
-      compare(fixture.newSessions, 0, "a selection is copied, not a session started")
     }
 
-    function test_ctrl_c_copies_a_mouse_selection_and_keeps_it() {
-      fixture.newSessions = 0
+    function test_ctrl_shift_c_copies_a_mouse_selection_and_keeps_it() {
       field.register = ""
       typeText("pick this out")
       field.select(5, 9)
-      keyClick(Qt.Key_C, Qt.ControlModifier)
+      keyClick(Qt.Key_C, Qt.ControlModifier | Qt.ShiftModifier)
       compare(field.register, "this")
       compare(field.selectedText, "this", "still selected, as any text box leaves it")
       compare(field.mode, "insert")
-      compare(fixture.newSessions, 0)
     }
 
     function test_ctrl_shift_c_copies_and_never_starts_a_session() {

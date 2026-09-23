@@ -530,12 +530,12 @@ and `p` puts into the ask bar, which reads the clipboard
 through the TextArea's own `paste()` — no `wl-paste` round trip.
 
 Copy and paste are fixed keys, `CLIPBOARD` in `keys.mjs`, spelled as the agents'
-terminals spell them: `ctrl+shift+c` copies and `ctrl+v`/`ctrl+shift+v` paste,
-and `ctrl+c` copies while something is selected (`clipboardCommand`) and is New
-session otherwise. The field, the answer and the results each ask before any
-other key. It has to be the selection that decides: Omarchy's universal
-`super+c` sends a plain `ctrl+c` to a focused panel, so before this, copying
-with it in ask mode started a new conversation.
+terminals spell them: `ctrl+shift+c` copies and `ctrl+v`/`ctrl+shift+v` paste.
+The field, the answer and the results each ask `clipboardCommand` before any
+other key. `ctrl+c` stays New session and never copies — copying with it while
+something was selected was tried and read as one key doing two unrelated
+things. The cost: Omarchy's universal `super+c` sends a plain `ctrl+c` to a
+focused panel, so here it starts a new conversation rather than copying.
 
 The keys that belong to the *panel* rather than to a pane — search, the session
 keys, settings, the mode switch — travel as one object: `Keybinds.panelChords(settings)`

@@ -15,8 +15,7 @@ Item {
   // because left alone it would move focus.
   function panelCommand (chord) {
     if (chord === "") return ""
-    // First, so ctrl+c copies a selection rather than starting a new session.
-    const clipboard = KeysLib.clipboardCommand(chord, field.mode === "visual" || field.selectedText !== "")
+    const clipboard = KeysLib.clipboardCommand(chord)
     if (clipboard !== "") return clipboard
     if (chord === field.chords.settings || chord === "C-,") return "settings"
     if (chord === field.chords.keysHelp) return "keysHelp"

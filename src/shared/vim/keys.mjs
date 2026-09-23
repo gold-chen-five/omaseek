@@ -18,16 +18,14 @@ function merge (...tables) {
   return out
 }
 
-// Copy and paste as the agents' terminals and every other app have them:
-// ctrl+shift+c copies and ctrl+v or ctrl+shift+v pastes, always. ctrl+c copies
-// too while something is selected — with nothing selected it stays what it is
-// bound to (New session), as the agents' own ctrl+c interrupts. Omarchy's
-// super+c and super+v send ctrl+c and ctrl+v to a panel, so they work the same.
+// Copy and paste as the agents' terminals have them: ctrl+shift+c copies and
+// ctrl+v or ctrl+shift+v pastes. ctrl+c is not copy: it is New session, as the
+// agents' own ctrl+c interrupts — copying with it only when something was
+// selected read as one key doing two unrelated things.
 const CLIPBOARD = { 'C-S-c': 'copy', 'C-v': 'paste', 'C-S-v': 'paste' }
 
-/** The clipboard command a chord is, or '': `selected` says ctrl+c has something to copy. */
-export function clipboardCommand (chord, selected) {
-  if (chord === 'C-c') return selected ? 'copy' : ''
+/** The clipboard command a chord is, or ''. */
+export function clipboardCommand (chord) {
   return CLIPBOARD[chord] || ''
 }
 

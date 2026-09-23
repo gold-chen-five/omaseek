@@ -98,11 +98,7 @@ ListView {
       event.accepted = true
       return
     }
-    // The row under the cursor is what is selected here, so ctrl+c copies its
-    // URL — unless a key of these results was bound to it.
-    const chord = Chord.of(event)
-    const step = KeysLib.resolveCounted(readerKeys, navigation,
-                                        chord === "C-c" && !readerKeys["C-c"] && count > 0 ? "C-S-c" : chord)
+    const step = KeysLib.resolveCounted(readerKeys, navigation, Chord.of(event))
     navigation = step.state
     run(step.command, step.count)
     event.accepted = true

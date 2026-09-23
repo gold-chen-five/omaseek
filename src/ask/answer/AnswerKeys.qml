@@ -21,9 +21,8 @@ Item {
       return
     }
     const chord = Chord.of(event)
-    // Before the new-session chord, so ctrl+c copies a selection. With none,
-    // ctrl+shift+c copies the reply under the cursor, as y does.
-    const clipboard = KeysLib.clipboardCommand(chord, view.selecting)
+    // ctrl+shift+c copies the selection, else the reply under the cursor, as y does.
+    const clipboard = KeysLib.clipboardCommand(chord)
     if (clipboard !== "") {
       view.grammar = Grammar.IDLE
       run(clipboard, 1)
