@@ -529,6 +529,14 @@ as vim's are; the transcript is one long text. `yy` copies the current displayed
 and `p` puts into the ask bar, which reads the clipboard
 through the TextArea's own `paste()` — no `wl-paste` round trip.
 
+Copy and paste are fixed keys, `CLIPBOARD` in `keys.mjs`, spelled as the agents'
+terminals spell them: `ctrl+shift+c` copies and `ctrl+v`/`ctrl+shift+v` paste,
+and `ctrl+c` copies while something is selected (`clipboardCommand`) and is New
+session otherwise. The field, the answer and the results each ask before any
+other key. It has to be the selection that decides: Omarchy's universal
+`super+c` sends a plain `ctrl+c` to a focused panel, so before this, copying
+with it in ask mode started a new conversation.
+
 The keys that belong to the *panel* rather than to a pane — search, the session
 keys, settings, the mode switch — travel as one object: `Keybinds.panelChords(settings)`
 maps action id → parsed chord, and the field and the answer both take it as

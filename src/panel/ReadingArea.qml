@@ -80,6 +80,7 @@ Item {
         area.host.focusSearch("normal")
         area.host.input.put(after, text)
       }
+      onPasteRequested: area.host.pasteIntoField()
     }
 
     ResultList {
@@ -95,6 +96,7 @@ Item {
       onHandedOff: index => area.ai.launch(area.session.handoffText(index))
       onPageHandedOff: area.ai.launch(area.session.handoffText(-1))
       onYanked: (index, withTitle) => area.commands.yankResult(index, withTitle)
+      onPasteRequested: area.host.pasteIntoField()
       onAskRequested: index => area.commands.askAboutResult(index)
       onAskNowRequested: index => area.commands.askNowResult(index)
       onSearchRequested: index => {
@@ -187,5 +189,6 @@ Item {
       area.host.focusSearch("normal")
       area.host.input.put(after, text)
     }
+    onPasteRequested: area.host.pasteIntoField()
   }
 }

@@ -1,6 +1,7 @@
 import QtQuick
 import "../../shared/vim/chord.js" as Chord
 import "../../shared/vim/grammar.mjs" as Grammar
+import "../../shared/vim/keys.mjs" as KeysLib
 import "../../shared/vim/motions.mjs" as Motions
 
 // The answer's keys: a press through the grammar (counts, y, the key after f
@@ -20,6 +21,15 @@ Item {
       return
     }
     const chord = Chord.of(event)
+    // Before the new-session chord, so ctrl+c copies a selection. With none,
+    // ctrl+shift+c copies the reply under the cursor, as y does.
+    const clipboard = KeysLib.clipboardCommand(chord, view.selecting)
+    if (clipboard !== "") {
+      view.grammar = Grammar.IDLE
+      run(clipboard, 1)
+      event.accepted = true
+      return
+    }
     if (chord !== "" && chord === view.chords.newSession) {
       view.grammar = Grammar.IDLE
       view.newSessionRequested()
@@ -114,7 +124,9 @@ Item {
     case "selectChars": if (view.selecting && !view.linewise) view.selector.stopSelecting(); else view.selector.startSelecting(false); break
     case "selectLines": if (view.selecting && view.linewise) view.selector.stopSelecting(); else view.selector.startSelecting(true); break
     case "reselect":    view.selector.reselect(); break
-    case "yank":        view.selector.yank(); break
+    case "yank":
+    case "copy":        view.selector.yank(); break
+    case "paste":       if (view.selecting) view.selector.stopSelecting(); view.pasteRequested(); break
     case "openLink":    view.actions.openLink(); break
     case "searchFor":   view.actions.searchFor(); break
     case "translate":   view.actions.translate(); break

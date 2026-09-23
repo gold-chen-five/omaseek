@@ -18,8 +18,21 @@ function merge (...tables) {
   return out
 }
 
+// Copy and paste as the agents' terminals and every other app have them:
+// ctrl+shift+c copies and ctrl+v or ctrl+shift+v pastes, always. ctrl+c copies
+// too while something is selected — with nothing selected it stays what it is
+// bound to (New session), as the agents' own ctrl+c interrupts. Omarchy's
+// super+c and super+v send ctrl+c and ctrl+v to a panel, so they work the same.
+const CLIPBOARD = { 'C-S-c': 'copy', 'C-v': 'paste', 'C-S-v': 'paste' }
+
+/** The clipboard command a chord is, or '': `selected` says ctrl+c has something to copy. */
+export function clipboardCommand (chord, selected) {
+  if (chord === 'C-c') return selected ? 'copy' : ''
+  return CLIPBOARD[chord] || ''
+}
+
 // What both panes answer to and settings cannot move.
-const NAV = {
+const NAV = merge(CLIPBOARD, {
   'C-,': 'settings',
   'Escape': 'cancel',
   'C-d': 'halfPageDown',
@@ -39,7 +52,7 @@ const NAV = {
   // The translation sits to the right of both panes; ctrl+h comes back from it.
   'C-l': 'paneRight',
   'C-h': 'paneLeft'
-}
+})
 
 const FIXED = {
   results: merge(NAV, {
@@ -86,10 +99,10 @@ const FIELD_NORMAL = 'hjklwWbBeE0^_$fFtT;,iIaAoOvVdcyDCYxXsSrpPugGq123456789'
 const FIELD_AFTER_G = 'gx'
 
 // What the field does with keys before any binding sees them.
-const FIELD_FIXED = {
+const FIELD_FIXED = merge(CLIPBOARD, {
   'Escape': 'cancel', 'C-w': 'deleteWord', 'C-u': 'deleteLine', 'C-j': 'lineBreak',
   'C-r': 'redo', 'Up': 'up', 'Down': 'down', 'C-,': 'settings'
-}
+})
 
 // Names for the settings page when it refuses a key.
 const LABELS = {
@@ -111,6 +124,7 @@ const LABELS = {
   yankUrl: 'yank the URL', yankCitation: 'yank the title and URL',
   askAbout: 'put in the ask bar', askNow: 'ask about this', searchFor: 'search the web for this',
   paneRight: 'into the translation', paneLeft: 'back from the translation',
+  copy: 'copy', paste: 'paste',
   deleteWord: 'delete a word', deleteLine: 'delete to the line start', lineBreak: 'a line break', redo: 'redo'
 }
 

@@ -193,6 +193,13 @@ Item {
     Qt.callLater(() => input.forceActiveFocus())
   }
 
+  // ctrl+v from the results or an answer: the clipboard into the bar, still
+  // typing — where the cursor was, or after the block cursor as `a` would.
+  function pasteIntoField () {
+    focusSearch(input.mode === "insert" ? "insert" : "a")
+    input.pasteClipboard()
+  }
+
   // Every yank in the panel lands on the system clipboard, so one taken here
   // puts in the field with p.
   function copyText (value) {

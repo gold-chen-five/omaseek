@@ -19,6 +19,7 @@ ListView {
   signal handedOff(int index)
   signal pageHandedOff()
   signal yanked(int index, bool withTitle)   // y / Y: the URL, or the title above it
+  signal pasteRequested()                    // ctrl+v: the clipboard into the bar, still typing
   signal askRequested(int index)             // gj: this result, over in the ask bar
   signal askNowRequested(int index)          // gd: asked about straight away
   signal searchRequested(int index)          // gs: search for this result's title
@@ -97,7 +98,11 @@ ListView {
       event.accepted = true
       return
     }
-    const step = KeysLib.resolveCounted(readerKeys, navigation, Chord.of(event))
+    // The row under the cursor is what is selected here, so ctrl+c copies its
+    // URL — unless a key of these results was bound to it.
+    const chord = Chord.of(event)
+    const step = KeysLib.resolveCounted(readerKeys, navigation,
+                                        chord === "C-c" && !readerKeys["C-c"] && count > 0 ? "C-S-c" : chord)
     navigation = step.state
     run(step.command, step.count)
     event.accepted = true
@@ -119,7 +124,9 @@ ListView {
     case "accept":       activated(currentIndex); break
     case "handOff":      if (count > 0) handedOff(currentIndex); break
     case "handOffPage":  if (count > 0) pageHandedOff(); break
-    case "yankUrl":      if (count > 0) yanked(currentIndex, false); break
+    case "yankUrl":
+    case "copy":         if (count > 0) yanked(currentIndex, false); break
+    case "paste":        pasteRequested(); break
     case "yankCitation": if (count > 0) yanked(currentIndex, true); break
     case "askAbout":     if (count > 0) askRequested(currentIndex); break
     case "askNow":       if (count > 0) askNowRequested(currentIndex); break

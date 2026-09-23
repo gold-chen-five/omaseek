@@ -181,12 +181,46 @@ Item {
     field.clampCursor()
   }
 
-  // A search is one line: breaks in what was put become spaces.
+  // ctrl+c and ctrl+shift+c: what is selected — visual mode's range, taken as
+  // y takes it, or a mouse selection, which stays selected as any text box's does.
+  function copySelection () {
+    if (field.mode === "visual") {
+      operateOnVisual("y")
+      return
+    }
+    if (!field.selectedText) return
+    field.register = field.selectedText
+    copyToClipboard(field.register)
+  }
+
+  // ctrl+v and ctrl+shift+v: the clipboard where the cursor is, as any text box
+  // pastes — over a mouse selection, with the cursor after it, still typing.
+  // Normal and visual mode put it as P does, which is the same place.
+  function pasteClipboard () {
+    if (field.mode !== "insert") {
+      field.clearPending()
+      field.normalKeys.handleNormalKey("P")
+      field.undoHistory.mark()
+      return
+    }
+    field.insertKeys.clearEscapePending()
+    if (field.selectedText) field.remove(field.selectionStart, field.selectionEnd)
+    const at = field.cursorPosition
+    const before = field.length
+    if (field.canPaste) field.paste()
+    else if (field.register) field.insert(at, field.register)
+    const end = at + field.length - before
+    field.cursorPosition = field.multiline ? end : flatten(at, end)
+  }
+
+  // A search is one line: breaks in what was put become spaces. Returns where
+  // the text put now ends.
   function flatten (from, to) {
     const chunk = field.getText(from, to)
     const flat = chunk.replace(/[\r\n\u2028\u2029]+/g, " ")
-    if (flat === chunk) return
+    if (flat === chunk) return to
     field.remove(from, to)
     field.insert(from, flat)
+    return from + flat.length
   }
 }

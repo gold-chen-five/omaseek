@@ -1,8 +1,10 @@
 import QtQuick
+import "../shared/vim/keys.mjs" as KeysLib
 
 // The panel's keys, caught in every mode before the field types anything:
-// settings, the session keys, retry, submit, the mode and agent switches, and
-// translating the bar. A key found here raises the field's signal for it.
+// copy and paste, settings, the session keys, retry, submit, the mode and agent
+// switches, and translating the bar. A key found here raises the field's
+// signal for it, or — copy and paste — is done here and now.
 Item {
   id: panelKeys
 
@@ -13,6 +15,9 @@ Item {
   // because left alone it would move focus.
   function panelCommand (chord) {
     if (chord === "") return ""
+    // First, so ctrl+c copies a selection rather than starting a new session.
+    const clipboard = KeysLib.clipboardCommand(chord, field.mode === "visual" || field.selectedText !== "")
+    if (clipboard !== "") return clipboard
     if (chord === field.chords.settings || chord === "C-,") return "settings"
     if (chord === field.chords.keysHelp) return "keysHelp"
     if (chord === field.chords.newSession) return "newSession"
@@ -29,6 +34,8 @@ Item {
 
   function raisePanel (command) {
     switch (command) {
+    case "copy":          field.edits.copySelection(); break
+    case "paste":         field.edits.pasteClipboard(); break
     case "settings":      field.requestedSettings(); break
     case "keysHelp":      field.insertKeys.clearEscapePending(); field.keysRequested(); break
     case "newSession":    field.newSessionRequested(); break

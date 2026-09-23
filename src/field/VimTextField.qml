@@ -196,6 +196,11 @@ TextArea {
     edits.put(after, value)
   }
 
+  // ctrl+v from a reading pane arrives here, as it does from the field's own keys.
+  function pasteClipboard () {
+    edits.pasteClipboard()
+  }
+
   FieldPanelKeys { id: panelKeysPart; field: field }
   FieldInsert { id: insertPart; field: field }
   FieldNormal { id: normalPart; field: field }

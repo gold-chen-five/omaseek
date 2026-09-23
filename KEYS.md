@@ -16,7 +16,7 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 | Translate the bar | `translate_bar_key` | `gT` | field, normal mode: everything in the search or ask bar |
 | Translate | `translate_key` | `gt` | answer: the selection, or the word under the cursor · field: the selection, in visual mode |
 | Previous query / question | `previous_asked_key` | `U` | field, normal mode: what you searched or asked before, one step back each press (`up` on the first line too) |
-| New session | `new_session_key` | `ctrl+c` | field and answer: forget the conversation and start one |
+| New session | `new_session_key` | `ctrl+c` | field and answer: start a new conversation — with something selected, `ctrl+c` copies it instead |
 | Next session | `next_session_key` | `ctrl+n` | ask: the next saved conversation, newest first, wrapping |
 | Next conversation | `next_chat_key` | `L` | ask: the next saved conversation, wrapping (`3L` walks three) |
 | Previous conversation | `previous_chat_key` | `H` | ask: the conversation before, wrapping |
@@ -115,6 +115,17 @@ empty value restores the default.
 | `tab` (Switch search / ask) | switch between searching and asking without changing Vim mode |
 | `shift+tab` (Switch agent) | the next installed agent answers from now on, wrapping — the status line says who. A conversation already under way goes with it: every question carries the turns before it (the last eight), whichever agent wrote them |
 | `esc` | leave one step: close an open `/` prompt, drop a search and its highlight, cancel a pending/active find, drop a selection, normal mode from insert, the field from a list, the panel from the field |
+| `ctrl+shift+c` | copy: in the field, what is selected; in the results, the URL (as `y`); in an answer or the translation, the selection, else the reply under the cursor (as `y`) |
+| `ctrl+c` | copy, while something is selected — a visual selection or one made with the mouse; in the results, the URL. With nothing selected it stays New session |
+| `ctrl+v` `ctrl+shift+v` | paste where the field's cursor is, and keep typing: over a mouse selection, and in normal mode where `P` puts it. From the results, an answer or the translation, into the bar — the search bar or the ask bar |
+
+**Copy and paste are the agents' terminals' keys.** Claude Code, Codex and
+OpenCode run in a terminal, where `ctrl+shift+c` and `ctrl+shift+v` copy and
+paste and `ctrl+c` interrupts; the panel reads them the same way, and takes
+`ctrl+v` as any text box does. `ctrl+c` copies only a selection, so with none
+it is still New session, the panel's own interrupt. Omarchy's `super+c` and
+`super+v` send `ctrl+c` and `ctrl+v` to a panel, so they copy and paste here
+too. None of the four can be rebound, and settings refuses them for another key.
 
 ## The field
 
@@ -129,7 +140,8 @@ Insert mode:
 | `ctrl+w` | delete the word before the cursor |
 | `ctrl+u` | delete to the start of the line |
 | `ctrl+j` | a line break in a question — AI mode; the bar grows a row, up to six |
-| `ctrl+c` `ctrl+n` `ctrl+x` | AI mode: a new conversation, the next saved one, forget this one |
+| `ctrl+c` `ctrl+n` `ctrl+x` | AI mode: a new conversation, the next saved one, forget this one — `ctrl+c` copies instead while something is selected |
+| `ctrl+v` `ctrl+shift+v` | paste at the cursor, over a mouse selection; in a search, line breaks become spaces |
 | `ctrl+shift+x` | AI mode: forget every saved conversation (twice) |
 | `ctrl+shift+r` | AI mode: ask the last question again after a failure or a stop |
 | `up` `down` | search: the field is one line, so they walk the queries searched before — `up` an older one, `down` back toward what you had typed, then into the results |
@@ -210,11 +222,12 @@ typing in the field never looks like it would act on a row.
 | `enter` (Open) | open in the browser and dismiss |
 | `ga` (Hand off to agent) | the selected result's URL on its own, as an editable draft in the agent |
 | `gA` (Hand off everything) | every URL on the current page, one per line, as an editable draft |
-| `y` | copy the selected result's URL |
+| `y`, `ctrl+c`, `ctrl+shift+c` | copy the selected result's URL |
 | `Y` | copy its title and URL, on two lines |
 | `gd` (Ask about this) | ask the AI about the selected result — its title and URL — straight away |
 | `gj` (Put in the ask bar) | the selected URL over in the ask bar, to type a question around — it is not sent |
 | `gs` (Search for this) | search for the selected result's title |
+| `ctrl+v` `ctrl+shift+v` | paste into the search bar, typing |
 | `ctrl+l` | into the translation beside the results, while one is open |
 | `ctrl+x` (Close session) | close the translation beside the results — there is no conversation here to forget |
 | `/` `?` | search the rows — title, snippet and domain — forwards or backwards; the matched words are marked |
@@ -250,6 +263,9 @@ follow the layout when the panel width changes and are excluded from copied text
 | `yiw` `ya(` … | yank a text object |
 | `y` in visual mode | yank the selection |
 | `yy` | yank the current displayed line; `2yy` yanks two displayed lines |
+| `ctrl+c` | with a selection, copy it, as `y`; with none, New session |
+| `ctrl+shift+c` | copy the selection, else the reply under the cursor, as `y` |
+| `ctrl+v` `ctrl+shift+v` | paste into the ask bar, typing |
 | `p` `P` | put into the ask bar and go there: the selection in visual mode, else the clipboard (so `yiw` then `p`) |
 | `gs` (Search for this) | search the web for the selection, or the word under the cursor — a selection is already a whole query, so this one runs |
 | `gx` (Open link) | open the link under the cursor — a Markdown link, a bare URL, or a bare domain such as `rust-lang.org` — or, in visual mode, the selected URL; http and https only, a bare domain gets `https://` |
@@ -259,7 +275,7 @@ follow the layout when the panel width changes and are excluded from copied text
 | `gt` (Translate) | the selection, or the word under the cursor, translated into the panel on the right |
 | `gd` (Ask about this) | ask the AI about the selection — or the line under the cursor — straight away |
 | `gj` (Put in the ask bar) | the selection — or the line under the cursor — into the ask bar as written, with the cursor under it to type a follow-up. Not sent |
-| `ctrl+c` (New session) | start a new conversation, keeping this one in the ring |
+| `ctrl+c` (New session) | start a new conversation, keeping this one in the ring — when nothing is selected |
 | `ctrl+n` (Next session) | the next saved conversation, wrapping |
 | `L` `H` (Next/Previous conversation) | the next saved conversation and the one before, wrapping — where search pages with `h` and `l`. Read in the answer and in the field's normal mode. A count walks several (`3L`), and the numbered squares below do the same with a click |
 | `ctrl+l` | into the translation beside the answer, while one is open |

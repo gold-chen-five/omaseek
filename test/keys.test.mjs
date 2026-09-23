@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { LIST_KEYS, ANSWER_KEYS, resolve, resolveCounted, readerKeys, bindingProblem } from '../src/shared/vim/keys.mjs'
+import { LIST_KEYS, ANSWER_KEYS, resolve, resolveCounted, readerKeys, bindingProblem, clipboardCommand } from '../src/shared/vim/keys.mjs'
 import { ACTIONS, settingKey, normalChords, panelChords } from '../src/shared/vim/keybinds.mjs'
 import { DEFAULTS } from '../src/settings/settings.mjs'
 
@@ -278,7 +278,7 @@ test('ctrl+shift+x forgets the lot, without standing on ctrl+x', () => {
   assert.equal(resolve(keys, '', 'C-x').command, 'closeSession', 'the plainer chord is untouched')
   assert.match(bindingProblem('clearSessions', 'ctrl+x', DEFAULTS), /Close session/)
   assert.equal(bindingProblem('clearSessions', 'ctrl+shift+x', DEFAULTS), '')
-  assert.equal(bindingProblem('closeSession', 'ctrl+shift+c', DEFAULTS), '', 'shift makes a chord of its own')
+  assert.equal(bindingProblem('closeSession', 'ctrl+shift+n', DEFAULTS), '', 'shift makes a chord of its own')
 })
 
 test('gs searches from the results too, and gx stays the answer pane’s', () => {
@@ -358,4 +358,27 @@ test('ctrl+l and ctrl+h move between a reading pane and the translation, read wi
 test('gg and G are the field’s own in normal mode', () => {
   assert.match(bindingProblem('previousAsked', 'G', DEFAULTS), /vim uses G/)
   assert.match(bindingProblem('translateBar', 'gg', DEFAULTS), /vim uses gg/)
+})
+
+test('copy and paste are the agents’ terminals’ keys, and ctrl+c copies only a selection', () => {
+  assert.equal(clipboardCommand('C-S-c', false), 'copy', 'ctrl+shift+c always copies')
+  assert.equal(clipboardCommand('C-c', true), 'copy', 'ctrl+c copies what is selected')
+  assert.equal(clipboardCommand('C-c', false), '', 'with nothing selected it stays New session')
+  assert.equal(clipboardCommand('C-v', false), 'paste')
+  assert.equal(clipboardCommand('C-S-v', false), 'paste')
+  assert.equal(clipboardCommand('v', false), '')
+  for (const pane of ['results', 'answer', 'translation']) {
+    const keys = readerKeys(pane, null)
+    assert.equal(resolve(keys, '', 'C-S-c').command, 'copy', pane)
+    assert.equal(resolve(keys, '', 'C-v').command, 'paste', pane)
+    assert.equal(resolve(keys, '', 'C-S-v').command, 'paste', pane)
+    assert.equal(keys['C-c'], undefined, `${pane}: ctrl+c is left to New session`)
+  }
+})
+
+test('the clipboard keys cannot be rebound, and New session keeps ctrl+c', () => {
+  assert.equal(bindingProblem('newSession', 'ctrl+c', DEFAULTS), '')
+  assert.match(bindingProblem('newSession', 'ctrl+v', DEFAULTS), /taken in the field: paste/)
+  assert.match(bindingProblem('settings', 'ctrl+shift+c', DEFAULTS), /copy/)
+  assert.match(bindingProblem('open', 'ctrl+shift+v', DEFAULTS), /paste/)
 })

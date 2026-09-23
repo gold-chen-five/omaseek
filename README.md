@@ -46,11 +46,12 @@ JSON API on.
 | `h` `l` | previous and next page; `3h` `5l` walk several, `5gp` jumps to page 5 |
 | `y` `Y` | copy a result's URL, or its title with it |
 | `v` `V` then `y` | select in an answer and copy |
+| `ctrl+shift+c`, `ctrl+v` | copy and paste, as in the agents' terminals — `ctrl+c` copies too while something is selected, and `super+c` `super+v` work |
 | `/` `?` `n` `N` | search the results or the answer |
 | `ga` `gA` | hand off to the agent in a terminal: this result, or everything |
 | `gd` `gj` `gs` | ask the AI about a result or a selected passage now, put it in the ask bar unsent, or search for a selection |
 | `gt` `gT` | translate the selection, or the whole bar (`ctrl+t` while typing), into a panel on the right; `ctrl+x` closes it |
-| `ctrl+c` `ctrl+n` `ctrl+x` | a new conversation, the next saved one, forget this one |
+| `ctrl+c` `ctrl+n` `ctrl+x` | a new conversation (with nothing selected), the next saved one, forget this one |
 | `L` `H` | in ask mode: the next saved conversation, or the one before |
 | `ctrl+s` | settings |
 | `esc` | back, then out |

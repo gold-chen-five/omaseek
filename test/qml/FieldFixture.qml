@@ -14,6 +14,7 @@ Item {
     escapeTimeout: 1000
   }
 
+  property int newSessions: 0
   property int nextSessions: 0
   property int closedSessions: 0
   property int clearedSessions: 0
@@ -30,6 +31,7 @@ Item {
 
   Connections {
     target: fieldObject
+    function onNewSessionRequested () { newSessions++ }
     function onNextSessionRequested () { nextSessions++ }
     function onCloseSessionRequested () { closedSessions++ }
     function onClearSessionsRequested () { clearedSessions++ }
