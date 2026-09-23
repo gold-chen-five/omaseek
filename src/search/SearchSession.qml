@@ -109,7 +109,15 @@ Item {
     resultsModel.clear()
   }
 
-  function cancel () { searchProcess.running = false }
+  // Closing the panel mid-request: nothing lands later, so nothing stays
+  // waiting for it — the page on screen keeps its `l`, an unfinished first
+  // search goes back to idle for the next Enter.
+  function cancel () {
+    searchProcess.stop()
+    loadingPage = false
+    pageTarget = 0
+    if (status === "loading") status = "idle"
+  }
 
   function resetPages () {
     pages = []

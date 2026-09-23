@@ -430,7 +430,10 @@ The stores are non-visual `Item`s, the way first-party plugins keep state in a
 - `shared/JsonProcess.qml` — a `bin/` helper run for one answer. They all print one JSON
   object and exit 0, so `parsed(payload)` and `unreadable(raw)` is the whole
   protocol; `start(command)` stops first, because a running `Process` keeps its
-  old command until it does.
+  old command until it does. A stopped run still finishes its stream later, as
+  an empty one, so `stop()` counts it and its answer is dropped: raised, it
+  was `Search returned nothing` waiting for the next open after closing the
+  panel mid-search.
 - `settings/ConfigStore.qml` — the config file: watched, `reload()`,
   `change(key, value)` written straight through.
 - `engine/Engine.qml` — the SearXNG instance: `state` (`unknown`/`running`/`stopped`),
