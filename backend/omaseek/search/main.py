@@ -47,7 +47,10 @@ def main():
             fail("usage", "--next payload must name the query")
 
         query = str(payload["query"])
-        offset = max(0, int(payload.get("s") or 0))
+        try:
+            offset = max(0, int(payload.get("s") or 0))
+        except (TypeError, ValueError):
+            fail("usage", "--next payload's offset is not a number")
 
         # Paging back is free: the buffer already holds those rows.
         session = load_session(query) or start_session(query, base)

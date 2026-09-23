@@ -8,6 +8,7 @@ import io
 import json
 import os
 import pathlib
+import socket
 import subprocess
 import sys
 import tempfile
@@ -176,6 +177,54 @@ class SearchBackendTests(unittest.TestCase):
         report = self.run_search("--test")
         self.assertFalse(report["ok"])
         self.assertIn("502", report["message"])
+
+    def test_a_malformed_offset_is_a_usage_error_not_a_crash(self):
+        report = self.run_search("--next", json.dumps({"query": "rust", "s": "three"}))
+        self.assertEqual(report["error"], "usage")
+
+
+class HangingUpTests(unittest.TestCase):
+    """An instance that accepts and closes without answering — one starting
+    behind Docker's proxy. urlopen does not wrap that failure, and it once
+    escaped as a traceback with nothing on stdout."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.listener = socket.socket()
+        cls.listener.bind(("127.0.0.1", 0))
+        cls.listener.listen(8)
+
+        def hang_up():
+            while True:
+                try:
+                    peer, _ = cls.listener.accept()
+                except OSError:
+                    return
+                peer.recv(4096)
+                peer.close()
+        threading.Thread(target=hang_up, daemon=True).start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.listener.close()
+
+    def run_search(self, *args):
+        with tempfile.TemporaryDirectory() as home:
+            config = pathlib.Path(home, "omaseek", "config.json")
+            config.parent.mkdir(parents=True)
+            config.write_text(json.dumps({"searxng_url": f"http://127.0.0.1:{self.listener.getsockname()[1]}"}))
+            env = dict(os.environ, XDG_CONFIG_HOME=home, XDG_CACHE_HOME=home)
+            done = subprocess.run([str(SCRIPT), *args], capture_output=True, text=True, env=env, timeout=30)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        return json.loads(done.stdout)
+
+    def test_every_command_still_answers_with_one_object(self):
+        for args in (["rust"], ["--time"], ["--test"]):
+            report = self.run_search(*args)
+            self.assertFalse(report["ok"], args)
+            self.assertEqual(report["error"], "network", args)
+        self.assertFalse(self.run_search("--status")["running"])
+        self.assertFalse(self.run_search("--version")["ok"])
 
 
 

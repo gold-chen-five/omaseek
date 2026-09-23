@@ -1,6 +1,7 @@
 """Talking to the SearXNG instance: one search request, whether it is up,
 and its JSON rows turned into the panel's."""
 
+import http.client
 import json
 import urllib.error
 import urllib.parse
@@ -42,6 +43,11 @@ def fetch_payload(base, query, pageno, engines=None):
         )
     except TimeoutError:
         raise SearchError("network", f"SearXNG timed out after {TIMEOUT}s")
+    except (OSError, http.client.HTTPException):
+        # Accepted, then dropped: urlopen wraps only the failures of sending, so
+        # a hang-up while its answer is awaited or read arrives unwrapped — an
+        # instance still starting behind Docker's proxy does exactly this.
+        raise SearchError("network", f"SearXNG dropped the connection at {base} — is it still starting?")
     except ValueError:
         raise SearchError("http", "SearXNG returned an unreadable response")
     if not isinstance(payload, dict):
@@ -56,8 +62,8 @@ def instance_running(base):
             return 200 <= response.status < 300
     except urllib.error.HTTPError:
         return True         # it answered, however unhappily
-    except (urllib.error.URLError, TimeoutError, ValueError):
-        return False
+    except (OSError, http.client.HTTPException, ValueError):
+        return False        # refused, timed out, or accepted and dropped
 
 
 def parse(payload):

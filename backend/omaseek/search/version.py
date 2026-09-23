@@ -1,8 +1,8 @@
 """The Update row's hint: the running version against the newest image on
 Docker Hub. Docker Hub is sent the tags URL and nothing else."""
 
+import http.client
 import re
-import urllib.error
 
 from .client import read_json
 from .config import emit, fail
@@ -52,11 +52,11 @@ def report_version(base):
     may be missing — stopped, or offline — and says so rather than failing."""
     try:
         version = read_json(base + "/config", 3).get("version")
-    except (urllib.error.URLError, TimeoutError, ValueError, AttributeError):
+    except (OSError, http.client.HTTPException, ValueError, AttributeError):
         fail("network", f"SearXNG is not reachable at {base}", setup=True)
     try:
         latest = latest_tag(read_json(DOCKER_TAGS_URL, 5).get("results") or [])
-    except (urllib.error.URLError, TimeoutError, ValueError, AttributeError):
+    except (OSError, http.client.HTTPException, ValueError, AttributeError):
         latest = None
     emit({"ok": True, "version": version if isinstance(version, str) else None,
           "latest": latest, "current": is_current(version, latest)})
