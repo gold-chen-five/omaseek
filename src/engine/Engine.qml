@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import "../shared"
+import "../shared/terminal.mjs" as Terminal
 
 // The SearXNG instance: whether it answers, and the script that manages it.
 Item {
@@ -53,17 +54,19 @@ Item {
     speedProcess.start([engine.backendPath, "--time"])
   }
 
-  function start () { run("") }
+  // `comeBack`, from the welcome page, is the command that brings the panel
+  // back once the terminal is done with (terminal.mjs).
+  function start (comeBack) { run("", comeBack) }
   function stop () { run(" --stop") }
   function updateImage () { run(" --update") }
 
   // In a terminal: docker may ask for sudo, and the first pull is worth watching.
-  function run (flag) {
+  function run (flag, comeBack) {
     launching()
     state = "unknown"                          // whatever it was, it is changing
     Quickshell.execDetached([
       "xdg-terminal-exec", "bash", "-c",
-      engine.scriptPath + flag + "; echo; read -n1 -r -p 'press any key to close'"
+      engine.scriptPath + flag + "; " + Terminal.terminalEnding(comeBack)
     ])
   }
 

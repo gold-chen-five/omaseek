@@ -195,7 +195,7 @@ BorderSurface {
       accent: panelCard.host.accent
       fontFamily: panelCard.host.fontFamily
 
-      onEngineRequested: panelCard.engine.start()
+      onEngineRequested: panelCard.host.setUpEngine()
       onShortcutRequested: panelCard.host.addShortcut()
       onFinished: panelCard.host.finishIntro()
     }

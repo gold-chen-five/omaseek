@@ -114,8 +114,9 @@ Item {
       Text {
         width: parent.width
         textFormat: Text.PlainText
-        text: "Web search and AI, driven with vim keys. Two things to set up first — "
-            + "each opens a terminal you can watch, then open omaseek again to come back here."
+        text: "Web search and AI, driven with vim keys. Two things to set up first. "
+            + "Each opens a terminal you can watch — the panel steps aside while it needs the "
+            + "keyboard, and comes back here when you press a key to close it."
         color: page.foreground
         opacity: 0.75
         font.family: page.fontFamily

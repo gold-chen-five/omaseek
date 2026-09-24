@@ -8,6 +8,7 @@ import "settings/settings.mjs" as SettingsLib
 import "shared/vim/keybinds.mjs" as Keybinds
 import "shared/states.mjs" as States
 import "shared/pixels.mjs" as Pixels
+import "shared/terminal.mjs" as Terminal
 import "panel/layout.mjs" as Layout
 import "ask"
 import "engine"
@@ -308,7 +309,11 @@ Item {
       "place-icon", id])
   }
 
-  function addShortcut () { shortcut.add() }
+  // The welcome page's steps: each terminal ends by bringing the panel back to
+  // the page, since whoever pressed them may not know another way in yet.
+  readonly property string comeBackCommand: Terminal.summonCommand(manifest?.id ?? "omaseek")
+  function setUpEngine () { engine.start(comeBackCommand) }
+  function addShortcut () { shortcut.add(comeBackCommand) }
 
   // The dropdown under the search bar, while a search is being typed there.
   Suggestions {

@@ -487,7 +487,10 @@ The stores are non-visual `Item`s, the way first-party plugins keep state in a
   loaded it opens itself, through `shell.summon` as the bar icon does (its own
   `open()` when the shell offers none), on the `WELCOME` view: SearXNG and
   `SUPER + D`, each done in place by what Settings runs (`engine.start()`,
-  `shortcut.add()`), in a terminal that dismisses the panel. `introPending`
+  `shortcut.add()`), in a terminal that dismisses the panel — it needs the
+  keyboard for a password or a yes — and ends by summoning it back
+  (`shared/terminal.mjs`: "press any key to go back to omaseek", then
+  `omarchy-shell shell summon`), since a newcomer may not know the way in. `introPending`
   sends every open back to the page, probing both again, until Start searching
   or esc (`finishIntro`). `panel/welcome.mjs` holds the steps. The first run
   also moves the bar icon to the centre's left end (`placeBarIcon`, the shell's

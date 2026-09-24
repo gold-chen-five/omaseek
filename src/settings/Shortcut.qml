@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import "../shared"
+import "../shared/terminal.mjs" as Terminal
 
 // The key that opens the panel, in the user's own Hyprland bindings: whether
 // one is there, and bin/keybind to add SUPER + D when it is free. Adding runs in
@@ -23,13 +24,14 @@ Item {
   }
 
   // The terminal outlives the panel, so the row learns the answer the next time
-  // Settings opens and probes again.
-  function add () {
+  // Settings opens and probes again. `comeBack`, from the welcome page, brings
+  // the panel back once the terminal is done with (terminal.mjs).
+  function add (comeBack) {
     launching()
     status = null
     Quickshell.execDetached([
       "xdg-terminal-exec", "bash", "-c",
-      shortcut.scriptPath + " --add; echo; read -n1 -r -p 'press any key to close'"
+      shortcut.scriptPath + " --add; " + Terminal.terminalEnding(comeBack)
     ])
   }
 
