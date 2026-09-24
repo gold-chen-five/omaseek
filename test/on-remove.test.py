@@ -45,7 +45,11 @@ class OnRemoveTests(unittest.TestCase):
         self.bindings.write_text('o.bind("SUPER + RETURN", "Terminal", "x")\n')
         self.fake("hyprctl", f'echo "hyprctl $*" >> {log}')
 
+        self.first_run = base / "data" / "omaseek" / "first-run.json"
+        self.first_run.parent.mkdir(parents=True)
+        self.first_run.write_text('{"version":1,"done":true}\n')
         self.env = dict(os.environ, XDG_RUNTIME_DIR=str(self.runtime), XDG_CONFIG_HOME=str(config),
+                        XDG_DATA_HOME=str(base / "data"),
                         OMARCHY_PATH=str(base / "no-omarchy"),
                         PATH=f"{self.fake_bin}:{os.environ['PATH']}", GUM_ANSWER="n")
 
@@ -78,6 +82,23 @@ class OnRemoveTests(unittest.TestCase):
         self.run_script(self.stage / "on-remove", "--watch")
         self.assertNotIn("terminal", self.calls())
         self.assertTrue((self.stage / "on-remove").is_file(), "kept for the next unload")
+
+    def test_a_removal_forgets_the_welcome_and_a_disable_does_not(self):
+        self.run_script(self.plugin / "bin" / "on-remove", "--stage")
+        self.run_script(self.stage / "on-remove", "--watch")
+        self.assertTrue(self.first_run.exists(), "a disable or reload keeps it")
+        self.fake("docker", f'echo "docker $*" >> {self.log}; [[ $1 == info ]]')
+        shutil.rmtree(self.plugin)
+        self.run_script(self.stage / "on-remove", "--watch")
+        self.assertFalse(self.first_run.exists(), "a reinstall opens on the welcome page again")
+
+    def test_the_question_names_the_key_that_was_bound(self):
+        self.env["GUM_ANSWER"] = "n"
+        subprocess.run(["bash", str(self.plugin / "bin" / "keybind"), "--add", "--yes", "--key", "super+shift+s"],
+                       capture_output=True, env=self.env, check=True)
+        self.stage_and_remove()
+        self.run_script(self.stage / "on-remove", "--ask")
+        self.assertIn("gum confirm Remove the SUPER + SHIFT + S line", self.calls())
 
     def test_a_removal_opens_a_terminal_that_asks(self):
         self.stage_and_remove()

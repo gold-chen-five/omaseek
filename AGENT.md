@@ -504,7 +504,8 @@ The stores are non-visual `Item`s, the way first-party plugins keep state in a
   `moveBarWidget`), only if it is still in the centre where Omarchy put it — a
   manifest can name a section, not a place in it.
   `~/.local/share/omaseek/first-run.json` records `done`; delete it to see the
-  page again.
+  page again. `bin/on-remove` deletes it when the plugin is removed, so a
+  reinstall is a first install — the page, and the icon's move — again.
 - `search/HistoryStore.qml` — the last twenty-five queries, the same shape and read
   once for the same reason. Ask mode walks its questions with the same keys
   (`↑`, `U`) but keeps no file of them: `Sessions.pastQuestions` reads them out
