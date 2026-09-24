@@ -68,7 +68,7 @@ feature's folder holds its QML *and* its pure `.mjs` side by side.
 | `src/shared/vim/` | vim itself, pure, used by the field and both reading panes: motions, text objects, the answer's grammar, finds, key tables and bindings; `chord.js`, `measure.js`, `Finder`, `MatchHighlight` |
 | `backend/omaseek/` | the Python behind `bin/ask` and `bin/search`, a package each |
 | `bin/` | entry points and shell scripts; `bin/ask` and `bin/search` only call `main()` |
-| `docs/` | the README's demo: `demo.mp4`, a 720p/30 fps copy (~3 MB — every install clones it, so keep it small), and `demo.jpg`, the still that links to it |
+| `docs/` | the README's demo: `demo.mp4`, a 720p/30 fps copy (~3 MB — every install clones it, so keep it small), and `demo.png`, the screenshot that links to it |
 
 **The pure/impure rule still holds within a folder: anything that is a pure
 function of its inputs is an `.mjs` ES module; everything that needs Qt is
