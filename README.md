@@ -19,8 +19,9 @@ omarchy plugin add https://github.com/gold-chen-five/omaseek.git --enable
 Not in the Omarchy plugin marketplace yet, hence the repository URL. Plugins run
 unsandboxed inside `omarchy-shell`, so read the code before enabling it.
 
-**Opening it.** `--enable` puts a magnifier icon in the middle of the bar; click
-it to open the panel. If it is not there — the plugin was enabled before as
+**Opening it.** The panel opens by itself once, right after install, and its
+status line says how to come back. After that, `--enable` has put a magnifier
+icon in the middle of the bar: click it to open the panel. If it is not there — the plugin was enabled before as
 something other than a bar widget — `omarchy plugin disable omaseek` then
 `omarchy plugin enable omaseek --section center` puts it back.
 

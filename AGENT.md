@@ -483,6 +483,11 @@ The stores are non-visual `Item`s, the way first-party plugins keep state in a
   list, which never takes the keyboard. The field's `completing` flag, bound to
   `showing`, is what turns ↓ ↑ and insert mode's ctrl+n ctrl+p into
   `completionStepped` instead of the history walk and the session key.
+- `Search.qml`'s first run — the panel opens itself once, the first time it is
+  loaded, through `shell.summon` as the bar icon does (its own `open()` when the
+  shell offers none), and `welcoming` swaps the idle status line for how to
+  come back (`WELCOME_TEXT`) until it closes. `~/.local/share/omaseek/first-run.json`
+  records that it happened; delete it to see the welcome again.
 - `search/HistoryStore.qml` — the last twenty-five queries, the same shape and read
   once for the same reason. Ask mode walks its questions with the same keys
   (`↑`, `U`) but keeps no file of them: `Sessions.pastQuestions` reads them out

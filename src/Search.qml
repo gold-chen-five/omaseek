@@ -14,6 +14,7 @@ import "engine"
 import "panel"
 import "search"
 import "settings"
+import "shared"
 import "translate"
 
 // Web search and AI overlay. The layer-shell setup and the open/close/dismiss/
@@ -35,6 +36,7 @@ Item {
   property string notice: ""                   // what a key just did, on the status line for a beat
   property bool keysOpen: false                // the ctrl+k lookup is over the card
   property string keysReturnTo: ""             // the focusArea it was opened from
+  property bool welcoming: false               // the first open after install: the status line says how to come back
 
   readonly property Item input: card.field
   readonly property var settingsRows: SettingsLib.settingsRows(config.settings, engine.state, ai.agents, ai.models,
@@ -78,6 +80,7 @@ Item {
 
   function close () {
     opened = false
+    welcoming = false
     keysOpen = false
     session.cancel()
   }
@@ -236,6 +239,32 @@ Item {
   ConfigStore { id: config }
 
   HistoryStore { id: queries }
+
+  // The first time omaseek is loaded it opens itself, once: a fresh install
+  // has no SUPER + D until the user adds one, and an icon that appeared
+  // somewhere on the bar is easy to miss. The file remembers that it did.
+  JsonFile {
+    id: firstRun
+
+    name: "omaseek/first-run.json"
+    onLoaded: text => { if (text.trim() === "") welcomeDelay.start() }
+  }
+
+  // After the load that raised this has finished, so the shell has handed over
+  // `shell` and can summon the panel the way the bar icon does.
+  Timer {
+    id: welcomeDelay
+    interval: 500
+    onTriggered: root.welcome()
+  }
+
+  function welcome () {
+    firstRun.write(JSON.stringify({ version: 1, welcomed: Date.now() }) + "\n")
+    welcoming = true
+    const id = manifest?.id ?? "omaseek"
+    const summoned = shell && typeof shell.summon === "function" && shell.summon(id, "{}")
+    if (!summoned) open("{}")
+  }
 
   // The dropdown under the search bar, while a search is being typed there.
   Suggestions {

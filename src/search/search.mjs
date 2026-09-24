@@ -73,12 +73,17 @@ export function pageJumpTarget (requested, cached = 1, reach = 10) {
   return Math.min(wanted, Math.max(1, cached) + reach)
 }
 
+// The first open after install, which the panel does by itself: the bar icon
+// (the same glyph) is the way back until SUPER + D is added.
+export const WELCOME_TEXT = 'welcome · enter searches, tab asks · reopen from the \uf002 on the bar · ctrl+s → keys adds super+d'
+
 export function statusText ({
   view = VIEW.SEARCH, panelMode = PANEL.SEARCH, status, count = 0, query = '', page = 1,
   hasNext = false, loadingPage = false, errorMessage = '', backend = '', pageTarget = 0,
   pageError = '', nextPageKey = 'l',
   agent = '', effort = '', selecting = false, link = '', session = '',
-  stopKey = 'esc', retryKey = 'ctrl+shift+r', canRetry = false, address = ''
+  stopKey = 'esc', retryKey = 'ctrl+shift+r', canRetry = false, address = '',
+  welcome = false
 } = {}) {
   if (view === VIEW.SETTINGS) return 'j/k rows · h/l change · enter opens · / filter · esc back'
   if (view === VIEW.SETUP) return 'h/l choose · enter confirm · esc not now'
@@ -102,6 +107,9 @@ export function statusText ({
       if (errorMessage) return errorMessage
       return `page ${page} · ${count} results${hasNext ? '' : ' · end'} · h/l pages`
     default:
+      // The panel opened itself after install: say how to come back, since
+      // there is no SUPER + D until one is added.
+      if (welcome) return WELCOME_TEXT
       // The empty panel is where a first-timer looks, so it names the settings key.
       return 'enter searches · esc normal · ctrl+s settings'
   }
