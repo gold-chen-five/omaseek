@@ -8,6 +8,11 @@ import "suggest.mjs" as SuggestLib
 // adds to the typed text in bold. It never takes the keyboard — the bar keeps
 // typing, and the arrows reach this through the store — so a click is all it
 // raises.
+//
+// One row is lit at a time: the arrows' row, or the pointer's once the pointer
+// has really moved. The list opens under a pointer resting in the middle of the
+// screen, and lighting whatever row appeared beneath it showed a second row
+// chosen before any key was pressed — and two lit once ↓ was.
 BorderSurface {
   id: list
 
@@ -19,6 +24,23 @@ BorderSurface {
   property string fontFamily: Style.font.family
 
   signal picked(string text)
+
+  property int pointed: -1                     // the row the moving pointer is on, or -1
+
+  // The arrows take the highlight back, and new rows start with none pointed.
+  onCurrentChanged: forgetPointer()
+  onRowsChanged: forgetPointer()
+  onVisibleChanged: forgetPointer()
+
+  function forgetPointer () {
+    pointed = -1
+    pointerGate.reset()
+  }
+
+  PointerMoveGate {
+    id: pointerGate
+    referenceItem: list
+  }
 
   readonly property int rowHeight: Style.spacing.popupRowHeight
 
@@ -50,14 +72,12 @@ BorderSurface {
 
         required property var modelData
         required property int index
-        readonly property bool lit: index === list.current || hover.hovered
+        readonly property bool lit: list.pointed !== -1 ? index === list.pointed : index === list.current
 
         width: column.width
         height: list.rowHeight
         radius: Style.cornerRadius
         color: lit ? Style.hoverFillFor(list.foreground, list.accent) : "transparent"
-
-        HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
 
         Text {
           id: glyph
@@ -86,7 +106,14 @@ BorderSurface {
           elide: Text.ElideRight
         }
 
-        TapHandler { onTapped: list.picked(row.modelData.text) }
+        MouseArea {
+          anchors.fill: parent
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onPositionChanged: mouse => { if (pointerGate.moved(row, mouse)) list.pointed = row.index }
+          onExited: if (list.pointed === row.index) list.pointed = -1
+          onClicked: list.picked(row.modelData.text)
+        }
       }
     }
   }
