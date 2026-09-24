@@ -19,9 +19,12 @@ omarchy plugin add https://github.com/gold-chen-five/omaseek.git --enable
 Not in the Omarchy plugin marketplace yet, hence the repository URL. Plugins run
 unsandboxed inside `omarchy-shell`, so read the code before enabling it.
 
-**Opening it.** The panel opens by itself once, right after install, and its
-status line says how to come back. After that, `--enable` has put a magnifier
-icon in the middle of the bar: click it to open the panel. If it is not there — the plugin was enabled before as
+**Opening it.** Right after install the panel opens by itself on a welcome
+page that sets up the two things omaseek needs — SearXNG, and `SUPER + D` —
+each with a button that runs it in a terminal you can watch. It keeps opening
+there, with the finished steps ticked, until you choose **Start searching**.
+Meanwhile a magnifier icon at the left end of the bar's middle opens it. If it
+is not there — the plugin was enabled before as
 something other than a bar widget — `omarchy plugin disable omaseek` then
 `omarchy plugin enable omaseek --section center` puts it back.
 

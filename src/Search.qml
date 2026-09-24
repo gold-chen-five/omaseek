@@ -36,7 +36,8 @@ Item {
   property string notice: ""                   // what a key just did, on the status line for a beat
   property bool keysOpen: false                // the ctrl+k lookup is over the card
   property string keysReturnTo: ""             // the focusArea it was opened from
-  property bool welcoming: false               // the first open after install: the status line says how to come back
+  property bool introPending: false            // the welcome page is not finished: opening shows it
+  readonly property var shortcutStatus: shortcut.status   // for the welcome page's SUPER + D step
 
   readonly property Item input: card.field
   readonly property var settingsRows: SettingsLib.settingsRows(config.settings, engine.state, ai.agents, ai.models,
@@ -72,15 +73,23 @@ Item {
     config.reload()
     suggestions.clear()                        // they show again on the next thing typed
     opened = true
-    view = States.VIEW.SEARCH                  // never reopen into settings or setup
     if (ai.agents === null) ai.probeAgents()   // once: which agents this machine has
     commands.resetHistoryWalk()
+    // Until the welcome page is finished, it is what opens — with each step
+    // checked again, since a terminal it opened may have just done one.
+    if (introPending) {
+      view = States.VIEW.WELCOME
+      engine.probe()
+      shortcut.probe()
+      card.welcomePage.open()
+      return
+    }
+    view = States.VIEW.SEARCH                  // never reopen into settings or setup
     focusSearch(fieldMode)                     // first launch inherits the field's insert default
   }
 
   function close () {
     opened = false
-    welcoming = false
     keysOpen = false
     session.cancel()
   }
@@ -240,14 +249,25 @@ Item {
 
   HistoryStore { id: queries }
 
-  // The first time omaseek is loaded it opens itself, once: a fresh install
-  // has no SUPER + D until the user adds one, and an icon that appeared
-  // somewhere on the bar is easy to miss. The file remembers that it did.
+  // The first time omaseek is loaded it opens itself, on the welcome page: a
+  // fresh install has no SearXNG and no SUPER + D, and an icon that appeared
+  // somewhere on the bar is easy to miss. The file remembers that it did, and
+  // whether the page was finished — until it is, opening shows it again.
   JsonFile {
     id: firstRun
 
     name: "omaseek/first-run.json"
-    onLoaded: text => { if (text.trim() === "") welcomeDelay.start() }
+    onLoaded: text => {
+      if (text.trim() === "") {
+        welcomeDelay.start()
+        return
+      }
+      try {
+        root.introPending = JSON.parse(text).done === false
+      } catch (error) {
+        root.introPending = false              // unreadable: not worth a page nobody asked for
+      }
+    }
   }
 
   // After the load that raised this has finished, so the shell has handed over
@@ -259,12 +279,36 @@ Item {
   }
 
   function welcome () {
-    firstRun.write(JSON.stringify({ version: 1, welcomed: Date.now() }) + "\n")
-    welcoming = true
+    firstRun.write(JSON.stringify({ version: 1, welcomed: Date.now(), done: false }) + "\n")
+    introPending = true
+    placeBarIcon()
     const id = manifest?.id ?? "omaseek"
     const summoned = shell && typeof shell.summon === "function" && shell.summon(id, "{}")
     if (!summoned) open("{}")
   }
+
+  // Start searching, or esc, on the welcome page: it is not shown again.
+  function finishIntro () {
+    introPending = false
+    firstRun.write(JSON.stringify({ version: 1, done: true }) + "\n")
+    view = States.VIEW.SEARCH
+    focusSearch("insert")
+  }
+
+  // Omarchy puts a new bar widget after the weather in the centre; the icon
+  // goes to the centre's left end instead, where it reads as the start of the
+  // bar's middle. Once, on the first run, and only when it is still in the
+  // centre — an installer asked for left or right, and that answer stands.
+  function placeBarIcon () {
+    const id = manifest?.id ?? "omaseek"
+    Quickshell.execDetached(["bash", "-c",
+      'f="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/shell.json"; '
+      + 'jq -e --arg id "$1" \'(.bar.layout.center // []) | map(.id) | index($id)\' "$f" >/dev/null 2>&1 '
+      + '&& omarchy-shell shell moveBarWidget "$1" \'{"section":"center","index":0}\' >/dev/null 2>&1',
+      "place-icon", id])
+  }
+
+  function addShortcut () { shortcut.add() }
 
   // The dropdown under the search bar, while a search is being typed there.
   Suggestions {

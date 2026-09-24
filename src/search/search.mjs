@@ -73,20 +73,16 @@ export function pageJumpTarget (requested, cached = 1, reach = 10) {
   return Math.min(wanted, Math.max(1, cached) + reach)
 }
 
-// The first open after install, which the panel does by itself: the bar icon
-// (the same glyph) is the way back until SUPER + D is added.
-export const WELCOME_TEXT = 'welcome · enter searches, tab asks · reopen from the \uf002 on the bar · ctrl+s → keys adds super+d'
-
 export function statusText ({
   view = VIEW.SEARCH, panelMode = PANEL.SEARCH, status, count = 0, query = '', page = 1,
   hasNext = false, loadingPage = false, errorMessage = '', backend = '', pageTarget = 0,
   pageError = '', nextPageKey = 'l',
   agent = '', effort = '', selecting = false, link = '', session = '',
-  stopKey = 'esc', retryKey = 'ctrl+shift+r', canRetry = false, address = '',
-  welcome = false
+  stopKey = 'esc', retryKey = 'ctrl+shift+r', canRetry = false, address = ''
 } = {}) {
   if (view === VIEW.SETTINGS) return 'j/k rows · h/l change · enter opens · / filter · esc back'
   if (view === VIEW.SETUP) return 'h/l choose · enter confirm · esc not now'
+  if (view === VIEW.WELCOME) return 'j/k choose · enter does it · esc starts searching'
   if (panelMode === PANEL.AI) return askStatusText({ status, errorMessage, agent, effort, selecting, link, session, stopKey, retryKey, canRetry })
   // The field holds an address: Enter opens it rather than searching, so say so first.
   if (address) return `enter opens ${hostOf(address)} · gx too, from normal mode`
@@ -107,9 +103,6 @@ export function statusText ({
       if (errorMessage) return errorMessage
       return `page ${page} · ${count} results${hasNext ? '' : ' · end'} · h/l pages`
     default:
-      // The panel opened itself after install: say how to come back, since
-      // there is no SUPER + D until one is added.
-      if (welcome) return WELCOME_TEXT
       // The empty panel is where a first-timer looks, so it names the settings key.
       return 'enter searches · esc normal · ctrl+s settings'
   }
@@ -158,6 +151,7 @@ export function confirmClearText (keyText, count) {
 export function modeLabel ({ view = VIEW.SEARCH, panelMode = PANEL.SEARCH, focusArea, mode, selecting = false }) {
   if (view === VIEW.SETTINGS) return 'SETTINGS'
   if (view === VIEW.SETUP) return 'SETUP'
+  if (view === VIEW.WELCOME) return 'WELCOME'
   if (panelMode === PANEL.AI) {
     if (focusArea === FOCUS.RESULTS) return selecting ? 'AI · VISUAL' : 'AI · ANSWER'
     if (focusArea === FOCUS.TRANSLATION) return 'AI · TRANSLATION'

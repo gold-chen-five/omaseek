@@ -262,12 +262,3 @@ test('enter searches the query trimmed, with its inner runs of space made one', 
   assert.equal(cleanQuery('   '), '')
   assert.equal(cleanQuery(null), '')
 })
-
-test('the first open after install says how to come back, until something is searched', async () => {
-  const { statusText, WELCOME_TEXT } = await import('../src/search/search.mjs')
-  assert.equal(statusText({ status: 'idle', welcome: true }), WELCOME_TEXT)
-  assert.match(WELCOME_TEXT, / on the bar/, 'the bar icon’s own glyph')
-  assert.match(WELCOME_TEXT, /super\+d/)
-  assert.equal(statusText({ status: 'idle' }), 'enter searches · esc normal · ctrl+s settings')
-  assert.equal(statusText({ status: 'loading', welcome: true }), 'Searching…', 'searching takes the line over')
-})

@@ -55,7 +55,6 @@ StatusLine {
       retryKey: config.settings.retryAnswerKey,
       canRetry: ai.canRetry,
       address: !asking && host.focusArea === States.FOCUS.FIELD
-        ? Urls.queryUrl(host.input.text.split(host.input.lineBreak).join(" ")) : "",
-      welcome: host.welcoming
+        ? Urls.queryUrl(host.input.text.split(host.input.lineBreak).join(" ")) : ""
     })
 }

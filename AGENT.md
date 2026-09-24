@@ -483,11 +483,18 @@ The stores are non-visual `Item`s, the way first-party plugins keep state in a
   list, which never takes the keyboard. The field's `completing` flag, bound to
   `showing`, is what turns ↓ ↑ and insert mode's ctrl+n ctrl+p into
   `completionStepped` instead of the history walk and the session key.
-- `Search.qml`'s first run — the panel opens itself once, the first time it is
-  loaded, through `shell.summon` as the bar icon does (its own `open()` when the
-  shell offers none), and `welcoming` swaps the idle status line for how to
-  come back (`WELCOME_TEXT`) until it closes. `~/.local/share/omaseek/first-run.json`
-  records that it happened; delete it to see the welcome again.
+- `Search.qml`'s first run and `panel/WelcomePage` — the first time the panel is
+  loaded it opens itself, through `shell.summon` as the bar icon does (its own
+  `open()` when the shell offers none), on the `WELCOME` view: SearXNG and
+  `SUPER + D`, each done in place by what Settings runs (`engine.start()`,
+  `shortcut.add()`), in a terminal that dismisses the panel. `introPending`
+  sends every open back to the page, probing both again, until Start searching
+  or esc (`finishIntro`). `panel/welcome.mjs` holds the steps. The first run
+  also moves the bar icon to the centre's left end (`placeBarIcon`, the shell's
+  `moveBarWidget`), only if it is still in the centre where Omarchy put it — a
+  manifest can name a section, not a place in it.
+  `~/.local/share/omaseek/first-run.json` records `done`; delete it to see the
+  page again.
 - `search/HistoryStore.qml` — the last twenty-five queries, the same shape and read
   once for the same reason. Ask mode walks its questions with the same keys
   (`↑`, `U`) but keeps no file of them: `Sessions.pastQuestions` reads them out

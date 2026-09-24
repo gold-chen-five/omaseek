@@ -36,6 +36,7 @@ BorderSurface {
   readonly property alias settingsPage: settingsPage
   readonly property alias setupPrompt: setupPrompt
   readonly property alias keysLookup: keysLookup
+  readonly property alias welcomePage: welcomePage
   readonly property alias settingsFilter: settingsFilter
 
   radius: Style.cornerRadius
@@ -73,7 +74,7 @@ BorderSurface {
     FieldBar {
       id: fieldBar
 
-      visible: panelCard.host.view !== States.VIEW.SETTINGS
+      visible: panelCard.host.view !== States.VIEW.SETTINGS && panelCard.host.view !== States.VIEW.WELCOME
       width: parent.width
       panelMode: panelCard.host.panelMode
       ai: panelCard.ai
@@ -180,6 +181,23 @@ BorderSurface {
 
       onConfirmed: panelCard.engine.start()
       onCancelled: panelCard.host.closeSetup()
+    }
+
+    // The first open after install: SearXNG and SUPER + D, set up from here.
+    WelcomePage {
+      id: welcomePage
+
+      visible: panelCard.host.view === States.VIEW.WELCOME
+      width: parent.width
+      engineState: panelCard.engine.state
+      shortcutStatus: panelCard.host.shortcutStatus
+      foreground: panelCard.host.foreground
+      accent: panelCard.host.accent
+      fontFamily: panelCard.host.fontFamily
+
+      onEngineRequested: panelCard.engine.start()
+      onShortcutRequested: panelCard.host.addShortcut()
+      onFinished: panelCard.host.finishIntro()
     }
 
     SettingsPage {

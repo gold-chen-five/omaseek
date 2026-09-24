@@ -373,6 +373,16 @@ with the keyboard on the rows and the filter empty.
 The settings page scrolls within the panel; keyboard navigation keeps the
 selected row visible. Values are written as they change; there is no save.
 
+## The welcome page
+
+The first open after install. It stays until Start searching or `esc`.
+
+| key | does |
+|---|---|
+| `j` `k`, `↓` `↑`, `h` `l`, `tab` | move between its buttons: Set up (SearXNG), Add (`SUPER + D`), Start searching |
+| `enter`, `space` | press it — Set up and Add open a terminal and close the panel; open it again to come back |
+| `esc` | Start searching: the page is not shown again |
+
 ## The setup prompt
 
 | key | does |
