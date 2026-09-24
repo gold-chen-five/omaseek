@@ -1,7 +1,7 @@
 # omaseek
 
 A web search and AI panel for [Omarchy](https://omarchy.org) 4, driven with vim
-keys. It searches through a SearXNG instance you run yourself and asks an agent
+keys. It searches through a [SearXNG](https://github.com/searxng/searxng) instance you run yourself and asks an agent
 CLI you already have — no API keys, no accounts.
 
 **SUPER + D** summons it. **Tab** switches between searching and asking.
