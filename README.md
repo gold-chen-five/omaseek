@@ -6,6 +6,11 @@ CLI you already have — no API keys, no accounts.
 
 **SUPER + D** summons it. **Tab** switches between searching and asking.
 
+[![omaseek searching the web with vim keys: results for "rust lang", the page squares, and the search bar](docs/demo.jpg)](docs/demo.mp4)
+
+▶ [**Watch the demo**](docs/demo.mp4) — under two minutes: searching with
+suggestions, reading and paging the results, asking an agent, and settings.
+
 ## Install
 
 ```bash
