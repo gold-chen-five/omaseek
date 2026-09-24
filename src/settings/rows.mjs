@@ -7,6 +7,7 @@ import { ENGINE_STATES, FIXED_KEYS } from './choices.mjs'
 import { normalizeSequence } from './config.mjs'
 import { searchRows, engineRows } from './rows-search.mjs'
 import { askRows, translateRows, displayRows } from './rows-ask.mjs'
+import { DEFAULT_OPEN_KEY, OPEN_KEY_RULE, normalizeHyprKey } from './hyprkey.mjs'
 
 /**
  * The settings page rows, in order. `engine` is the SearXNG switch: whether the
@@ -37,20 +38,27 @@ export function settingsRows (settings, engine = 'unknown', agents = null, catal
 export function shortcutRow (status) {
   const row = { key: 'shortcut', label: 'Open omaseek with' }
   const state = status && status.ok ? status.state : status ? 'unreadable' : 'checking'
-  const key = status && status.key ? status.key : 'SUPER + D'
-  if (state === 'free') {
+  const key = status && status.key ? status.key : DEFAULT_OPEN_KEY
+  const holder = status && status.holder ? /"[^"]*"\s*,\s*"([^"]*)"/.exec(status.holder) : null
+  // A key omaseek can act on is typed like the rows below it: Enter adds it, or
+  // changes the line bin/keybind wrote before, in a terminal that asks first.
+  const typed = {
+    free: `${key} is free — Enter adds it, or type another key; a terminal shows the line and asks`,
+    taken: `${key} already opens ${holder ? holder[1] : 'something else'} — type another key`
+  }
+  if (state === 'bound' && status.managed === true) typed.bound = `${key} opens omaseek — type another key to change it; a terminal shows the change and asks`
+  if (typed[state]) {
     return Object.assign(row, {
-      type: 'action',
-      hint: `${key} is free — Add shows the line for your Hyprland bindings and asks before writing it`,
-      action: 'add',
-      button: 'Add'
+      type: 'text',
+      normalize: 'hyprkey',
+      hint: typed[state],
+      placeholder: DEFAULT_OPEN_KEY,
+      value: key
     })
   }
-  const holder = status && status.holder ? /"[^"]*"\s*,\s*"([^"]*)"/.exec(status.holder) : null
   const hints = {
     checking: 'checking your Hyprland bindings…',
-    bound: `${key} — in your Hyprland bindings`,
-    taken: `${key} already opens ${holder ? holder[1] : 'something else'} — bind another key to omarchy-shell shell toggle omaseek`,
+    bound: `${key} — a line you wrote in your Hyprland bindings; change the key there`,
     missing: 'no ~/.config/hypr/bindings.lua to add a key to — the bar icon opens it',
     unreadable: 'could not read your Hyprland bindings — the bar icon opens it'
   }
@@ -101,6 +109,10 @@ function fixedRows () {
  * actions can never share one.
  */
 export function checkRow (row, raw, rows) {
+  if (row && row.normalize === 'hyprkey') {
+    const key = normalizeHyprKey(String(raw ?? '').trim() || DEFAULT_OPEN_KEY)
+    return key ? { value: key, error: '' } : { value: null, error: OPEN_KEY_RULE }
+  }
   if (row && row.normalize === 'bind') {
     const action = actionById(row.action)
     const text = String(raw ?? '').trim() || action.default   // empty restores the default

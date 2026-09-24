@@ -197,6 +197,7 @@ BorderSurface {
 
       onEngineRequested: panelCard.host.setUpEngine()
       onShortcutRequested: panelCard.host.addShortcut()
+      onKeyChosen: key => panelCard.host.chooseShortcut(key)
       onFinished: panelCard.host.finishIntro()
     }
 

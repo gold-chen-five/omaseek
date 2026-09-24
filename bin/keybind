@@ -1,128 +1,243 @@
 #!/usr/bin/env bash
-# SUPER + D for omaseek, in the user's own Hyprland bindings.
+# The key that opens omaseek — SUPER + D unless another is asked for — in the
+# user's own Hyprland bindings.
 #
 # A plugin cannot declare a keybinding — the manifest has no field for one, and
 # `omarchy plugin add` never touches Hyprland — so this is the one place the
-# binding is written, and only ever on a request: Settings → Keys → Add, or
-# bin/install. It appends one line, after a backup, and never replaces a
-# binding the user already has. Removal takes out exactly that line again.
+# binding is written, and only ever on a request: the welcome page, Settings →
+# Keys, or bin/install. It appends one marked line, after a backup, and never
+# replaces a binding the user already has; a key it added before is changed in
+# place. Removal takes out exactly that line again.
 #
-#   bin/keybind --status        one JSON object: bound | free | taken | missing
-#   bin/keybind --add           show the line, ask, then add it (in a terminal)
-#   bin/keybind --add --yes     add it without asking (bin/install)
-#   bin/keybind --present       exit 0 when the line this script adds is there
-#   bin/keybind --remove        take that line out again
+#   bin/keybind --status [--key K]      one JSON object: bound | free | taken | missing
+#   bin/keybind --add [--key K]         show the line, ask, then add or change it (in a terminal)
+#   bin/keybind --add --yes [--key K]   the same without asking (bin/install)
+#   bin/keybind --present               exit 0 when the line this script adds is there
+#   bin/keybind --remove                take that line out again
+#
+# K is written as Hyprland's bindings write it, "SUPER + SHIFT + S"; any case,
+# spacing and order is read ("super+s"). At least one modifier.
 
 set -uo pipefail
 
 PLUGIN_ID=omaseek
-KEY="SUPER + D"
+DEFAULT_KEY="SUPER + D"
 BINDINGS="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/bindings.lua"
 # Omarchy's own defaults: read to see whether a key is taken, never written.
 DEFAULTS="${OMARCHY_PATH:-/usr/share/omarchy}/default/hypr"
-LINE="o.bind(\"$KEY\", \"Search\", \"omarchy-shell shell toggle $PLUGIN_ID\")"
 MARK="-- omaseek"
+
+# "super+shift+s" -> "SUPER + SHIFT + S": modifiers in one order, so two
+# spellings of one key compare equal. Nothing, and exit 1, when it is not a key
+# with a modifier. Mirrored by src/settings/hyprkey.mjs; change both.
+normalize_key () {
+  local raw=${1^^} token key="" super="" ctrl="" alt="" shift_mod="" out=""
+  local -a tokens
+  IFS='+' read -ra tokens <<<"$raw"
+  (( ${#tokens[@]} >= 2 )) || return 1
+  local last=$(( ${#tokens[@]} - 1 )) i
+  for (( i = 0; i <= last; i++ )); do
+    token=${tokens[$i]//[[:space:]]/}
+    [[ -n $token ]] || return 1
+    if (( i == last )); then
+      [[ $token =~ ^[A-Z0-9_]+$ ]] || return 1
+      case $token in SUPER|WIN|META|MOD4|CTRL|CONTROL|ALT|MOD1|SHIFT) return 1 ;; esac
+      key=$token
+      continue
+    fi
+    case $token in
+      SUPER|WIN|META|MOD4) [[ -z $super ]] || return 1; super=SUPER ;;
+      CTRL|CONTROL)        [[ -z $ctrl ]] || return 1; ctrl=CTRL ;;
+      ALT|MOD1)            [[ -z $alt ]] || return 1; alt=ALT ;;
+      SHIFT)               [[ -z $shift_mod ]] || return 1; shift_mod=SHIFT ;;
+      *) return 1 ;;
+    esac
+  done
+  for token in $super $ctrl $alt $shift_mod; do out+="$token + "; done
+  printf '%s%s\n' "$out" "$key"
+}
+
+line_for () { printf 'o.bind("%s", "Search", "omarchy-shell shell toggle %s")' "$1" "$PLUGIN_ID"; }
 
 # Lua comments start with --, so a commented-out binding binds nothing.
 live_lines () { grep -hvE '^[[:space:]]*--' "$@" 2>/dev/null; }
 
+key_of () { sed -nE 's/.*o\.bind\([[:space:]]*"([^"]+)".*/\1/p'; }
+
 # The key a live line binds omaseek to, or nothing: a binding written by hand
 # counts, whatever key it chose.
 bound_key () {
-  live_lines "$BINDINGS" | grep -F "toggle $PLUGIN_ID" | head -1 \
-    | sed -nE 's/.*o\.bind\([[:space:]]*"([^"]+)".*/\1/p'
+  live_lines "$BINDINGS" | grep -F "toggle $PLUGIN_ID" | head -1 | key_of
 }
 
-# Whatever already holds SUPER + D, as its line: the user's file, then Omarchy's.
+# The line this script wrote — the one after its marker — or nothing.
+our_line () {
+  [[ -f $BINDINGS ]] || return 0
+  awk -v mark="$MARK" -v id="toggle $PLUGIN_ID" '
+    after && index($0, id) { print; exit }
+    { after = ($0 == mark) }
+  ' "$BINDINGS"
+}
+
+# Whatever else already holds the key, as its line: the user's file, then
+# Omarchy's. Keys are compared normalized, so "SUPER+d" holds SUPER + D.
 key_holder () {
+  local want=$1 line key normal
   local files=("$BINDINGS")
   [[ -d $DEFAULTS ]] && while IFS= read -r f; do files+=("$f"); done < <(find "$DEFAULTS" -name '*.lua' 2>/dev/null)
-  live_lines "${files[@]}" | grep -E 'o\.bind\([[:space:]]*"SUPER[[:space:]]*\+[[:space:]]*D"' | head -1
+  while IFS= read -r line; do
+    [[ $line == *"toggle $PLUGIN_ID"* ]] && continue
+    key=$(printf '%s\n' "$line" | key_of)
+    [[ -n $key ]] || continue
+    normal=$(normalize_key "$key") || continue
+    if [[ $normal == "$want" ]]; then
+      printf '%s\n' "$line" | sed -E 's/^[[:space:]]+//'
+      return
+    fi
+  done < <(live_lines "${files[@]}" | grep -E 'o\.bind\(')
 }
 
 json_string () { printf '"%s"' "$(printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"; }
 
 status () {
+  local want=$1 bound holder
   if [[ ! -f $BINDINGS ]]; then
     printf '{"ok":true,"state":"missing","key":%s,"file":%s,"line":%s}\n' \
-      "$(json_string "$KEY")" "$(json_string "$BINDINGS")" "$(json_string "$LINE")"
+      "$(json_string "$want")" "$(json_string "$BINDINGS")" "$(json_string "$(line_for "$want")")"
     return
   fi
-  local bound holder
   bound=$(bound_key)
   if [[ -n $bound ]]; then
-    printf '{"ok":true,"state":"bound","key":%s,"file":%s}\n' "$(json_string "$bound")" "$(json_string "$BINDINGS")"
+    # "managed": the line is this script's, so another key can replace it.
+    # Asked about another key, say whether that one is free: "wanted", and
+    # "holder" when something else has it.
+    local extra=""
+    if [[ $(normalize_key "$bound") != "$want" ]]; then
+      extra=",\"wanted\":$(json_string "$want")"
+      holder=$(key_holder "$want")
+      [[ -n $holder ]] && extra+=",\"holder\":$(json_string "$holder")"
+    fi
+    printf '{"ok":true,"state":"bound","key":%s,"file":%s,"managed":%s%s}\n' "$(json_string "$bound")" \
+      "$(json_string "$BINDINGS")" "$([[ -n $(our_line) ]] && echo true || echo false)" "$extra"
     return
   fi
-  holder=$(key_holder)
+  holder=$(key_holder "$want")
   if [[ -n $holder ]]; then
     printf '{"ok":true,"state":"taken","key":%s,"file":%s,"holder":%s}\n' \
-      "$(json_string "$KEY")" "$(json_string "$BINDINGS")" "$(json_string "$(echo "$holder" | sed -E 's/^[[:space:]]+//')")"
+      "$(json_string "$want")" "$(json_string "$BINDINGS")" "$(json_string "$holder")"
     return
   fi
-  printf '{"ok":true,"state":"free","key":%s,"file":%s}\n' "$(json_string "$KEY")" "$(json_string "$BINDINGS")"
+  printf '{"ok":true,"state":"free","key":%s,"file":%s}\n' "$(json_string "$want")" "$(json_string "$BINDINGS")"
 }
 
 say () { printf '  %s\n' "$1"; }
 
 reload () { hyprctl reload >/dev/null 2>&1 && say "reloaded hyprland" || say "run: hyprctl reload"; }
 
+confirm () { (( $1 )) || gum confirm "$2"; }
+
 add () {
-  local yes=$1
+  local yes=$1 want=$2 line bound ours holder
+  line=$(line_for "$want")
   if [[ ! -f $BINDINGS ]]; then
     say "no $BINDINGS — add this line to your Hyprland bindings yourself:"
-    say "    $LINE"
+    say "    $line"
     return 0
   fi
-  local bound holder
   bound=$(bound_key)
+  ours=$(our_line)
   if [[ -n $bound ]]; then
-    say "keybind already there: $bound opens omaseek"
-    return 0
-  fi
-  holder=$(key_holder)
-  if [[ -n $holder ]]; then
-    say "$KEY is already bound to something else — left alone:"
-    say "    $(echo "$holder" | sed -E 's/^[[:space:]]+//')"
-    say "to open omaseek with another key, add to $BINDINGS:"
-    say "    ${LINE/SUPER + D/SUPER + <key>}"
-    return 0
-  fi
-  if (( ! yes )); then
-    printf '\033[1m==>\033[0m omaseek can open with %s. This adds one line to\n    %s\n\n    %s\n\n' "$KEY" "$BINDINGS" "$LINE"
-    if ! gum confirm "Add it? (the file is backed up first)"; then
-      say "left as it was"
+    if [[ $(normalize_key "$bound") == "$want" ]]; then
+      say "keybind already there: $bound opens omaseek"
+      return 0
+    fi
+    if [[ -z $ours ]]; then
+      say "omaseek already opens with $bound, a line you wrote — change that line to use $want:"
+      say "    $line"
       return 0
     fi
   fi
+  holder=$(key_holder "$want")
+  if [[ -n $holder ]]; then
+    say "$want is already bound to something else — left alone:"
+    say "    $holder"
+    say "choose another key, or bind one yourself in $BINDINGS:"
+    say "    $(line_for "SUPER + <key>")"
+    return 0
+  fi
+  if [[ -n $ours ]]; then
+    printf '\033[1m==>\033[0m omaseek opens with %s. This changes one line in\n    %s\n\n    %s\n    %s\n\n' \
+      "$bound" "$BINDINGS" "- $ours" "+ $line"
+    if ! confirm "$yes" "Change it? (the file is backed up first)"; then
+      say "left as it was"
+      return 0
+    fi
+    cp "$BINDINGS" "$BINDINGS.omaseek-backup" || return 1
+    awk -v mark="$MARK" -v id="toggle $PLUGIN_ID" -v line="$line" '
+      after && index($0, id) { print line; after = 0; next }
+      { print; after = ($0 == mark) }
+    ' "$BINDINGS.omaseek-backup" >"$BINDINGS" || return 1
+    say "omaseek now opens with $want (backup: $BINDINGS.omaseek-backup)"
+    reload
+    return 0
+  fi
+  printf '\033[1m==>\033[0m omaseek can open with %s. This adds one line to\n    %s\n\n    %s\n\n' "$want" "$BINDINGS" "$line"
+  if ! confirm "$yes" "Add it? (the file is backed up first)"; then
+    say "left as it was"
+    return 0
+  fi
   cp "$BINDINGS" "$BINDINGS.omaseek-backup" || return 1
-  printf '\n%s\n%s\n' "$MARK" "$LINE" >>"$BINDINGS" || return 1
-  say "bound $KEY (backup: $BINDINGS.omaseek-backup)"
+  printf '\n%s\n%s\n' "$MARK" "$line" >>"$BINDINGS" || return 1
+  say "bound $want (backup: $BINDINGS.omaseek-backup)"
   reload
 }
 
-present () { [[ -f $BINDINGS ]] && grep -qxF "$LINE" "$BINDINGS"; }
+present () { [[ -n $(our_line) ]]; }
 
-# Only the exact line --add writes, and its marker; a binding written by hand stays.
+# Only the line --add writes, and its marker; a binding written by hand stays.
 remove () {
-  present || return 0
+  local ours
+  ours=$(our_line)
+  [[ -n $ours ]] || return 0
   cp "$BINDINGS" "$BINDINGS.omaseek-backup" || return 1
   # The blank line --add puts before the marker goes with it.
-  awk -v line="$LINE" -v mark="$MARK" '
+  awk -v line="$ours" -v mark="$MARK" '
     held { if ($0 != mark) print ""; held = 0 }
     $0 == "" { held = 1; next }
     $0 != line && $0 != mark { print }
     END { if (held) print "" }
   ' "$BINDINGS.omaseek-backup" >"$BINDINGS" || return 1
-  say "removed the $KEY keybind (backup: $BINDINGS.omaseek-backup)"
+  say "removed the $(printf '%s\n' "$ours" | key_of) keybind (backup: $BINDINGS.omaseek-backup)"
   reload
 }
 
-case "${1:-}" in
-  --status)  status ;;
-  --add)     add "$([[ ${2:-} == --yes ]] && echo 1 || echo 0)" ;;
+command=${1:-}
+[[ $# -gt 0 ]] && shift
+yes=0
+raw_key=$DEFAULT_KEY
+while (( $# > 0 )); do
+  case $1 in
+    --yes) yes=1 ;;
+    --key) raw_key=${2:-}; shift ;;
+    *) echo "unknown option: $1" >&2; exit 1 ;;
+  esac
+  shift
+done
+if ! key=$(normalize_key "$raw_key"); then
+  if [[ $command == --status ]]; then
+    printf '{"ok":false,"error":"usage","message":%s}\n' \
+      "$(json_string "not a key Hyprland can bind: \"$raw_key\" — a modifier and a key, such as SUPER + D")"
+    exit 0
+  fi
+  echo "not a key Hyprland can bind: \"$raw_key\" — a modifier and a key, such as SUPER + D" >&2
+  exit 1
+fi
+
+case $command in
+  --status)  status "$key" ;;
+  --add)     add "$yes" "$key" ;;
   --present) present ;;
   --remove)  remove ;;
   -h|--help) awk 'NR > 1 { if ($0 !~ /^#/) exit; sub(/^# ?/, ""); print }' "$0" ;;
-  *) echo "usage: $0 --status | --add [--yes] | --present | --remove" >&2; exit 1 ;;
+  *) echo "usage: $0 --status | --add [--yes] [--key K] | --present | --remove" >&2; exit 1 ;;
 esac

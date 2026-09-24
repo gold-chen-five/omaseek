@@ -109,7 +109,7 @@ empty value restores the default.
 
 | key | does |
 |---|---|
-| `super+d` | summon or dismiss (Hyprland, not the panel — `omarchy-shell shell toggle omaseek`). Not bound on install: Settings → Keys → *Open omaseek with* → Add writes it, only while the key is free |
+| `super+d` | summon or dismiss (Hyprland, not the panel — `omarchy-shell shell toggle omaseek`). Not bound on install: the welcome page, or Settings → Keys → *Open omaseek with*, writes it — `SUPER + D`, or another key typed there — only while that key is free, and changes the line it wrote to another key the same way |
 | `ctrl+s` (Settings), `ctrl+,` | open or close settings |
 | `ctrl+k` (Look up keys) | every key in the panel, on a page that works like the search page. First the Settings → Keys rows, in the same order and shape (what it does, the key beside it, the hint under it, as you bound it); then the fixed keys, one row per group as Settings lists them. The filter is the panel's own field, with every Vim key (`jk`, `db`, `ciw`, `u`), and any words in any case filter (`trans`, `ctrl+x`, `undo`). `enter`, `j` or `↓` step into the list, which is numbered like the results and read with their keys (`j` `k`, `gg` `G`, `ctrl+d` `ctrl+u`, counts such as `3j`); `k` on the first row goes back up to the filter. `gn`, `esc` go back to the filter in normal mode, and `gi` `i` `a` `/` in insert. A panel key (`ctrl+s`, `tab`, `shift+tab`, the session keys) closes the lookup and does what it does anywhere. `esc` from the filter's normal mode or `ctrl+k` closes the lookup, and the keyboard goes back where it was, in the mode it was in |
 | `tab` (Switch search / ask) | switch between searching and asking without changing Vim mode |
@@ -379,7 +379,8 @@ The first open after install. It stays until Start searching or `esc`.
 
 | key | does |
 |---|---|
-| `j` `k`, `↓` `↑`, `h` `l`, `tab` | move between its buttons: Set up (SearXNG), Add (`SUPER + D`), Start searching |
+| `j` `k`, `↓` `↑`, `h` `l`, `tab` | move between its buttons: Set up (SearXNG), Add and Change key (the key that opens omaseek), Start searching |
+| Change key | a field: type a key (`super+s`, `SUPER + ALT + SPACE`) and `enter` checks it — refused if it is not a modifier and a key, or if something else holds it — then Add (or Change to) writes it; `esc` keeps the key |
 | `enter`, `space` | press it — Set up and Add open a terminal and close the panel; open it again to come back |
 | `esc` | Start searching: the page is not shown again |
 

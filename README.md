@@ -20,20 +20,23 @@ Not in the Omarchy plugin marketplace yet, hence the repository URL. Plugins run
 unsandboxed inside `omarchy-shell`, so read the code before enabling it.
 
 **Opening it.** Right after install the panel opens by itself on a welcome
-page that sets up the two things omaseek needs — SearXNG, and `SUPER + D` —
-each with a button that runs it in a terminal you can watch. It keeps opening
-there, with the finished steps ticked, until you choose **Start searching**.
+page that sets up the two things omaseek needs — SearXNG, and a key to open it
+(`SUPER + D`, or **Change key** for another) — each with a button that runs it
+in a terminal you can watch; the panel comes back when you close that terminal.
+It keeps opening there, with the finished steps ticked, until you choose
+**Start searching**.
 Meanwhile a magnifier icon at the left end of the bar's middle opens it. If it
 is not there — the plugin was enabled before as
 something other than a bar widget — `omarchy plugin disable omaseek` then
 `omarchy plugin enable omaseek --section center` puts it back.
 
-**The keybind.** A plugin cannot bind a key on install, so the bar icon opens
-the panel at first. For `SUPER + D`, open Settings (`ctrl+s`) → Keys → **Open
-omaseek with** → **Add**: a terminal shows the line below, asks, backs up
-`~/.config/hypr/bindings.lua`, appends it and reloads Hyprland. It is offered
-only while `SUPER + D` is free; a key you already bound is never replaced. Or
-add the line yourself:
+**The keybind.** A plugin cannot bind a key on install, so the welcome page, or
+Settings (`ctrl+s`) → Keys → **Open omaseek with**, adds one: `SUPER + D`, or
+any key you type there (`super+shift+s`). A terminal shows the line below,
+asks, backs up `~/.config/hypr/bindings.lua`, appends it and reloads Hyprland.
+A key something else already holds is refused, and a key you bound yourself is
+never replaced; the line omaseek added can be changed to another key the same
+way. Or add the line yourself:
 
 ```lua
 o.bind("SUPER + D", "Search", "omarchy-shell shell toggle omaseek")

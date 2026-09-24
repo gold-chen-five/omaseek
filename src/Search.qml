@@ -314,6 +314,7 @@ Item {
   readonly property string comeBackCommand: Terminal.summonCommand(manifest?.id ?? "omaseek")
   function setUpEngine () { engine.start(comeBackCommand) }
   function addShortcut () { shortcut.add(comeBackCommand) }
+  function chooseShortcut (key) { shortcut.choose(key) }
 
   // The dropdown under the search bar, while a search is being typed there.
   Suggestions {

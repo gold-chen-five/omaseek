@@ -2,12 +2,14 @@ import QtQuick
 import qs.Commons
 import qs.Ui
 import "welcome.mjs" as WelcomeLib
+import "../settings/hyprkey.mjs" as HyprKey
 
 // The first open after install: what omaseek needs before it is useful —
 // SearXNG running, and a key to open it — each set up from here, in a
 // terminal, instead of a pointer into Settings. Drawn as SetupPrompt is. A
 // step's button raises its signal and the panel runs what Settings runs;
-// Start searching, or esc, is the end of the page.
+// Change key opens a field for another key than SUPER + D. Start searching,
+// or esc, is the end of the page.
 Item {
   id: page
 
@@ -21,28 +23,68 @@ Item {
   readonly property var steps: WelcomeLib.welcomeSteps(engineState, shortcutStatus)
   readonly property var buttons: WelcomeLib.welcomeButtons(steps)
   property int selectedIndex: 0                // into `buttons`
+  property bool editingKey: false              // the key field is open
+  property string keyError: ""                 // why the typed key was refused
+  property string preferred: ""                // the button to land on once the probe answers
 
   signal engineRequested()                     // Set up: bin/searxng-up in a terminal
-  signal shortcutRequested()                   // Add: bin/keybind --add in a terminal
+  signal shortcutRequested()                   // Add, or Change to: bin/keybind --add in a terminal
+  signal keyChosen(string key)                 // another key, normalized: check it
   signal finished()                            // Start searching, or esc
 
   // Land on the first thing left to do, or on Start when nothing is.
   function open () {
     selectedIndex = 0
+    editingKey = false
+    keyError = ""
     Qt.callLater(() => page.forceActiveFocus())
   }
 
-  // A probe answering changes which buttons there are: keep the cursor on one.
-  onButtonsChanged: if (selectedIndex >= buttons.length) selectedIndex = buttons.length - 1
+  // A probe answering changes which buttons there are: after a key was chosen,
+  // land on the one that applies it; else keep the cursor on a button.
+  onButtonsChanged: {
+    const at = preferred ? buttons.indexOf(preferred) : -1
+    if (at !== -1) {
+      selectedIndex = at
+      preferred = ""
+    } else if (selectedIndex >= buttons.length) selectedIndex = buttons.length - 1
+  }
 
   function activate (action) {
     if (action === "start") page.engineRequested()
     else if (action === "add") page.shortcutRequested()
+    else if (action === "rebind") editKey()
     else page.finished()
   }
 
   function move (delta) {
     selectedIndex = (selectedIndex + delta + buttons.length) % buttons.length
+  }
+
+  function editKey () {
+    keyError = ""
+    editingKey = true
+  }
+
+  // Enter in the key field: a key Hyprland can bind is checked by the panel,
+  // anything else is refused where it was typed.
+  function commitKey (raw) {
+    const key = HyprKey.normalizeHyprKey(raw)
+    if (!key) {
+      keyError = HyprKey.OPEN_KEY_RULE
+      return
+    }
+    editingKey = false
+    keyError = ""
+    preferred = "add"
+    page.keyChosen(key)
+    page.forceActiveFocus()
+  }
+
+  function cancelKey () {
+    editingKey = false
+    keyError = ""
+    page.forceActiveFocus()
   }
 
   implicitHeight: layout.implicitHeight
@@ -64,7 +106,7 @@ Item {
 
     property string label: ""
     property string action: ""
-    readonly property bool selected: page.buttons[page.selectedIndex] === action
+    readonly property bool selected: !page.editingKey && page.buttons[page.selectedIndex] === action
 
     width: Math.max(Style.space(88), caption.implicitWidth + Style.space(24))
     height: Style.space(34)
@@ -86,7 +128,7 @@ Item {
       anchors.fill: parent
       hoverEnabled: true
       cursorShape: Qt.PointingHandCursor
-      onEntered: page.selectedIndex = Math.max(0, page.buttons.indexOf(button.action))
+      onEntered: if (!page.editingKey) page.selectedIndex = Math.max(0, page.buttons.indexOf(button.action))
       onClicked: page.activate(button.action)
     }
   }
@@ -129,61 +171,136 @@ Item {
     Repeater {
       model: page.steps
 
-      Item {
+      Column {
+        id: step
+
         required property var modelData
         required property int index
+        readonly property bool keyStep: modelData.key === "shortcut"
 
         width: layout.width
-        height: Math.max(stepText.implicitHeight, stepButton.height)
+        spacing: Style.spacing.sm
 
-        Text {
-          id: mark
-          textFormat: Text.PlainText
-          anchors.top: parent.top
-          text: modelData.done ? "✓" : String(index + 1)
-          color: modelData.done ? page.accent : page.foreground
-          opacity: modelData.done ? 1 : 0.6
-          font.family: page.fontFamily
-          font.pixelSize: Style.font.body
-          width: Style.space(24)
-        }
-
-        Column {
-          id: stepText
-          anchors.left: mark.right
-          anchors.right: stepButton.visible ? stepButton.left : parent.right
-          anchors.rightMargin: Style.spacing.lg
-          spacing: Style.spacing.xs
+        Item {
+          width: parent.width
+          height: Math.max(stepText.implicitHeight, stepButtons.height)
 
           Text {
-            width: parent.width
+            id: mark
             textFormat: Text.PlainText
-            text: modelData.title
-            color: page.foreground
+            anchors.top: parent.top
+            text: step.modelData.done ? "✓" : String(step.index + 1)
+            color: step.modelData.done ? page.accent : page.foreground
+            opacity: step.modelData.done ? 1 : 0.6
             font.family: page.fontFamily
             font.pixelSize: Style.font.body
-            wrapMode: Text.WordWrap
+            width: Style.space(24)
           }
 
-          Text {
-            width: parent.width
-            textFormat: Text.PlainText
-            text: modelData.detail
-            color: page.foreground
-            opacity: 0.55
-            font.family: page.fontFamily
-            font.pixelSize: Style.font.caption
-            wrapMode: Text.WordWrap
+          Column {
+            id: stepText
+            anchors.left: mark.right
+            anchors.right: stepButtons.left
+            anchors.rightMargin: Style.spacing.lg
+            spacing: Style.spacing.xs
+
+            Text {
+              width: parent.width
+              textFormat: Text.PlainText
+              text: step.modelData.title
+              color: page.foreground
+              font.family: page.fontFamily
+              font.pixelSize: Style.font.body
+              wrapMode: Text.WordWrap
+            }
+
+            Text {
+              width: parent.width
+              textFormat: Text.PlainText
+              text: step.modelData.detail
+              color: page.foreground
+              opacity: 0.55
+              font.family: page.fontFamily
+              font.pixelSize: Style.font.caption
+              wrapMode: Text.WordWrap
+            }
+          }
+
+          Row {
+            id: stepButtons
+            anchors.right: parent.right
+            anchors.top: parent.top
+            spacing: Style.spacing.sm
+
+            Repeater {
+              model: step.modelData.buttons
+
+              ActionButton {
+                required property var modelData
+                label: modelData.label
+                action: modelData.action
+              }
+            }
           }
         }
 
-        ActionButton {
-          id: stepButton
-          anchors.right: parent.right
-          anchors.top: parent.top
-          visible: modelData.action !== ""
-          label: modelData.button
-          action: modelData.action
+        // Change key: the key typed here, as "super + s" or "SUPER + SHIFT + S".
+        Row {
+          visible: step.keyStep && page.editingKey
+          x: Style.space(24)
+          spacing: Style.spacing.md
+
+          BorderSurface {
+            width: Style.space(220)
+            height: Style.space(34)
+            color: "transparent"
+            borderSpec: Border.flat(page.accent, Style.normalBorderWidth)
+            radius: Style.cornerRadius
+
+            TextInput {
+              id: keyField
+              anchors.fill: parent
+              anchors.leftMargin: Style.spacing.controlPaddingX
+              anchors.rightMargin: Style.spacing.controlPaddingX
+              verticalAlignment: TextInput.AlignVCenter
+              color: page.foreground
+              selectionColor: page.selectedBackground
+              font.family: page.fontFamily
+              font.pixelSize: Style.font.body
+              clip: true
+
+              Keys.onPressed: event => {
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                  page.commitKey(keyField.text)
+                  event.accepted = true
+                } else if (event.key === Qt.Key_Escape) {
+                  page.cancelKey()
+                  event.accepted = true
+                }
+              }
+            }
+
+            Connections {
+              target: page
+              function onEditingKeyChanged () {
+                if (!page.editingKey || !step.keyStep) return
+                keyField.text = page.shortcutStatus && page.shortcutStatus.wanted ? page.shortcutStatus.wanted
+                  : page.shortcutStatus && page.shortcutStatus.key ? page.shortcutStatus.key : HyprKey.DEFAULT_OPEN_KEY
+                keyField.forceActiveFocus()
+                keyField.selectAll()
+              }
+            }
+          }
+
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            textFormat: Text.PlainText
+            text: page.keyError || "enter checks it · esc keeps the key"
+            color: page.keyError ? Color.urgent : page.foreground
+            opacity: page.keyError ? 0.95 : 0.55
+            font.family: page.fontFamily
+            font.pixelSize: Style.font.caption
+          }
         }
       }
     }
@@ -191,8 +308,8 @@ Item {
     Text {
       width: parent.width
       textFormat: Text.PlainText
-      text: "Until then, the  in the middle of the bar opens it. Tab switches between searching "
-          + "the web and asking an agent; ctrl+k lists every key."
+      text: "Until then, the  at the start of the bar's middle opens it. Tab switches between "
+          + "searching the web and asking an agent; ctrl+k lists every key."
       color: page.foreground
       opacity: 0.55
       font.family: page.fontFamily

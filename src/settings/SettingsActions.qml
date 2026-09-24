@@ -14,6 +14,12 @@ Item {
   // A value changed on the page. The engine reports describe the engines and
   // language as they were, so a new language clears them.
   function change (key, value) {
+    // Not a setting: the key that opens omaseek lives in the Hyprland bindings,
+    // so a new one is written there, in a terminal that asks first.
+    if (key === "shortcut") {
+      if (shortcut.choose(value)) shortcut.add()
+      return
+    }
     config.change(key, value)
     if (key === "searxngLanguage") forgetReports()
   }

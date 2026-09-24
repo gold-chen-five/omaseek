@@ -179,23 +179,31 @@ test('the page squares have a numbering of their own, apart from the lines', () 
   assert.equal(written.page_numbers, 'relative')
 })
 
-test('the shortcut row offers Add only while SUPER + D is free, and heads the keys', () => {
+test('the shortcut row is typed wherever omaseek can act on the key, and heads the keys', () => {
   const free = shortcutRow({ ok: true, state: 'free', key: 'SUPER + D' })
-  assert.equal(free.type, 'action')
-  assert.equal(free.action, 'add')
-  assert.match(free.hint, /asks before writing/)
+  assert.equal(free.type, 'text')
+  assert.equal(free.normalize, 'hyprkey')
+  assert.equal(free.value, 'SUPER + D')
+  assert.match(free.hint, /Enter adds it/)
 
-  const bound = shortcutRow({ ok: true, state: 'bound', key: 'SUPER + S' })
-  assert.equal(bound.type, 'info', 'nothing to press once it is there')
-  assert.match(bound.hint, /^SUPER \+ S/, 'a key the user chose is the one shown')
+  const ours = shortcutRow({ ok: true, state: 'bound', key: 'SUPER + S', managed: true })
+  assert.equal(ours.type, 'text', 'the line bin/keybind wrote can be changed from here')
+  assert.equal(ours.value, 'SUPER + S', 'a key the user chose is the one shown')
+  const byHand = shortcutRow({ ok: true, state: 'bound', key: 'SUPER + S', managed: false })
+  assert.equal(byHand.type, 'info', 'a line the user wrote is theirs to change')
+  assert.match(byHand.hint, /a line you wrote/)
 
   const taken = shortcutRow({ ok: true, state: 'taken', key: 'SUPER + D', holder: 'o.bind("SUPER + D", "Notes", "obsidian")' })
-  assert.equal(taken.type, 'info', 'a binding the user has is never offered for replacing')
+  assert.equal(taken.type, 'text', 'taken: type another')
   assert.match(taken.hint, /already opens Notes/)
 
   assert.equal(shortcutRow({ ok: true, state: 'missing' }).type, 'info')
   assert.match(shortcutRow(null).hint, /checking/)
   assert.match(shortcutRow({ ok: false }).hint, /could not read/)
+
+  assert.deepEqual(checkRow(free, 'super+shift+s'), { value: 'SUPER + SHIFT + S', error: '' })
+  assert.deepEqual(checkRow(free, ''), { value: 'SUPER + D', error: '' }, 'empty is the default')
+  assert.match(checkRow(free, 'd').error, /a modifier and a key/)
 
   const rows = settingsRows(readSettings(''), 'running', null, null, null, null, null, null, { ok: true, state: 'free' })
   const keys = rows.findIndex(r => r.type === 'section' && r.label === 'Keys')

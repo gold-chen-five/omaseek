@@ -226,12 +226,19 @@ is never unloaded, so that removal cannot ask.
 **The key that opens the panel is the user's to add.** The manifest has no
 keybinding field and `omarchy plugin add` never touches Hyprland, so a
 marketplace install opens from the bar icon only. `bin/keybind` is the one
-place the line is written — Settings → Keys → *Open omaseek with* → Add (in a
-terminal that shows the line and asks), `bin/install --yes` — and it appends
-one marked line after a backup, only while `SUPER + D` is free: `--status`
-reads the user's bindings *and* Omarchy's defaults, skips commented lines, and
-calls a hand-written binding to omaseek `bound` whatever its key. `--remove`
-takes out exactly that line, its `-- omaseek` marker and the blank line before
+place the line is written — the welcome page, Settings → Keys → *Open omaseek
+with* (in a terminal that shows the line and asks), `bin/install --yes` — and
+it appends one marked line after a backup, only while its key is free:
+`SUPER + D`, or `--key K` for another (`normalize_key`, mirrored by
+`settings/hyprkey.mjs`, reads any case, spacing and modifier order, and
+refuses a key without a modifier). `--status` reads the user's bindings *and*
+Omarchy's defaults, skips commented lines, compares keys normalized, and calls
+a hand-written binding to omaseek `bound` whatever its key; `managed` says the
+line is the script's own, which `--add --key` then changes in place (asking,
+after a backup), and with another key asked about it reports `wanted` and its
+`holder`. A hand-written line is never changed. `Shortcut.qml` keeps the
+`wanted` key; the key goes to the terminal as an argument, never spliced into
+the shell text. `--remove` takes out exactly that line, its `-- omaseek` marker and the blank line before
 it, so add then remove gives back the file byte for byte; `on-remove` stages
 the script and offers it at removal, and a binding written by hand is never
 asked about. `Shortcut.qml` holds the status, probed each time Settings opens.

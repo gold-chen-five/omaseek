@@ -110,6 +110,63 @@ class KeybindTests(unittest.TestCase):
         self.run_keybind("--remove")
         self.assertIn("Web search", self.bindings.read_text())
 
+    def test_another_key_can_be_chosen_in_any_spelling(self):
+        self.assertEqual(self.status_for("super+shift+s"), {**self.status_for("super+shift+s"), "state": "free", "key": "SUPER + SHIFT + S"})
+        self.run_keybind("--add", "--yes", "--key", "shift + Super + s")
+        self.assertIn('o.bind("SUPER + SHIFT + S", "Search", "omarchy-shell shell toggle omaseek")', self.bindings.read_text())
+        self.assertEqual(self.status(), {**self.status(), "state": "bound", "key": "SUPER + SHIFT + S", "managed": True})
+
+    def test_a_key_is_taken_whatever_its_spelling(self):
+        self.bindings.write_text('o.bind("SUPER+s", "Notes", "obsidian")\n')
+        self.assertEqual(self.status_for("SUPER + S")["state"], "taken")
+        self.run_keybind("--add", "--yes", "--key", "SUPER + S")
+        self.assertNotIn("toggle omaseek", self.bindings.read_text())
+
+    def test_the_line_it_added_is_changed_in_place_after_asking(self):
+        self.run_keybind("--add", "--yes")
+        done = self.run_keybind("--add", "--key", "SUPER + ALT + SPACE")
+        self.assertIn("- " + LINE, done.stdout, "the old line and the new are shown before the question")
+        text = self.bindings.read_text()
+        self.assertTrue(text.endswith('\n-- omaseek\no.bind("SUPER + ALT + SPACE", "Search", "omarchy-shell shell toggle omaseek")\n'))
+        self.assertEqual(text.count("toggle omaseek"), 1, "changed, not added twice")
+        self.run_keybind("--remove")
+        self.assertEqual(self.bindings.read_text(), MINE, "and removal still gives back the file it found")
+
+    def test_asked_about_another_key_while_bound_it_says_whether_that_one_is_free(self):
+        self.run_keybind("--add", "--yes")
+        self.assertNotIn("wanted", self.status(), "the key it has is not another")
+        self.assertEqual(self.status_for("SUPER + S")["wanted"], "SUPER + S")
+        self.assertNotIn("holder", self.status_for("SUPER + S"))
+        (self.defaults / "utilities.lua").write_text('o.bind("SUPER + SPACE", "Launcher", "walker")\n')
+        self.assertIn("walker", self.status_for("super + space")["holder"])
+
+    def test_changing_to_a_taken_key_leaves_the_old_one(self):
+        self.run_keybind("--add", "--yes")
+        (self.defaults / "utilities.lua").write_text('o.bind("SUPER + SPACE", "Launcher", "walker")\n')
+        self.run_keybind("--add", "--yes", "--key", "SUPER + SPACE")
+        self.assertIn(LINE, self.bindings.read_text())
+
+    def test_a_hand_written_binding_is_never_changed_to_another_key(self):
+        mine = 'o.bind("SUPER + D", "Web search", "omarchy-shell shell toggle omaseek")\n'
+        self.bindings.write_text(mine)
+        self.assertFalse(self.status()["managed"])
+        done = self.run_keybind("--add", "--yes", "--key", "SUPER + S")
+        self.assertIn("a line you wrote", done.stdout)
+        self.assertEqual(self.bindings.read_text(), mine)
+
+    def test_what_is_not_a_key_is_refused(self):
+        for raw in ("d", "SUPER +", "SUPER + SUPER + D", "HYPER + D", "SUPER + D;rm", "SUPER + SHIFT"):
+            answer = self.status_for(raw)
+            self.assertFalse(answer["ok"], raw)
+            self.assertIn("a modifier and a key", answer["message"])
+            self.assertNotEqual(self.run_keybind("--add", "--yes", "--key", raw).returncode, 0, raw)
+        self.assertEqual(self.bindings.read_text(), MINE)
+
+    def status_for(self, key):
+        done = self.run_keybind("--status", "--key", key)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        return json.loads(done.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
