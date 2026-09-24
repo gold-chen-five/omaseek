@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The key that opens omaseek — SUPER + D unless another is asked for — in the
+# The key that opens omaseek — SUPER + d unless another is asked for — in the
 # user's own Hyprland bindings.
 #
 # A plugin cannot declare a keybinding — the manifest has no field for one, and
@@ -15,19 +15,19 @@
 #   bin/keybind --present               exit 0 when the line this script adds is there
 #   bin/keybind --remove                take that line out again
 #
-# K is written as Hyprland's bindings write it, "SUPER + SHIFT + S"; any case,
+# K is written as Hyprland's bindings write it, "SUPER + SHIFT + s"; any case,
 # spacing and order is read ("super+s"). At least one modifier.
 
 set -uo pipefail
 
 PLUGIN_ID=omaseek
-DEFAULT_KEY="SUPER + D"
+DEFAULT_KEY="SUPER + d"
 BINDINGS="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/bindings.lua"
 # Omarchy's own defaults: read to see whether a key is taken, never written.
 DEFAULTS="${OMARCHY_PATH:-/usr/share/omarchy}/default/hypr"
 MARK="-- omaseek"
 
-# "super+shift+s" -> "SUPER + SHIFT + S": modifiers in one order, so two
+# "super+shift+s" -> "SUPER + SHIFT + s": modifiers in one order, so two
 # spellings of one key compare equal. Nothing, and exit 1, when it is not a key
 # with a modifier. Mirrored by src/settings/hyprkey.mjs; change both.
 normalize_key () {
@@ -42,7 +42,8 @@ normalize_key () {
     if (( i == last )); then
       [[ $token =~ ^[A-Z0-9_]+$ ]] || return 1
       case $token in SUPER|WIN|META|MOD4|CTRL|CONTROL|ALT|MOD1|SHIFT) return 1 ;; esac
-      key=$token
+      # A letter small, as it is typed; named keys (RETURN, F9) as Omarchy writes them.
+      [[ $token =~ ^[A-Z]$ ]] && key=${token,,} || key=$token
       continue
     fi
     case $token in
@@ -80,7 +81,7 @@ our_line () {
 }
 
 # Whatever else already holds the key, as its line: the user's file, then
-# Omarchy's. Keys are compared normalized, so "SUPER+d" holds SUPER + D.
+# Omarchy's. Keys are compared normalized, so "SUPER+D" holds SUPER + d.
 key_holder () {
   local want=$1 line key normal
   local files=("$BINDINGS")
@@ -117,7 +118,7 @@ status () {
       holder=$(key_holder "$want")
       [[ -n $holder ]] && extra+=",\"holder\":$(json_string "$holder")"
     fi
-    printf '{"ok":true,"state":"bound","key":%s,"file":%s,"managed":%s%s}\n' "$(json_string "$bound")" \
+    printf '{"ok":true,"state":"bound","key":%s,"file":%s,"managed":%s%s}\n' "$(json_string "$(normalize_key "$bound" || printf '%s' "$bound")")" \
       "$(json_string "$BINDINGS")" "$([[ -n $(our_line) ]] && echo true || echo false)" "$extra"
     return
   fi
@@ -226,10 +227,10 @@ done
 if ! key=$(normalize_key "$raw_key"); then
   if [[ $command == --status ]]; then
     printf '{"ok":false,"error":"usage","message":%s}\n' \
-      "$(json_string "not a key Hyprland can bind: \"$raw_key\" — a modifier and a key, such as SUPER + D")"
+      "$(json_string "not a key Hyprland can bind: \"$raw_key\" — a modifier and a key, such as SUPER + d")"
     exit 0
   fi
-  echo "not a key Hyprland can bind: \"$raw_key\" — a modifier and a key, such as SUPER + D" >&2
+  echo "not a key Hyprland can bind: \"$raw_key\" — a modifier and a key, such as SUPER + d" >&2
   exit 1
 fi
 

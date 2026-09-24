@@ -98,7 +98,7 @@ class OnRemoveTests(unittest.TestCase):
                        capture_output=True, env=self.env, check=True)
         self.stage_and_remove()
         self.run_script(self.stage / "on-remove", "--ask")
-        self.assertIn("gum confirm Remove the SUPER + SHIFT + S line", self.calls())
+        self.assertIn("gum confirm Remove the SUPER + SHIFT + s line", self.calls())
 
     def test_a_removal_opens_a_terminal_that_asks(self):
         self.stage_and_remove()

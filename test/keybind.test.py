@@ -11,7 +11,7 @@ import unittest
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-LINE = 'o.bind("SUPER + D", "Search", "omarchy-shell shell toggle omaseek")'
+LINE = 'o.bind("SUPER + d", "Search", "omarchy-shell shell toggle omaseek")'
 MINE = 'o.bind("SUPER + RETURN", "Terminal", "x")\n\no.bind("SUPER + B", "Browser", "y")\n'
 
 
@@ -91,7 +91,7 @@ class KeybindTests(unittest.TestCase):
 
     def test_a_hand_written_binding_to_omaseek_counts_whatever_its_key(self):
         self.bindings.write_text('o.bind("SUPER + S", "Web search", "omarchy-shell shell toggle omaseek")\n')
-        self.assertEqual(self.status(), {**self.status(), "state": "bound", "key": "SUPER + S"})
+        self.assertEqual(self.status(), {**self.status(), "state": "bound", "key": "SUPER + s"})
 
     def test_no_bindings_file_says_where_the_line_goes(self):
         self.bindings.unlink()
@@ -111,10 +111,10 @@ class KeybindTests(unittest.TestCase):
         self.assertIn("Web search", self.bindings.read_text())
 
     def test_another_key_can_be_chosen_in_any_spelling(self):
-        self.assertEqual(self.status_for("super+shift+s"), {**self.status_for("super+shift+s"), "state": "free", "key": "SUPER + SHIFT + S"})
+        self.assertEqual(self.status_for("super+shift+s"), {**self.status_for("super+shift+s"), "state": "free", "key": "SUPER + SHIFT + s"})
         self.run_keybind("--add", "--yes", "--key", "shift + Super + s")
-        self.assertIn('o.bind("SUPER + SHIFT + S", "Search", "omarchy-shell shell toggle omaseek")', self.bindings.read_text())
-        self.assertEqual(self.status(), {**self.status(), "state": "bound", "key": "SUPER + SHIFT + S", "managed": True})
+        self.assertIn('o.bind("SUPER + SHIFT + s", "Search", "omarchy-shell shell toggle omaseek")', self.bindings.read_text())
+        self.assertEqual(self.status(), {**self.status(), "state": "bound", "key": "SUPER + SHIFT + s", "managed": True})
 
     def test_a_key_is_taken_whatever_its_spelling(self):
         self.bindings.write_text('o.bind("SUPER+s", "Notes", "obsidian")\n')
@@ -135,7 +135,7 @@ class KeybindTests(unittest.TestCase):
     def test_asked_about_another_key_while_bound_it_says_whether_that_one_is_free(self):
         self.run_keybind("--add", "--yes")
         self.assertNotIn("wanted", self.status(), "the key it has is not another")
-        self.assertEqual(self.status_for("SUPER + S")["wanted"], "SUPER + S")
+        self.assertEqual(self.status_for("SUPER + S")["wanted"], "SUPER + s")
         self.assertNotIn("holder", self.status_for("SUPER + S"))
         (self.defaults / "utilities.lua").write_text('o.bind("SUPER + SPACE", "Launcher", "walker")\n')
         self.assertIn("walker", self.status_for("super + space")["holder"])

@@ -4,7 +4,7 @@ A web search and AI panel for [Omarchy](https://omarchy.org) 4, driven with vim
 keys. It searches through a [SearXNG](https://github.com/searxng/searxng) instance you run yourself and asks an agent
 CLI you already have — no API keys, no accounts.
 
-**SUPER + D** summons it. **Tab** switches between searching and asking.
+**SUPER + d** summons it. **Tab** switches between searching and asking.
 
 ![omaseek searching the web with vim keys: results for "omarchy", each naming the engines that found it](preview.png)
 
@@ -21,7 +21,7 @@ unsandboxed inside `omarchy-shell`, so read the code before enabling it.
 
 **Opening it.** Right after install the panel opens by itself on a welcome
 page that sets up the two things omaseek needs — SearXNG, and a key to open it
-(`SUPER + D`, or **Change key** for another) — each with a button that runs it
+(`SUPER + d`, or **Change key** for another) — each with a button that runs it
 in a terminal you can watch; the panel comes back when you close that terminal.
 It keeps opening there, with the finished steps ticked, until you choose
 **Start searching**.
@@ -32,7 +32,7 @@ as something other than a bar widget — `omarchy plugin disable omaseek` then
 `omarchy plugin enable omaseek --before omarchy.clock` puts it back.
 
 **The keybind.** A plugin cannot bind a key on install, so the welcome page, or
-Settings (`ctrl+s`) → Keys → **Open omaseek with**, adds one: `SUPER + D`, or
+Settings (`ctrl+s`) → Keys → **Open omaseek with**, adds one: `SUPER + d`, or
 any key you type there (`super+shift+s`). A terminal shows the line below,
 asks, backs up `~/.config/hypr/bindings.lua`, appends it and reloads Hyprland.
 A key something else already holds is refused, and a key you bound yourself is
@@ -40,7 +40,7 @@ never replaced; the line omaseek added can be changed to another key the same
 way. Or add the line yourself:
 
 ```lua
-o.bind("SUPER + D", "Search", "omarchy-shell shell toggle omaseek")
+o.bind("SUPER + d", "Search", "omarchy-shell shell toggle omaseek")
 ```
 
 **SearXNG.** Searching needs one. The panel offers to create it the first time
@@ -121,7 +121,7 @@ omarchy-restart-shell     # a loaded panel keeps its old code until then
 omarchy plugin remove omaseek
 ```
 
-A terminal opens and asks whether to take out the `SUPER + D` line omaseek
+A terminal opens and asks whether to take out the `SUPER + d` line omaseek
 added, and whether the SearXNG container and image should go too. A binding you
 wrote yourself is left alone. `bin/uninstall` does the same from a terminal you
 already have open.

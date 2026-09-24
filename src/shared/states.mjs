@@ -5,7 +5,7 @@ export const VIEW = Object.freeze({
   SEARCH: 'search',       // the field and what is under it
   SETTINGS: 'settings',
   SETUP: 'setup',         // the SearXNG instance is down; asking to start it
-  WELCOME: 'welcome'      // the first open after install: SearXNG and SUPER + D, set up in place
+  WELCOME: 'welcome'      // the first open after install: SearXNG and SUPER + d, set up in place
 })
 
 export const PANEL = Object.freeze({

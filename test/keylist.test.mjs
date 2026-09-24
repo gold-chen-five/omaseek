@@ -42,6 +42,10 @@ test('typed words filter by key, meaning, hint or group, in any case', () => {
   assert.ok(filterEntries(entries, 'ctrl+x').length > 0)
   const words = e => (e.keys + ' ' + e.label + ' ' + e.hint + ' ' + e.group).toLowerCase()
   assert.ok(filterEntries(entries, 'ask now').every(e => /ask/.test(words(e)) && /now/.test(words(e))), 'every word must match')
+  const suggestions = filterEntries(entries, 'ctrl+p')
+  assert.ok(suggestions.some(e => e.label === 'Suggestions (search)' && /ctrl\+n ctrl\+p/.test(e.hint)),
+    'the suggestion keys have their own row')
+  assert.ok(filterEntries(entries, 'suggestion ctrl+n').some(e => e.label === 'Suggestions (search)'))
   assert.equal(filterEntries(entries, '').length, entries.length)
   assert.equal(filterEntries(entries, 'zzzz nothing').length, 0)
 })

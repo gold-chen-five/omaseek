@@ -183,7 +183,7 @@ BorderSurface {
       onCancelled: panelCard.host.closeSetup()
     }
 
-    // The first open after install: SearXNG and SUPER + D, set up from here.
+    // The first open after install: SearXNG and SUPER + d, set up from here.
     WelcomePage {
       id: welcomePage
 

@@ -45,7 +45,7 @@ panel is already instantiated, and a rescan re-reads the plugin list rather
 than rebuilding a live component — measured: an edited button label did not
 appear after `rescanPlugins`, and did after a restart. Then check
 `quickshell log`: a QML error does not announce itself, the panel simply stops
-existing, which is what makes `SUPER + D` look broken.
+existing, which is what makes `SUPER + d` look broken.
 
 ## Architecture
 
@@ -229,7 +229,7 @@ marketplace install opens from the bar icon only. `bin/keybind` is the one
 place the line is written — the welcome page, Settings → Keys → *Open omaseek
 with* (in a terminal that shows the line and asks), `bin/install --yes` — and
 it appends one marked line after a backup, only while its key is free:
-`SUPER + D`, or `--key K` for another (`normalize_key`, mirrored by
+`SUPER + d`, or `--key K` for another (`normalize_key`, mirrored by
 `settings/hyprkey.mjs`, reads any case, spacing and modifier order, and
 refuses a key without a modifier). `--status` reads the user's bindings *and*
 Omarchy's defaults, skips commented lines, compares keys normalized, and calls
@@ -501,7 +501,7 @@ The stores are non-visual `Item`s, the way first-party plugins keep state in a
 - `Search.qml`'s first run and `panel/WelcomePage` — the first time the panel is
   loaded it opens itself, through `shell.summon` as the bar icon does (its own
   `open()` when the shell offers none), on the `WELCOME` view: SearXNG and
-  `SUPER + D`, each done in place by what Settings runs (`engine.start()`,
+  `SUPER + d`, each done in place by what Settings runs (`engine.start()`,
   `shortcut.add()`), in a terminal that dismisses the panel — it needs the
   keyboard for a password or a yes — and ends by summoning it back
   (`shared/terminal.mjs`: "press any key to go back to omaseek", then

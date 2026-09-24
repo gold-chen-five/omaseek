@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Enable omaseek and give it a way in: SUPER + D and a bar icon.
+# Enable omaseek and give it a way in: SUPER + d and a bar icon.
 # Omarchy never runs plugin scripts or edits your config, so this is the
 # opt-in step. Safe to re-run; never overwrites a binding you already have.
 #
-#   ./bin/install              link and enable, bind SUPER + D, add a bar icon
+#   ./bin/install              link and enable, bind SUPER + d, add a bar icon
 #   ./bin/install --no-bind    skip the keybind
 #
 # Re-run it after a `git pull`: an already-loaded panel keeps its old QML until
@@ -17,7 +17,7 @@ PLUGINS_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins"
 SHELL_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/shell.json"
 MENU_EXT="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/extensions/omarchy-menu.jsonc"
 
-BIND_KEY="SUPER + D"
+BIND_KEY="SUPER + d"
 LEGACY_MENU_LINE="  \"$PLUGIN_ID\": {\"icon\":\"\",\"label\":\"Search\",\"action\":\"omarchy-shell shell toggle $PLUGIN_ID\",\"description\":\"Web search and AI, with vim keys\"},"
 
 do_bind=1
@@ -89,7 +89,7 @@ say "enabled and added the search icon left of the clock"
 # ---- the keybind ------------------------------------------------------------
 #
 # bin/keybind is the one place the line is written: Settings → Keys adds it too.
-# Left alone when SUPER + D is already bound to something else.
+# Left alone when SUPER + d is already bound to something else.
 
 if (( do_bind )); then
   "$REPO/bin/keybind" --add --yes

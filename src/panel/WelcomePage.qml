@@ -8,7 +8,7 @@ import "../settings/hyprkey.mjs" as HyprKey
 // SearXNG running, and a key to open it — each set up from here, in a
 // terminal, instead of a pointer into Settings. Drawn as SetupPrompt is. A
 // step's button raises its signal and the panel runs what Settings runs;
-// Change key opens a field for another key than SUPER + D. Start searching,
+// Change key opens a field for another key than SUPER + d. Start searching,
 // or esc, is the end of the page.
 Item {
   id: page
@@ -244,7 +244,7 @@ Item {
           }
         }
 
-        // Change key: the key typed here, as "super + s" or "SUPER + SHIFT + S".
+        // Change key: the key typed here, as "super + s" or "SUPER + SHIFT + s".
         Row {
           visible: step.keyStep && page.editingKey
           x: Style.space(24)

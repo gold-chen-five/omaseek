@@ -180,10 +180,10 @@ test('the page squares have a numbering of their own, apart from the lines', () 
 })
 
 test('the shortcut row is typed wherever omaseek can act on the key, and heads the keys', () => {
-  const free = shortcutRow({ ok: true, state: 'free', key: 'SUPER + D' })
+  const free = shortcutRow({ ok: true, state: 'free', key: 'SUPER + d' })
   assert.equal(free.type, 'text')
   assert.equal(free.normalize, 'hyprkey')
-  assert.equal(free.value, 'SUPER + D')
+  assert.equal(free.value, 'SUPER + d')
   assert.match(free.hint, /Enter adds it/)
 
   const ours = shortcutRow({ ok: true, state: 'bound', key: 'SUPER + S', managed: true })
@@ -201,8 +201,8 @@ test('the shortcut row is typed wherever omaseek can act on the key, and heads t
   assert.match(shortcutRow(null).hint, /checking/)
   assert.match(shortcutRow({ ok: false }).hint, /could not read/)
 
-  assert.deepEqual(checkRow(free, 'super+shift+s'), { value: 'SUPER + SHIFT + S', error: '' })
-  assert.deepEqual(checkRow(free, ''), { value: 'SUPER + D', error: '' }, 'empty is the default')
+  assert.deepEqual(checkRow(free, 'super+shift+s'), { value: 'SUPER + SHIFT + s', error: '' })
+  assert.deepEqual(checkRow(free, ''), { value: 'SUPER + d', error: '' }, 'empty is the default')
   assert.match(checkRow(free, 'd').error, /a modifier and a key/)
 
   const rows = settingsRows(readSettings(''), 'running', null, null, null, null, null, null, { ok: true, state: 'free' })

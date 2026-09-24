@@ -5,7 +5,7 @@ import "../shared/terminal.mjs" as Terminal
 import "hyprkey.mjs" as HyprKey
 
 // The key that opens the panel, in the user's own Hyprland bindings: whether
-// one is there, and bin/keybind to add it — SUPER + D, or the key the reader
+// one is there, and bin/keybind to add it — SUPER + d, or the key the reader
 // chose — or change the one it added before. That runs in a terminal, as
 // SearXNG's start and update do, so the reader sees the line and says yes
 // before their config changes.

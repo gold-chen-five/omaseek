@@ -38,7 +38,7 @@ Item {
   property bool keysOpen: false                // the ctrl+k lookup is over the card
   property string keysReturnTo: ""             // the focusArea it was opened from
   property bool introPending: false            // the welcome page is not finished: opening shows it
-  readonly property var shortcutStatus: shortcut.status   // for the welcome page's SUPER + D step
+  readonly property var shortcutStatus: shortcut.status   // for the welcome page's SUPER + d step
 
   readonly property Item input: card.field
   readonly property var settingsRows: SettingsLib.settingsRows(config.settings, engine.state, ai.agents, ai.models,
@@ -251,7 +251,7 @@ Item {
   HistoryStore { id: queries }
 
   // The first time omaseek is loaded it opens itself, on the welcome page: a
-  // fresh install has no SearXNG and no SUPER + D, and an icon that appeared
+  // fresh install has no SearXNG and no SUPER + d, and an icon that appeared
   // somewhere on the bar is easy to miss. The file remembers that it did, and
   // whether the page was finished — until it is, opening shows it again.
   JsonFile {

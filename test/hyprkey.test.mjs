@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url'
 import { normalizeHyprKey } from '../src/settings/hyprkey.mjs'
 
 const CASES = [
-  ['SUPER + D', 'SUPER + D'], ['super+d', 'SUPER + D'], ['shift + Super + s', 'SUPER + SHIFT + S'],
-  ['ctrl+alt+t', 'CTRL + ALT + T'], ['win + space', 'SUPER + SPACE'], ['SUPER + F12', 'SUPER + F12'],
+  ['SUPER + D', 'SUPER + d'], ['super+d', 'SUPER + d'], ['shift + Super + s', 'SUPER + SHIFT + s'],
+  ['ctrl+alt+t', 'CTRL + ALT + t'], ['win + space', 'SUPER + SPACE'], ['SUPER + F12', 'SUPER + F12'],
   ['d', ''], ['SUPER +', ''], ['SUPER + SUPER + D', ''], ['HYPER + D', ''], ['SUPER + D;rm', ''],
   ['SUPER + SHIFT', ''], ['', '']
 ]
