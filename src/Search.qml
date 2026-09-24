@@ -184,6 +184,15 @@ Item {
     else focusSearch(input.mode)
   }
 
+  // ctrl+c in search: the results and the bar cleared, and the bar ready to
+  // type — what a new session is in the other half.
+  function clearSearch () {
+    session.reset()
+    commands.resetHistoryWalk()
+    input.clear()
+    focusSearch("insert")
+  }
+
   // Through setMode, so leaving insert steps the cursor left and clears any
   // half-typed operator.
   function focusSearch (mode) {

@@ -17,10 +17,14 @@ Item {
 
   property bool clearArmed: false              // the first press; the second forgets them
 
-  // Only AI mode has a session to end; a search is simply replaced. The one
-  // left behind stays in the ring, a Ctrl+N away.
+  // A fresh start. In AI mode the conversation left behind stays in the ring, a
+  // Ctrl+N away; in search there is nothing to keep, so the results and the bar
+  // are cleared.
   function newChat () {
-    if (host.panelMode !== States.PANEL.AI) return
+    if (host.panelMode !== States.PANEL.AI) {
+      host.clearSearch()
+      return
+    }
     disarmClear()
     ai.reset()
     host.input.clear()

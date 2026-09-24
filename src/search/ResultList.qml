@@ -12,6 +12,7 @@ ListView {
   id: list
 
   property var binds: null               // the settings: where the rebindable commands sit
+  property var chords: ({})              // the panel's keys, parsed: ctrl+c clears the search from here too
   readonly property var readerKeys: KeysLib.readerKeys("results", binds)
   property string lineNumbers: "relative"
   property var navigation: ({ pending: "", count: 0 })
@@ -29,6 +30,7 @@ ListView {
   signal insertRequested()               // i: back to the field, insert before the cursor
   signal appendRequested()               // a: back to the field, insert after the cursor
   signal settingsRequested()
+  signal newSessionRequested()           // ctrl+c: the results and the bar cleared
   signal keysRequested()                 // ctrl+k: the key lookup
   signal tabbed()                        // the panel switches search <-> ai
   signal agentSwitchRequested()          // shift+tab: the next installed agent answers
@@ -98,7 +100,14 @@ ListView {
       event.accepted = true
       return
     }
-    const step = KeysLib.resolveCounted(readerKeys, navigation, Chord.of(event))
+    const chord = Chord.of(event)
+    if (chord !== "" && chord === chords.newSession) {
+      navigation = { pending: "", count: 0 }
+      newSessionRequested()
+      event.accepted = true
+      return
+    }
+    const step = KeysLib.resolveCounted(readerKeys, navigation, chord)
     navigation = step.state
     run(step.command, step.count)
     event.accepted = true

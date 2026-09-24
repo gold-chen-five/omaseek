@@ -16,7 +16,7 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 | Translate the bar | `translate_bar_key` | `gT` | field, normal mode: everything in the search or ask bar |
 | Translate | `translate_key` | `gt` | answer: the selection, or the word under the cursor · field: the selection, in visual mode |
 | Previous query / question | `previous_asked_key` | `U` | field, normal mode: what you searched or asked before, one step back each press (`up` on the first line too) |
-| New session | `new_session_key` | `ctrl+c` | field and answer: start a new conversation, keeping this one in the ring |
+| New session | `new_session_key` | `ctrl+c` | ask, from the field or the answer: a new conversation, keeping this one in the ring · search, from the field or the results: clear the results and the bar, ready to type |
 | Next session | `next_session_key` | `ctrl+n` | ask: the next saved conversation, newest first, wrapping |
 | Next conversation | `next_chat_key` | `L` | ask: the next saved conversation, wrapping (`3L` walks three) |
 | Previous conversation | `previous_chat_key` | `H` | ask: the conversation before, wrapping |
@@ -141,6 +141,7 @@ Insert mode:
 | `ctrl+u` | delete to the start of the line |
 | `ctrl+j` | a line break in a question — AI mode; the bar grows a row, up to six |
 | `ctrl+c` `ctrl+n` `ctrl+x` | AI mode: a new conversation, the next saved one, forget this one |
+| `ctrl+c` | search mode: clear the results and the bar |
 | `ctrl+shift+c` | copy what is selected — in visual mode, as `y` |
 | `ctrl+v` `ctrl+shift+v` | paste at the cursor, over a mouse selection; in a search, line breaks become spaces |
 | `ctrl+shift+x` | AI mode: forget every saved conversation (twice) |
@@ -224,6 +225,7 @@ typing in the field never looks like it would act on a row.
 | `ga` (Hand off to agent) | the selected result's URL on its own, as an editable draft in the agent |
 | `gA` (Hand off everything) | every URL on the current page, one per line, as an editable draft |
 | `y`, `ctrl+shift+c` | copy the selected result's URL |
+| `ctrl+c` (New session) | clear the results and the bar, and go back to the bar to type |
 | `Y` | copy its title and URL, on two lines |
 | `gd` (Ask about this) | ask the AI about the selected result — its title and URL — straight away |
 | `gj` (Put in the ask bar) | the selected URL over in the ask bar, to type a question around — it is not sent |

@@ -87,6 +87,7 @@ Item {
       id: results
 
       binds: area.config.settings
+      chords: area.chords
       lineNumbers: area.config.settings.lineNumbers
 
       visible: !area.asking
@@ -97,6 +98,7 @@ Item {
       onPageHandedOff: area.ai.launch(area.session.handoffText(-1))
       onYanked: (index, withTitle) => area.commands.yankResult(index, withTitle)
       onPasteRequested: area.host.pasteIntoField()
+      onNewSessionRequested: area.chat.newChat()
       onAskRequested: index => area.commands.askAboutResult(index)
       onAskNowRequested: index => area.commands.askNowResult(index)
       onSearchRequested: index => {

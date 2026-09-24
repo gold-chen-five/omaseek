@@ -39,7 +39,7 @@ export const ACTIONS = [
   { id: 'previousAsked', config: 'previous_asked_key', default: 'U', scope: 'normal',
     label: 'Previous query / question', hint: 'field, normal mode: what you searched or asked before, one step back each press (↑ on the first line too)' },
   { id: 'newSession', config: 'new_session_key', default: 'ctrl+c', scope: 'panel',
-    label: 'New session', hint: 'field and answer: start a new conversation, keeping this one in the ring' },
+    label: 'New session', hint: 'ask: a new conversation, keeping this one in the ring · search: clear the results and the bar' },
   { id: 'nextSession', config: 'next_session_key', default: 'ctrl+n', scope: 'panel', command: 'nextSession',
     label: 'Next session', hint: 'ask: the next saved conversation, wrapping' },
   { id: 'closeSession', config: 'close_session_key', default: 'ctrl+x', scope: 'panel', command: 'closeSession',
