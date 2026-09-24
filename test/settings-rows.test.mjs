@@ -218,3 +218,13 @@ test('a typed filter keeps the matching rows under their section headings', () =
   }
   assert.deepEqual(filterRows(rows, 'zzzz nothing'), [])
 })
+
+test('a choice of more than four options is a dropdown: as chips they run over the hint', () => {
+  const agents = { agents: [{ id: 'claude' }, { id: 'codex' }, { id: 'opencode' }], default: 'claude' }
+  for (const row of settingsRows(readSettings(''), 'running', agents)) {
+    if (row.type !== 'choice' || row.control === 'dropdown') continue
+    assert.ok(row.options.length <= 4, `${row.key} offers ${row.options.length} options as chips`)
+  }
+  const suggestions = settingsRows(readSettings('')).find(row => row.key === 'searchSuggestions')
+  assert.equal(suggestions.control, 'dropdown')
+})

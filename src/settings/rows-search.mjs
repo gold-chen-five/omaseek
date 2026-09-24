@@ -53,6 +53,7 @@ export function searchRows (settings, state, version) {
     {
       key: 'searchSuggestions',
       type: 'choice',
+      control: 'dropdown',       // six options: as chips they ran over the hint
       label: 'Suggestions',
       hint: settings.searchSuggestions === 'off'
         ? 'off — nothing typed leaves this machine until you search'
