@@ -71,18 +71,20 @@ fi
 
 omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
 
-# bar put waits for an in-progress plugin scan. Older installs recorded this
-# overlay in plugins[]; remove that entry before retrying so it can move to the bar.
-omarchy bar put "$PLUGIN_ID" --section center --index 0 >/dev/null
+# Just left of the clock, as the panel's first run puts it; put keeps the
+# section and index when the bar has no clock. bar put waits for an
+# in-progress plugin scan. Older installs recorded this overlay in plugins[];
+# remove that entry before retrying so it can move to the bar.
+omarchy bar put "$PLUGIN_ID" --section center --index 0 --before omarchy.clock >/dev/null
 if ! on_bar && in_plugin_list; then
   omarchy plugin disable "$PLUGIN_ID" >/dev/null
-  omarchy bar put "$PLUGIN_ID" --section center --index 0 >/dev/null
+  omarchy bar put "$PLUGIN_ID" --section center --index 0 --before omarchy.clock >/dev/null
 fi
 if ! on_bar; then
   echo "  could not add $PLUGIN_ID to the bar; make sure omarchy-shell is running" >&2
   exit 1
 fi
-say "enabled and added the search icon to the middle of the bar"
+say "enabled and added the search icon left of the clock"
 
 # ---- the keybind ------------------------------------------------------------
 #

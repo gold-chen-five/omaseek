@@ -25,10 +25,11 @@ page that sets up the two things omaseek needs — SearXNG, and a key to open it
 in a terminal you can watch; the panel comes back when you close that terminal.
 It keeps opening there, with the finished steps ticked, until you choose
 **Start searching**.
-Meanwhile a magnifier icon just left of the bar's clock opens it. If it
-is not there — the plugin was enabled before as
-something other than a bar widget — `omarchy plugin disable omaseek` then
-`omarchy plugin enable omaseek --section center` puts it back.
+Meanwhile a magnifier icon just left of the bar's clock opens it. If it is
+somewhere else on the bar, `omarchy bar move omaseek --before omarchy.clock`
+moves it there. If it is not on the bar at all — the plugin was enabled before
+as something other than a bar widget — `omarchy plugin disable omaseek` then
+`omarchy plugin enable omaseek --before omarchy.clock` puts it back.
 
 **The keybind.** A plugin cannot bind a key on install, so the welcome page, or
 Settings (`ctrl+s`) → Keys → **Open omaseek with**, adds one: `SUPER + D`, or
