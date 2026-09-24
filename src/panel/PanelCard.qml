@@ -24,6 +24,7 @@ BorderSurface {
   property var commands: null
   property var chat: null
   property var settingsActions: null
+  property var suggestions: null
 
   // What Search.qml reaches into: the field, the two reading panes, and the
   // two views it opens itself.
@@ -218,6 +219,25 @@ BorderSurface {
       accent: panelCard.host.accent
       fontFamily: panelCard.host.fontFamily
     }
+  }
+
+  // The suggestions, hanging from the bar over whatever is below it while a
+  // search is typed; the bar keeps the keyboard.
+  SuggestionList {
+    visible: panelCard.suggestions.showing
+    x: content.x
+    y: content.y + fieldBar.height + panelCard.snap(Style.spacing.xxs)
+    z: 5
+    width: fieldBar.fieldWidth
+    height: implicitHeight
+    rows: panelCard.suggestions.rows
+    current: panelCard.suggestions.index
+    typed: panelCard.suggestions.typed
+    foreground: panelCard.host.foreground
+    accent: panelCard.host.accent
+    fontFamily: panelCard.host.fontFamily
+
+    onPicked: text => panelCard.commands.searchSuggestion(text)
   }
 
   // ctrl+k, over everything else on the card until it closes.

@@ -68,6 +68,7 @@ Item {
   function open (payloadJson) {
     const fieldMode = input.mode
     config.reload()
+    suggestions.clear()                        // they show again on the next thing typed
     opened = true
     view = States.VIEW.SEARCH                  // never reopen into settings or setup
     if (ai.agents === null) ai.probeAgents()   // once: which agents this machine has
@@ -98,6 +99,7 @@ Item {
   function toggleMode () {
     const fieldMode = input.mode
     commands.resetHistoryWalk()
+    suggestions.clear()
     panelMode = panelMode === States.PANEL.SEARCH ? States.PANEL.AI : States.PANEL.SEARCH
     view = States.VIEW.SEARCH
     focusSearch(fieldMode)
@@ -187,6 +189,7 @@ Item {
   // ctrl+c in search: the results and the bar cleared, and the bar ready to
   // type — what a new session is in the other half.
   function clearSearch () {
+    suggestions.clear()
     session.reset()
     commands.resetHistoryWalk()
     input.clear()
@@ -233,6 +236,20 @@ Item {
   ConfigStore { id: config }
 
   HistoryStore { id: queries }
+
+  // The dropdown under the search bar, while a search is being typed there.
+  Suggestions {
+    id: suggestions
+
+    backendPath: engine.backendPath
+    enabled: config.settings.searchSuggestions !== "off"
+    past: queries.queries
+    active: root.opened && root.view === States.VIEW.SEARCH && root.panelMode === States.PANEL.SEARCH
+      && root.focusArea === States.FOCUS.FIELD && !root.keysOpen
+      && root.input.mode === "insert" && root.input.activeFocus
+  }
+
+  Binding { target: root.input; property: "completing"; value: suggestions.showing }
 
   Translator {
     id: translator
@@ -290,6 +307,7 @@ Item {
     ai: ai
     translator: translator
     config: config
+    suggestions: suggestions
   }
 
   ChatCommands {
@@ -316,11 +334,19 @@ Item {
     // With nothing below to read, j reaches a translation of the bar (gT).
     function onSteppedDown () { if (root.hasBody()) root.focusResults(); else root.focusTranslation() }
     function onHistoryPrevRequested () { commands.walkHistory(1) }
+    function onCompletionStepped (delta) { commands.stepSuggestion(delta) }
     // Past the draft there is no query left, so Down means the results.
     function onHistoryNextRequested () { if (!commands.walkHistory(-1) && root.hasBody()) root.focusResults() }
     // Typing leaves the walk: the field is the reader's again. A walk writing
-    // the field is not typing, hence the flag.
-    function onTextChanged () { if (!commands.applyingHistory) commands.historyIndex = -1 }
+    // the field is not typing, hence the flag. Only what is typed into a search
+    // asks for suggestions: a question, or the bar rewritten by a walk or the
+    // list, never leaves for SearXNG's autocompleter.
+    function onTextChanged () {
+      if (!commands.applyingHistory) commands.historyIndex = -1
+      if (commands.applyingHistory || commands.applyingSuggestion) return
+      if (suggestions.active) suggestions.type(root.input.text)
+      else suggestions.clear()
+    }
     function onRequestedSettings () { root.openSettings() }
     function onKeysRequested () { root.openKeys() }
     function onTabbed () { root.toggleMode() }
@@ -388,6 +414,7 @@ Item {
       commands: commands
       chat: chat
       settingsActions: settingsActions
+      suggestions: suggestions
     }
   }
 }

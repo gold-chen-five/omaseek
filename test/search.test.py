@@ -32,6 +32,16 @@ class FakeSearxng(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
+        if parsed.path == "/autocompleter":
+            params = dict(urllib.parse.parse_qsl(parsed.query))
+            FakeSearxng.requests.append(dict(params, path="/autocompleter"))
+            q = params.get("q", "")
+            body = json.dumps([q, [q + "tube", q + "tube  music", q + "tube"], [], []]).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if parsed.path in ("/config", "/tags"):
             body = json.dumps({"version": FakeSearxng.version} if parsed.path == "/config"
                               else {"results": FakeSearxng.tags}).encode()
@@ -178,6 +188,23 @@ class SearchBackendTests(unittest.TestCase):
         self.assertFalse(report["ok"])
         self.assertIn("502", report["message"])
 
+    def test_suggestions_name_their_source_and_language_on_every_request(self):
+        self.configure({"search_suggestions": "google", "searxng_language": "de-DE"})
+        answer = self.run_search("--suggest", "you")
+        self.assertEqual(answer, {"ok": True, "query": "you", "suggestions": ["youtube", "youtube music"]},
+                         "one line each, repeats dropped")
+        asked = FakeSearxng.requests[-1]
+        self.assertEqual((asked["path"], asked["q"], asked["autocomplete"], asked["language"]),
+                         ("/autocompleter", "you", "google", "de-DE"))
+
+    def test_suggestions_default_to_duckduckgo_and_off_asks_nothing(self):
+        self.run_search("--suggest", "you")
+        self.assertEqual(FakeSearxng.requests[-1]["autocomplete"], "duckduckgo")
+        self.configure({"search_suggestions": "off"})
+        before = len(FakeSearxng.requests)
+        self.assertEqual(self.run_search("--suggest", "you")["suggestions"], [])
+        self.assertEqual(len(FakeSearxng.requests), before, "the typed text stays on this machine")
+
     def test_a_malformed_offset_is_a_usage_error_not_a_crash(self):
         report = self.run_search("--next", json.dumps({"query": "rust", "s": "three"}))
         self.assertEqual(report["error"], "usage")
@@ -225,6 +252,7 @@ class HangingUpTests(unittest.TestCase):
             self.assertEqual(report["error"], "network", args)
         self.assertFalse(self.run_search("--status")["running"])
         self.assertFalse(self.run_search("--version")["ok"])
+        self.assertEqual(self.run_search("--suggest", "you")["suggestions"], [], "no suggestions, no error")
 
 
 

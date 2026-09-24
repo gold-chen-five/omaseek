@@ -4,8 +4,9 @@ a search."""
 import json
 import sys
 
-from .client import instance_running
-from .config import CURRENT, configured_engines, configured_language, configured_page_size, configured_url, emit, fail, read_config
+from .client import instance_running, suggest
+from .config import (CURRENT, configured_engines, configured_language, configured_page_size, configured_suggestions,
+                     configured_url, emit, fail, read_config)
 from .probe import test_endpoint, time_search
 from .session import emit_page, load_session, start_session
 from .version import report_version
@@ -17,6 +18,7 @@ def main():
     CURRENT.page_size = configured_page_size(config)
     CURRENT.engines = configured_engines(config)
     CURRENT.language = configured_language(config)
+    CURRENT.suggestions = configured_suggestions(config)
 
     argv = sys.argv[1:]
 
@@ -34,6 +36,13 @@ def main():
 
     if argv and argv[0] == "--version":
         report_version(base)
+        return
+
+    # The dropdown under the bar. Off asks nothing: the typed text stays here.
+    if argv and argv[0] == "--suggest":
+        query = " ".join(argv[1:]).strip()
+        found = suggest(base, query) if query and CURRENT.suggestions else []
+        emit({"ok": True, "query": query, "suggestions": found})
         return
 
     if argv and argv[0] == "--next":

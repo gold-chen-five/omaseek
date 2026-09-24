@@ -17,6 +17,9 @@ Item {
     if (chord === "") return ""
     const clipboard = KeysLib.clipboardCommand(chord)
     if (clipboard !== "") return clipboard
+    // Vim's insert-mode completion keys, while suggestions show — search mode,
+    // where the session key ctrl+n has no ring to walk.
+    if (field.completing && field.mode === "insert" && (chord === "C-n" || chord === "C-p")) return chord === "C-n" ? "completeNext" : "completePrevious"
     if (chord === field.chords.settings || chord === "C-,") return "settings"
     if (chord === field.chords.keysHelp) return "keysHelp"
     if (chord === field.chords.newSession) return "newSession"
@@ -33,6 +36,8 @@ Item {
 
   function raisePanel (command) {
     switch (command) {
+    case "completeNext":     field.completionStepped(1); break
+    case "completePrevious": field.completionStepped(-1); break
     case "copy":          field.edits.copySelection(); break
     case "paste":         field.edits.pasteClipboard(); break
     case "settings":      field.requestedSettings(); break

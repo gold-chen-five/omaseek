@@ -59,7 +59,7 @@ feature's folder holds its QML *and* its pure `.mjs` side by side.
 | `src/Search.qml`, `src/BarWidget.qml` | the entry points `manifest.json` names; they stay at `src/` |
 | `src/panel/` | the card and its layout: `PanelCard`, `FieldBar`, `StatusBar`/`StatusLine`, `ReadingArea`, and `Commands` — Enter, the arrows, and what crosses between the halves |
 | `src/field/` | `VimTextField` and its key parts |
-| `src/search/` | searching: `SearchSession`, `ResultList`/`ResultRow`, `PageTabs`, `HistoryStore`, and `search`, `history`, `pager` |
+| `src/search/` | searching: `SearchSession`, `ResultList`/`ResultRow`, `PageTabs`, `HistoryStore`, `Suggestions`/`SuggestionList`, and `search`, `history`, `pager`, `suggest` |
 | `src/ask/` | asking: `AiSession` and its parts (`AskTurns`, `AgentCli`), `ChatCommands`, `SessionStore`/`SessionTabs`, `AnswerView` with its parts in `ask/answer/`, and `sessions`, `transcript`, `markdown` |
 | `src/translate/` | `Translator`, `TranslatePanel`, `translate.mjs` |
 | `src/settings/` | `SettingsPage`, `SettingRow`, `SettingsDropdown`, `SettingsRows`, `ConfigStore`, `SettingsActions`, `Shortcut`, `KeysLookup` (ctrl+k: the search page in miniature — a `VimTextField` filter over the page's own key rows, read with the results' keys), `FilterBar` (the lookup's and the settings page's filter, a `VimTextField` in the search bar's frame), and the settings modules |
@@ -119,6 +119,7 @@ The pure modules, by folder:
 - `panel/layout.mjs` — the card's size (820, 1000 while translating, 560 tall) clamped to the screen less Hyprland's gap, and the reading pane's share beside a translation; `test/layout.test.mjs` checks it fits common laptop and desktop screens at their usual scales, with room left in both panes
 - `search/search.mjs` — result normalising, de-duplication, status/error strings
 - `search/history.mjs`, `search/pager.mjs` — the query history walk; which page squares show
+- `search/suggest.mjs` — the dropdown under the search bar: its rows (past searches first, then SearXNG's), how the arrows walk them, and what each adds in bold
 - `ask/sessions.mjs` — the ring of ten saved conversations: recording, walking, forgetting, and its file
 - `ask/transcript.mjs`, `ask/markdown.mjs` — reading the transcript back; the agent's Markdown → the rich-text subset a TextEdit colours
 - `translate/translate.mjs` — the languages a translation goes into, and which by default
@@ -180,6 +181,20 @@ SearXNG's `unresponsive_engines` (Google answers `Suspended: CAPTCHA` locally).
 `Engine.test` holds the answer; it runs in-process rather than in a terminal,
 and changing an engine or the language clears it, since it described the old
 ones.
+
+`bin/search --suggest "<typed>"` is the dropdown under the bar:
+`{ok, query, suggestions}`, from SearXNG's `/autocompleter`. The backend is
+named on every request (`autocomplete=`, from `search_suggestions`, default
+`duckduckgo`) because SearXNG reads preferences from request parameters, so a
+fresh instance whose `settings.yml` leaves autocomplete off still answers; the
+language goes the same way. Any failure is an empty list — a missing suggestion
+is not worth an error — and `off` makes no request at all. Measured on
+2026-09-24: duckduckgo, google, brave, qwant and wikipedia each ~0.15 s;
+startpage answered nothing, so it is not offered. `Suggestions.qml` asks after
+a 120 ms pause and keeps an answer only for the text still typed; Search.qml
+feeds it only what is typed into a search in insert mode — never a question, a
+history walk, or the list writing the bar (`applyingSuggestion`) — so nothing
+else leaves for the suggestion source.
 
 `bin/search --version` is the Update row's hint: `/config`'s `version`
 (`2026.9.16+461f174b0`) against the dated Docker Hub tag sharing `latest`'s
@@ -462,6 +477,11 @@ The stores are non-visual `Item`s, the way first-party plugins keep state in a
   (`AnswerActions`), and dispatch the keys (`AnswerKeys`).
 - `ask/SessionStore.qml` — the last ten conversations in
   `~/.local/share/omaseek/sessions.json`, written whole on every turn.
+- `search/Suggestions.qml` / `SuggestionList.qml` — the dropdown under the search
+  bar: the store (what was typed, the rows, the one the arrows are on) and the
+  list, which never takes the keyboard. The field's `completing` flag, bound to
+  `showing`, is what turns ↓ ↑ and insert mode's ctrl+n ctrl+p into
+  `completionStepped` instead of the history walk and the session key.
 - `search/HistoryStore.qml` — the last twenty-five queries, the same shape and read
   once for the same reason. Ask mode walks its questions with the same keys
   (`↑`, `U`) but keeps no file of them: `Sessions.pastQuestions` reads them out

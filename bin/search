@@ -7,6 +7,7 @@
     ./bin/search --test                            each engine alone: its rows and its time
     ./bin/search --time                            one real search: what a keypress waits for
     ./bin/search --version                         the running version, and whether it is the latest
+    ./bin/search --suggest "rust asy"              what the dropdown under the bar offers
 
 Output is always one JSON object:
     {"ok": true,  "results": [...], "next": {...}|null, "backend": "searxng"}
@@ -16,6 +17,7 @@ Output is always one JSON object:
     {"ok": true, "ms": 848, "rows": 28, "unresponsive": [...]}                    (--time)
     {"ok": true, "version": "2026.9.16+461f174b0", "latest": "2026.9.16-461f174b0", "current": true}
                                                                               (--version)
+    {"ok": true, "query": "rust asy", "suggestions": ["rust async", ...]}     (--suggest)
 
 A failed page past the first carries `retry: true`: the buffer kept its place
 and the same `--next` payload asks again, so the panel can offer a retry rather

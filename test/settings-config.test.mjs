@@ -189,3 +189,17 @@ test('Translate settings round-trip through config.json, keeping what they do no
   assert.equal(reset.translate_language, undefined, 'following search is an absent key')
   assert.equal(JSON.parse(writeSettings(readSettings(''), '')).translate_agent, 'same')
 })
+
+test('suggestions come from duckduckgo unless another source, or off, is chosen', async () => {
+  const { SUGGESTION_CHOICES } = await import('../src/settings/choices.mjs')
+  assert.deepEqual(SUGGESTION_CHOICES, ['duckduckgo', 'google', 'brave', 'qwant', 'wikipedia', 'off'],
+    'mirrors SUGGESTION_CHOICES in backend/omaseek/search/config.py')
+  assert.equal(readSettings('').searchSuggestions, 'duckduckgo')
+  assert.equal(readSettings('{"search_suggestions":"altavista"}').searchSuggestions, 'duckduckgo')
+  const off = writeSettings(Object.assign(readSettings(''), { searchSuggestions: 'off' }), '{"searxng_url":"http://box"}')
+  assert.equal(JSON.parse(off).search_suggestions, 'off')
+  assert.equal(JSON.parse(off).searxng_url, 'http://box', 'a key the panel does not own is kept')
+  const row = settingsRows(readSettings(off)).find(row => row.key === 'searchSuggestions')
+  assert.equal(row.value, 'off')
+  assert.match(row.hint, /nothing typed leaves this machine/)
+})

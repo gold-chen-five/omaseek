@@ -26,6 +26,7 @@ TextArea {
   property real verticalPadding: Style.spacing.inputPaddingY
   property bool multiline: false            // AI mode: line-opening keys work
   property bool stoppable: false            // a reply is being written: q and esc stop it
+  property bool completing: false           // suggestions show under the bar: the arrows walk them
   readonly property var borderSpec: Border.controlSpec(activeFocus ? "focus" : (hovered ? "hover-cursor" : "normal"), foreground, accent)
   readonly property real lineHeight: contentHeight / Math.max(1, lineCount)
 
@@ -75,6 +76,7 @@ TextArea {
   signal steppedDown()                      // j / Down: the results are the "line" below
   signal historyPrevRequested()             // Up in the one-line search field: an older query
   signal historyNextRequested()             // Down there: back toward what was being typed
+  signal completionStepped(int delta)       // ↓ ↑, ctrl+n ctrl+p, while suggestions show
   signal requestedSettings()                // Ctrl+S (or Ctrl+,) in any mode
   signal keysRequested()                    // ctrl+k in any mode: the key lookup
   signal tabbed()                           // Tab in any mode: the panel switches search <-> ai

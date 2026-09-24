@@ -61,6 +61,11 @@ The field is vim on one line — motions, operators, counts, text objects
 mode — brings back what you searched or asked before. Paste an address and
 `enter` opens it.
 
+Typing a search opens a list under the bar, as Google's does: your past
+searches that begin with what you typed, then suggestions from your SearXNG
+(`you` → youtube, youtube music, …). `↓` `↑` — or `ctrl+n` `ctrl+p` — put one
+in the bar and `enter` searches it; a click does both.
+
 Under the status line, numbered squares are the pages you have read: click one
 to go back, or `›` to fetch the next. Ask mode gets the same strip for its last
 ten conversations, which survive a restart.
@@ -72,7 +77,8 @@ ten conversations, which survive a restart.
 `ctrl+s`, saved as you go to `~/.config/omaseek/config.json`.
 
 - **Search** — start or stop SearXNG, update its image, language and region,
-  results per page.
+  results per page, and where suggestions come from (DuckDuckGo, Google, Brave,
+  Qwant, Wikipedia — or off).
 - **Ask** — the agent, its model and reasoning effort, streaming, and where a
   hand-off opens. Effort goes on the command line of each agent omaseek starts,
   so an agent you already have open keeps its own.
@@ -119,7 +125,10 @@ Left for you to delete: `~/.config/omaseek`, `~/.local/share/omaseek`,
 - **sudo** — `bin/searxng-up` alone, always in a terminal you can watch:
   `systemctl enable --now docker` when the daemon is down, and `sudo docker`
   when you are not in the `docker` group.
-- **Network** — your SearXNG and the engines you enable; DuckDuckGo's favicon
+- **Network** — your SearXNG and the engines you enable; while you type a
+  search, what is typed so far goes through your SearXNG to the suggestion
+  source chosen in Settings (never a question, and nothing when it is off);
+  DuckDuckGo's favicon
   service, sent each result's bare domain and never your query; Docker Hub, for
   whether a newer SearXNG image exists; your agent CLI's own provider. No
   telemetry.

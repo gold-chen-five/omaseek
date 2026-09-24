@@ -45,6 +45,12 @@ export const LANGUAGE_CHOICES = [
 ]
 export const LANGUAGE_PATTERN = /^(default|auto|all|[a-z]{2,3}(-[A-Z]{2})?)$/
 
+// Where the dropdown under the search bar gets its suggestions: SearXNG's
+// autocompleter, which passes what is typed to one of these. Mirrored as
+// SUGGESTION_CHOICES in backend/omaseek/search/config.py; change both. The first
+// is the default — what the SearXNG image asks when its settings.yml says nothing.
+export const SUGGESTION_CHOICES = ['duckduckgo', 'google', 'brave', 'qwant', 'wikipedia', 'off']
+
 // Where a hand-off opens the agent. Agents are discovered at runtime
 // (bin/ask --agents), so they are not declared here.
 export const LAUNCHER_CHOICES = ['terminal', 'tmux', 'herdr']
@@ -77,7 +83,8 @@ export const DEFAULTS = {
   translateAgent: SAME_AS_ASK,
   translateModels: {},
   translateEfforts: {},
-  searxngLanguage: LANGUAGE_CHOICES[0]
+  searxngLanguage: LANGUAGE_CHOICES[0],
+  searchSuggestions: SUGGESTION_CHOICES[0]
 }
 for (let i = 0; i < ACTIONS.length; i++) DEFAULTS[settingKey(ACTIONS[i])] = ACTIONS[i].default
 
@@ -85,7 +92,7 @@ for (let i = 0; i < ACTIONS.length; i++) DEFAULTS[settingKey(ACTIONS[i])] = ACTI
 // "what can I press". KEYS.md has the long form.
 export const FIXED_KEYS = [
   { label: 'Anywhere', keys: 'esc cancels a pending/active find first · otherwise steps back: insert → normal → the field → closed · ctrl+, settings · ctrl+shift+c copies · ctrl+v ctrl+shift+v paste into the bar' },
-  { label: 'Field', keys: 'insert: ctrl+w ctrl+u delete back · ctrl+t translate the bar · ctrl+j new line (ask) · ↑ ↓ past queries (search), lines then past questions (ask) · normal: vim motions, U the query or question before, gg G first and last line (ask), gT translate the bar, gt the selection (visual), ga gA hand off, gd ask now, gj into the ask bar, gs search — the bar, or the selection in visual, gx opens the URL under the cursor, q or esc stops a reply being written (ask), o O open line (ask), f{char} then f/F repeats, r{char}, d c y, text objects, v V, p P, u undo (a whole change), ctrl+r redo, counts' },
+  { label: 'Field', keys: 'insert: ctrl+w ctrl+u delete back · ctrl+t translate the bar · ctrl+j new line (ask) · ↑ ↓ past queries (search), lines then past questions (ask) · ↑ ↓ ctrl+n ctrl+p the suggestions under the bar while they show (search) · normal: vim motions, U the query or question before, gg G first and last line (ask), gT translate the bar, gt the selection (visual), ga gA hand off, gd ask now, gj into the ask bar, gs search — the bar, or the selection in visual, gx opens the URL under the cursor, q or esc stops a reply being written (ask), o O open line (ask), f{char} then f/F repeats, r{char}, d c y, text objects, v V, p P, u undo (a whole change), ctrl+r redo, counts' },
   { label: 'Results', keys: 'j k ↓ ↑ move · ctrl+d ctrl+u half a screen · gg G first, last · → ← page · 5gp jumps to page 5 · y Y copy the URL, the title too · ctrl+l into the translation · counts (3j) · / ? n N search the rows · gn, or k on the first row, field normal · gi i a field insert' },
   { label: 'Answer', keys: 'q stops a reply being written · h j k l w b e 0 ^ _ $ move · f t ; , find · v V select · gv reselect · y{motion} yy yank · gd ask about the selection now · gj the selection into the ask bar, unsent · gt translate the selection or the word under the cursor · p P put in the ask bar · ctrl+l into the translation · / ? n N search · * # the word under the cursor · gn, or k on the first line, field normal · gi i a field insert' },
   { label: 'Sessions (ask)', keys: 'L and H above — the next saved conversation and the one before — are read in the answer and in the field’s normal mode · 3L walks three · the numbered squares under the status line do the same with a click' },

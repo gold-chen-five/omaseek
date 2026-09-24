@@ -39,12 +39,14 @@ DEFAULT_PAGE_SIZE = 10
 
 class Current:
     """What this run searches with, set once by main() from config.json: the page
-    size, the engines (searxng_engines, or DEFAULT_ENGINES) and the language
-    (searxng_language; empty sends none). One shared object rather than module
+    size, the engines (searxng_engines, or DEFAULT_ENGINES), the language
+    (searxng_language; empty sends none) and where suggestions come from
+    (search_suggestions; empty is off). One shared object rather than module
     globals, so every module reads what main() set."""
     page_size = DEFAULT_PAGE_SIZE
     engines = []
     language = ""
+    suggestions = ""
 
 
 CURRENT = Current
@@ -61,6 +63,18 @@ DEFAULT_ENGINES = ("google cse", "bing", "brave", "duckduckgo")
 
 
 PAGE_SIZE_CHOICES = (5, 10, 15, 20)
+
+
+# Where the dropdown under the search bar gets its suggestions: SearXNG's own
+# autocompleter, which forwards the typed text to one of these. Named on every
+# request, so it works on an instance whose settings.yml leaves autocomplete
+# off. Measured on 2026-09-24, each ~0.15 s; startpage answered nothing. Mirrors
+# SUGGESTION_CHOICES in src/settings/choices.mjs; change both.
+SUGGESTION_CHOICES = ("duckduckgo", "google", "brave", "qwant", "wikipedia", "off")
+
+
+# Short: a suggestion that arrives after the next keystroke is worth nothing.
+SUGGEST_TIMEOUT = 3
 
 
 # Mirrors settings.mjs: SearXNG's codes, 'auto' and 'all'. 'default' sends none.
@@ -135,6 +149,13 @@ def configured_engines(config):
 def configured_page_size(config):
     size = config.get("results_per_page")
     return size if size in PAGE_SIZE_CHOICES else DEFAULT_PAGE_SIZE
+
+
+def configured_suggestions(config):
+    """The autocomplete backend to name, or '' when suggestions are off."""
+    source = config.get("search_suggestions")
+    source = source if source in SUGGESTION_CHOICES else SUGGESTION_CHOICES[0]
+    return "" if source == "off" else source
 
 
 def configured_language(config):

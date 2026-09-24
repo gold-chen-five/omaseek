@@ -1,7 +1,7 @@
 // The Search and Engines sections: the instance itself, and which of its
 // engines are asked. Row objects as the page draws them (SettingRow.qml).
 
-import { ENGINE_CHOICES, ENGINE_LABELS, LANGUAGE_CHOICES, PAGE_SIZE_CHOICES } from './choices.mjs'
+import { ENGINE_CHOICES, ENGINE_LABELS, LANGUAGE_CHOICES, PAGE_SIZE_CHOICES, SUGGESTION_CHOICES } from './choices.mjs'
 import { readEngines, readLanguage } from './config.mjs'
 import { endpointTestText, searchSpeedText, versionText } from './reports.mjs'
 
@@ -49,6 +49,16 @@ export function searchRows (settings, state, version) {
       hint: 'every page shows this many, however many SearXNG returns',
       options: PAGE_SIZE_CHOICES,
       value: settings.resultsPerPage
+    },
+    {
+      key: 'searchSuggestions',
+      type: 'choice',
+      label: 'Suggestions',
+      hint: settings.searchSuggestions === 'off'
+        ? 'off — nothing typed leaves this machine until you search'
+        : 'a list under the bar as you type, from ' + settings.searchSuggestions + ' through SearXNG, with your past searches first',
+      options: SUGGESTION_CHOICES,
+      value: settings.searchSuggestions
     }
   )
   return rows

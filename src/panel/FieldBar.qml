@@ -22,6 +22,7 @@ Item {
   property real outputScale: 1                 // the monitor's, for whole-pixel frames
 
   readonly property alias field: input
+  readonly property real fieldWidth: fieldFrame.width   // the suggestions under it are as wide
   readonly property bool asking: panelMode === States.PANEL.AI
   readonly property bool thinking: asking && ai !== null && ai.status === "thinking"
   readonly property bool canRetry: ai !== null && ai.canRetry && input.text.trim() === ""

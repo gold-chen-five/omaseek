@@ -32,9 +32,11 @@ Item {
       event.accepted = true
     } else if (event.key === Qt.Key_Down || event.key === Qt.Key_Up) {
       // Down works from insert too, as vim's arrows do; within a question of
-      // several lines, Up and Down move between its lines first.
+      // several lines, Up and Down move between its lines first. While
+      // suggestions show under the bar, they walk those, as Google's do.
       clearEscapePending()
-      field.edits.moveLine(event.key === Qt.Key_Down, true)
+      if (field.completing) field.completionStepped(event.key === Qt.Key_Down ? 1 : -1)
+      else field.edits.moveLine(event.key === Qt.Key_Down, true)
       event.accepted = true
     } else if (plain && Keymap.isTypedKey(event.text)) {
       handleEscapeSequence(event)             // types normally unless it closes the sequence

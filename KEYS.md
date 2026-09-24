@@ -146,7 +146,8 @@ Insert mode:
 | `ctrl+v` `ctrl+shift+v` | paste at the cursor, over a mouse selection; in a search, line breaks become spaces |
 | `ctrl+shift+x` | AI mode: forget every saved conversation (twice) |
 | `ctrl+shift+r` | AI mode: ask the last question again after a failure or a stop |
-| `up` `down` | search: the field is one line, so they walk the queries searched before — `up` an older one, `down` back toward what you had typed, then into the results |
+| `up` `down` | search: while suggestions show under the bar, they walk those (below). Otherwise the field is one line, so they walk the queries searched before — `up` an older one, `down` back toward what you had typed, then into the results |
+| `ctrl+n` `ctrl+p` | search, while suggestions show: the next and the one before, as vim's completion keys |
 | `up` `down` | ask: a line up or down within a question of several lines; past the first line, `up` walks the questions asked before, and past the last, `down` comes back toward what you had typed, then into the transcript |
 | `gT` (Translate the bar) | normal mode: translate everything in the bar — search or ask — into the panel on the right |
 | `ctrl+t` (Translate the bar, any mode) | the same from insert mode, without leaving it: type, press it, keep typing |
@@ -161,6 +162,24 @@ Insert mode:
 
 `gx` in normal mode opens the URL or bare domain under the cursor in the browser,
 as vim's does; in visual mode, the selected one.
+
+**Suggestions, as Google's.** Typing a search opens a list under the bar: up
+to three of your past searches that begin with what you typed (a clock beside
+them), then suggestions from your SearXNG (a magnifier), what each adds to your
+words in bold. It waits for a pause in typing before asking.
+
+| key | does |
+|---|---|
+| `down` `up`, `ctrl+n` `ctrl+p` | put the next or the one before in the bar; past either end, back to what you typed |
+| `enter` | search what the bar shows — the row you are on |
+| a click | search that row |
+| `esc` | leave insert mode, and the list with it |
+
+It shows only while you type a search in insert mode. Asking never shows it,
+and a question never leaves for the suggestion source. **Ctrl+S → Search →
+Suggestions** picks the source — DuckDuckGo (the default), Google, Brave, Qwant
+or Wikipedia, each through your SearXNG's autocompleter — or turns it off,
+and then nothing typed leaves the machine until you search.
 
 **Paste an address to go there.** In search mode, Enter on a field that holds
 only an address opens it instead of searching, and the status line says so

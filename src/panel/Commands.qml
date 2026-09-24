@@ -21,10 +21,12 @@ Item {
   property var ai: null
   property var translator: null
   property var config: null
+  property var suggestions: null               // the dropdown under the search bar
 
   property int historyIndex: -1                // where the walk sits; -1 is what was typed
   property string historyDraft: ""             // what was typed, kept while the walk is away from it
   property bool applyingHistory: false         // a walk writing the field, not the reader typing
+  property bool applyingSuggestion: false      // the dropdown writing the field, likewise
 
   // `searching` forces a search: gs on a title that happens to look like a
   // domain means "find this", not "go there".
@@ -43,9 +45,10 @@ Item {
       return
     }
     const flat = SearchLib.cleanQuery(query.split(input.lineBreak).join(" "))
+    suggestions.clear()                        // searched: the list goes until the next thing typed
     // The field shows what is searched: stray spaces at either end, or a run of
     // them inside, are gone once Enter has read it.
-    if (input.text !== flat) input.setQuery(flat)
+    if (input.text !== flat) writeBar(flat)
     queries.remember(flat)                     // the arrows walk back to it next time
     resetHistoryWalk()
     // A pasted address is opened, as a browser's address bar would; anything
@@ -74,6 +77,25 @@ Item {
     host.input.setQuery(step.text)
     applyingHistory = false
     return true
+  }
+
+  // ↓ ↑ and ctrl+n ctrl+p while the dropdown shows: the bar shows the row the
+  // arrows are on, and back past either end what was typed — Enter searches it.
+  function stepSuggestion (delta) {
+    writeBar(suggestions.step(delta))
+  }
+
+  // A row clicked: searched straight away.
+  function searchSuggestion (text) {
+    writeBar(text)
+    runSearch(true)
+  }
+
+  // The bar rewritten by the panel rather than typed: no new suggestions for it.
+  function writeBar (text) {
+    applyingSuggestion = true
+    host.input.setQuery(text)
+    applyingSuggestion = false
   }
 
   function resetHistoryWalk () {

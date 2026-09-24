@@ -7,7 +7,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from .config import CURRENT, ICON_ENDPOINT, SearchError, TIMEOUT
+from .config import CURRENT, ICON_ENDPOINT, SUGGEST_TIMEOUT, SearchError, TIMEOUT
 
 
 def fetch(base, query, pageno):
@@ -53,6 +53,35 @@ def fetch_payload(base, query, pageno, engines=None):
     if not isinstance(payload, dict):
         raise SearchError("http", "SearXNG returned an unreadable response")
     return payload
+
+
+def suggest(base, query):
+    """What SearXNG's autocompleter offers for `query`: a list of strings, [] on
+    any failure — a missing suggestion is not worth an error under the bar.
+    Preferences are read from the request's own parameters, so the backend and
+    language go along with it."""
+    params = {"q": query, "autocomplete": CURRENT.suggestions}
+    if CURRENT.language:
+        params["language"] = CURRENT.language
+    url = base + "/autocompleter?" + urllib.parse.urlencode(params)
+    request = urllib.request.Request(url, headers={"Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(request, timeout=SUGGEST_TIMEOUT) as response:
+            payload = json.loads(response.read().decode("utf-8", "replace"))
+    except (OSError, http.client.HTTPException, ValueError):
+        return []
+    # OpenSearch's shape, [query, [suggestions], …]; older instances answer a
+    # bare list of suggestions.
+    if isinstance(payload, list) and len(payload) >= 2 and isinstance(payload[1], list):
+        payload = payload[1]
+    if not isinstance(payload, list):
+        return []
+    seen = []
+    for item in payload:
+        text = " ".join(item.split()) if isinstance(item, str) else ""
+        if text and text not in seen:
+            seen.append(text)
+    return seen
 
 
 def instance_running(base):
