@@ -8,8 +8,8 @@ CLI you already have — no API keys, no accounts.
 
 [![omaseek searching the web with vim keys: results for "omarchy", each naming the engines that found it](docs/demo.png)](docs/demo.mp4)
 
-▶ [**Watch the demo**](docs/demo.mp4) — under two minutes: searching with
-suggestions, reading and paging the results, asking an agent, and settings.
+https://github.com/user-attachments/assets/32309219-5fd9-43a7-801b-6d99b5b26ce2
+
 
 ## Install
 
