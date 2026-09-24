@@ -308,7 +308,7 @@ Item {
     Text {
       width: parent.width
       textFormat: Text.PlainText
-      text: "Until then, the  at the start of the bar's middle opens it. Tab switches between "
+      text: "Until then, the  just left of the bar's clock opens it. Tab switches between "
           + "searching the web and asking an agent; ctrl+k lists every key."
       color: page.foreground
       opacity: 0.55

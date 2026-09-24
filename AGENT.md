@@ -308,6 +308,14 @@ The interactive spellings for a hand-off are copied from Omarchy's
 blur are keyed on the terminal's own class, so a dedicated app-id gives the
 hand-off a look the user never chose.
 
+**Nothing may be written inside the plugin folder at runtime.** Omarchy's
+watcher (`localPluginIdForPath`) ignores only hidden paths and `.git`, and
+reloads the plugin on any other write — so on a fresh install the
+`__pycache__` Python wrote on the first probe tore the welcome page down before
+its buttons appeared. `bin/search` and `bin/ask` set `sys.pycache_prefix` to
+`~/.cache/omaseek/pycache`. A checkout that already has its caches never shows
+this, which is how it shipped.
+
 Three runtime traps, all found the hard way: **stdin must be closed**
 (`stdin=DEVNULL`) or `codex exec` waits on it forever and the panel just
 hangs; **presence is Omarchy's test, not `PATH`** (`~/.local/bin` user
@@ -500,9 +508,11 @@ The stores are non-visual `Item`s, the way first-party plugins keep state in a
   `omarchy-shell shell summon`), since a newcomer may not know the way in. `introPending`
   sends every open back to the page, probing both again, until Start searching
   or esc (`finishIntro`). `panel/welcome.mjs` holds the steps. The first run
-  also moves the bar icon to the centre's left end (`placeBarIcon`, the shell's
-  `moveBarWidget`), only if it is still in the centre where Omarchy put it — a
-  manifest can name a section, not a place in it.
+  also moves the bar icon to just before the clock (`placeBarIcon`, the shell's
+  `moveBarWidget`; the centre's start when there is no clock), only if it is
+  still in the centre where Omarchy put it — a manifest can name a section, not
+  a place in it. It waits up to ten seconds for `shell.json` to name the widget,
+  since reading it too early looked like a widget moved elsewhere.
   `~/.local/share/omaseek/first-run.json` records `done`; delete it to see the
   page again. `bin/on-remove` deletes it when the plugin is removed, so a
   reinstall is a first install — the page, and the icon's move — again.

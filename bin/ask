@@ -32,6 +32,12 @@ agent with no streaming spelling simply emits that one line.
 import os
 import sys
 
+# Bytecode goes to the cache, never beside the modules: Omarchy's watcher
+# reloads a plugin on any file written inside its folder, so the __pycache__
+# the first run creates tore the welcome page down on a fresh install.
+sys.pycache_prefix = os.path.join(
+    os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"), "omaseek", "pycache")
+
 # The modules live in backend/, beside bin/; realpath, so a symlinked install
 # still finds them.
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "backend"))

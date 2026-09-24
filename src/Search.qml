@@ -297,15 +297,25 @@ Item {
   }
 
   // Omarchy puts a new bar widget after the weather in the centre; the icon
-  // goes to the centre's left end instead, where it reads as the start of the
-  // bar's middle. Once, on the first run, and only when it is still in the
-  // centre — an installer asked for left or right, and that answer stands.
+  // goes just before the clock instead (the start of the centre when there is
+  // none), where it reads as the start of the bar's middle. Once, on the first
+  // run, and only when it is still in the centre — an installer asked for left
+  // or right, and that answer stands. shell.json may not name the widget yet
+  // when this runs, so it waits for it rather than reading its absence as a
+  // widget moved elsewhere; detached, so it outlives a reload of the plugin.
   function placeBarIcon () {
     const id = manifest?.id ?? "omaseek"
     Quickshell.execDetached(["bash", "-c",
       'f="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/shell.json"; '
-      + 'jq -e --arg id "$1" \'(.bar.layout.center // []) | map(.id) | index($id)\' "$f" >/dev/null 2>&1 '
-      + '&& omarchy-shell shell moveBarWidget "$1" \'{"section":"center","index":0}\' >/dev/null 2>&1',
+      + 'for _ in $(seq 40); do '
+      + '  where=$(jq -r --arg id "$1" \'(.bar.layout // {}) | to_entries[] '
+      + '    | select((.value | type) == "array" and (.value | map(.id) | index($id)) != null) | .key\' "$f" 2>/dev/null | head -1); '
+      + '  [ -n "$where" ] && break; sleep 0.25; '
+      + 'done; '
+      + '[ "$where" = center ] || exit 0; '
+      + 'if jq -e \'(.bar.layout.center // []) | map(.id) | index("omarchy.clock")\' "$f" >/dev/null 2>&1; '
+      + 'then to=\'{"before":"omarchy.clock"}\'; else to=\'{"section":"center","index":0}\'; fi; '
+      + 'omarchy-shell shell moveBarWidget "$1" "$to" >/dev/null 2>&1',
       "place-icon", id])
   }
 
