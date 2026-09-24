@@ -6,7 +6,7 @@ CLI you already have — no API keys, no accounts.
 
 **SUPER + D** summons it. **Tab** switches between searching and asking.
 
-![omaseek searching the web with vim keys: results for "omarchy", each naming the engines that found it](docs/demo.png)
+![omaseek searching the web with vim keys: results for "omarchy", each naming the engines that found it](preview.png)
 
 https://github.com/user-attachments/assets/32309219-5fd9-43a7-801b-6d99b5b26ce2
 
