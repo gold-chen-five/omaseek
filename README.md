@@ -19,6 +19,11 @@ omarchy plugin add https://github.com/gold-chen-five/omaseek.git --enable
 Not in the Omarchy plugin marketplace yet, hence the repository URL. Plugins run
 unsandboxed inside `omarchy-shell`, so read the code before enabling it.
 
+**Opening it.** `--enable` puts a magnifier icon in the middle of the bar; click
+it to open the panel. If it is not there — the plugin was enabled before as
+something other than a bar widget — `omarchy plugin disable omaseek` then
+`omarchy plugin enable omaseek --section center` puts it back.
+
 **The keybind.** A plugin cannot bind a key on install, so the bar icon opens
 the panel at first. For `SUPER + D`, open Settings (`ctrl+s`) → Keys → **Open
 omaseek with** → **Add**: a terminal shows the line below, asks, backs up
