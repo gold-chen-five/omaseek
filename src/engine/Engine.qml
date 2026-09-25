@@ -60,7 +60,7 @@ Item {
   function stop () { run(" --stop") }
   function updateImage () { run(" --update") }
 
-  // In a terminal: docker may ask for sudo, and the first pull is worth watching.
+  // In a terminal: Docker may ask for sudo, and the first pull is worth watching.
   function run (flag, comeBack) {
     launching()
     state = "unknown"                          // whatever it was, it is changing

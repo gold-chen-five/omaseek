@@ -204,6 +204,20 @@ the same commit, or a newer date (a local build). Docker Hub is sent the tags UR
 and nothing else, and an unreachable Hub still reports the running version.
 `Engine.probe()` runs it each time Settings opens.
 
+**Podman first, Docker otherwise.** `bin/searxng-up` picks `OMASEEK_ENGINE`,
+then the engine it created the container with (`~/.local/state/omaseek/searxng-engine`),
+then Podman when installed. Podman runs rootless with
+`--userns keep-id:uid=977,gid=977`: you are the image's `searxng` user inside,
+so its entrypoint has nothing to chown and `~/.config/searxng` stays yours.
+Podman gets the fully qualified `docker.io/searxng/searxng` (a short name can
+stop to ask for a registry) and `--restart always`, the one policy
+`podman-restart.service` restarts at login. When the engine is only a guess and
+something already holds the port — an earlier omaseek's Docker container — it
+refuses rather than start a second SearXNG, and names `--use podman|docker`,
+which empties the other engine and records the choice. `--purge` empties both.
+Tests put fake `podman` and `systemctl` first on PATH and their own
+`XDG_STATE_HOME`: this machine's containers and state are never touched.
+
 **The image is named by digest, never by a tag.** `bin/searxng-up` pins
 `PINNED_TAG`/`PINNED_DIGEST` — the marketplace review flagged running the
 mutable `latest` tag, through sudo docker at that. SearXNG has no stable

@@ -22,7 +22,7 @@ function engineStep (engineState) {
     title: 'SearXNG, the search engine',
     detail: engineState === 'unknown' ? 'checking whether it is running…'
       : running ? 'running on this machine — searches go through it'
-      : 'runs on your own machine, in Docker. Set up opens a terminal: the first run downloads about 200 MB and may ask for your password',
+      : 'runs on your own machine, in Podman or Docker. Set up opens a terminal: the first run downloads about 200 MB, and Docker may ask for your password',
     done: running,
     buttons: engineState === 'stopped' ? [{ action: 'start', label: 'Set up' }] : []
   }

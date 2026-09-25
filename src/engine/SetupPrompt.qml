@@ -3,7 +3,7 @@ import qs.Commons
 import qs.Ui
 
 // Shown when the SearXNG instance is down. It says what starting it involves
-// (Docker, a download, maybe sudo) before asking.
+// (Podman or Docker, a download, maybe sudo) before asking.
 Item {
   id: prompt
 
@@ -67,7 +67,7 @@ Item {
       width: parent.width
       textFormat: Text.PlainText
       text: "This panel searches through SearXNG — a metasearch engine that "
-          + "runs on your own machine, in Docker. It queries the upstream "
+          + "runs on your own machine, in Podman or Docker. It queries the upstream "
           + "engines for you, so searches go to a service you control."
       color: prompt.foreground
       opacity: 0.75

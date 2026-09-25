@@ -36,6 +36,9 @@ class OnRemoveTests(unittest.TestCase):
         self.fake_bin.mkdir()
         log = self.log
         self.fake("docker", f'echo "docker $*" >> {log}; [[ $1 != ps ]] || echo searxng')
+        # This machine's own Podman and daemons stay out of it.
+        self.fake("podman", "exit 1")
+        self.fake("systemctl", "exit 0")
         self.fake("xdg-terminal-exec", f'echo "terminal $*" >> {log}')
         self.fake("gum", f'echo "gum $*" >> {log}; [[ $GUM_ANSWER == y ]]')
         self.fake("sleep", "exit 0")
@@ -49,7 +52,7 @@ class OnRemoveTests(unittest.TestCase):
         self.first_run.parent.mkdir(parents=True)
         self.first_run.write_text('{"version":1,"done":true}\n')
         self.env = dict(os.environ, XDG_RUNTIME_DIR=str(self.runtime), XDG_CONFIG_HOME=str(config),
-                        XDG_DATA_HOME=str(base / "data"),
+                        XDG_DATA_HOME=str(base / "data"), XDG_STATE_HOME=str(base / "state"),
                         OMARCHY_PATH=str(base / "no-omarchy"),
                         PATH=f"{self.fake_bin}:{os.environ['PATH']}", GUM_ANSWER="n")
 

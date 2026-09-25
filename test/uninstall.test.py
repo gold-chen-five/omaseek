@@ -40,6 +40,9 @@ class UninstallTests(unittest.TestCase):
         self.fake("omarchy", f'echo "omarchy $*" >> {log}')
         self.fake("hyprctl", f'echo "hyprctl $*" >> {log}')
         self.fake("docker", f'echo "docker $*" >> {log}; [[ $1 != ps ]] || echo searxng')
+        # This machine's own Podman and daemons stay out of it.
+        self.fake("podman", "exit 1")
+        self.fake("systemctl", "exit 0")
         # Answers each question from $GUM_ANSWERS in turn: y or n.
         self.fake("gum", textwrap.dedent(f"""\
             echo "gum $*" >> {log}
@@ -55,7 +58,7 @@ class UninstallTests(unittest.TestCase):
 
     def run_uninstall(self, *args, answers="", tty=False, path=None):
         env = dict(os.environ, XDG_CONFIG_HOME=str(self.config), OMARCHY_PATH=str(self.config / "no-omarchy"), GUM_ANSWERS=answers,
-                   XDG_RUNTIME_DIR=str(self.runtime),
+                   XDG_RUNTIME_DIR=str(self.runtime), XDG_STATE_HOME=str(self.config / "state"),
                    PATH=path or f"{self.fake_bin}:{os.environ['PATH']}")
         command = [str(self.plugin / "bin" / "uninstall"), *args]
         if tty:

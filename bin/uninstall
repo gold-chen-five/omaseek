@@ -67,8 +67,9 @@ fi
 if [[ $searxng == remove ]]; then
   "$REPO/bin/searxng-up" --purge
 elif searxng_present; then
+  engine=$("$REPO/bin/searxng-up" --engine)
   say "SearXNG left in place — to remove it later:"
-  say "    docker rm -f $SEARXNG_NAME && docker image rm \$(docker image ls -aq searxng/searxng)"
+  say "    $engine rm -f $SEARXNG_NAME && $engine image rm \$($engine image ls -aq searxng/searxng)"
 fi
 
 # Only the exact line bin/keybind adds; a binding written by hand stays.

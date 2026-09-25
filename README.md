@@ -44,12 +44,14 @@ o.bind("SUPER + d", "Search", "omarchy-shell shell toggle omaseek")
 ```
 
 **SearXNG.** Searching needs one. The panel offers to create it the first time
-you search, or run `bin/searxng-up`: it starts the `searxng/searxng` Docker
-image on `127.0.0.1:8888` and writes `~/.config/searxng/settings.yml` with the
+you search, or run `bin/searxng-up`: it starts the `searxng/searxng` container
+image on `127.0.0.1:8888` — with rootless Podman when it is installed, so
+nothing runs as root, and with Docker otherwise and writes `~/.config/searxng/settings.yml` with the
 JSON API on. The image is pinned by digest to a build reviewed with this
 release, so no moving tag decides what runs. SearXNG is a rolling release, so
 Settings → **Update SearXNG** shows the newest build and its digest, and
-switches to exactly that one only when you say yes.
+switches to exactly that one only when you say yes. To move an existing Docker
+instance to Podman, or back: `bin/searxng-up --use podman` (or `--use docker`).
 
 **Asking** uses whichever agent CLI you have — `claude`, `codex`, `crush`,
 `opencode`, `gemini`, `hermes`, `copilot`, `cursor-agent`.
@@ -138,13 +140,14 @@ Left for you to delete: `~/.config/omaseek`, `~/.local/share/omaseek`,
 |---|---|
 | Omarchy 4 (`omarchy-shell`, `gum`, `jq`, `xdg-terminal-exec`) | the panel, and terminals for setup and removal |
 | `python3`, standard library only | `bin/search` and `bin/ask` |
-| Docker | the SearXNG container |
+| Podman (recommended, rootless) or Docker | the SearXNG container |
 | an agent CLI, optional | asking |
 | `tmux` or `herdr`, optional | hand-offs somewhere other than a terminal |
 
-- **sudo** — `bin/searxng-up` alone, always in a terminal you can watch:
-  `systemctl enable --now docker` when the daemon is down, and `sudo docker`
-  when you are not in the `docker` group.
+- **sudo** — never with Podman. With Docker, `bin/searxng-up` alone, always in
+  a terminal you can watch: `systemctl enable --now docker` when the daemon is
+  down, and `sudo docker` when you are not in the `docker` group. Podman
+  enables your user's `podman-restart.service`, so SearXNG comes back at login.
 - **Network** — your SearXNG and the engines you enable; while you type a
   search, what is typed so far goes through your SearXNG to the suggestion
   source chosen in Settings (never a question, and nothing when it is off);
@@ -154,8 +157,8 @@ Left for you to delete: `~/.config/omaseek`, `~/.local/share/omaseek`,
   agent CLI's own provider. No
   telemetry.
 - **Files** — `~/.config/omaseek`, `~/.local/share/omaseek`, `~/.cache/omaseek`,
-  `~/.config/searxng`, `~/.local/state/omaseek/searxng-image` (the SearXNG
-  build you chose in Update), and removal scripts under `$XDG_RUNTIME_DIR`. Your
+  `~/.config/searxng`, `~/.local/state/omaseek/searxng-image` and
+  `searxng-engine` (the SearXNG build you chose in Update, and Podman or Docker), and removal scripts under `$XDG_RUNTIME_DIR`. Your
   Hyprland config is touched only when you ask — Settings → Keys → Add,
   `bin/install`, or yes at removal — always through `bin/keybind`, one line,
   with a backup.
