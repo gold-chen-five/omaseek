@@ -542,18 +542,32 @@ class SearxngUpdateTests(unittest.TestCase):
 
         self.assertEqual(self.run_mode("--engine").stdout.strip(), "docker")
 
-    def test_docker_is_the_default_without_podman(self):
-        # This machine's PATH, less podman: a directory of links to the rest.
-        tools = self.base / "no-podman"
+    def path_without(self, *missing):
+        """This machine's PATH less `missing`: a directory of links to the rest."""
+        tools = self.base / ("no-" + "-".join(missing))
         tools.mkdir()
-        for directory in ("/usr/bin", "/bin"):
+        for directory in (str(self.fake_bin), "/usr/bin", "/bin"):
             for tool in pathlib.Path(directory).iterdir():
-                if tool.name != "podman" and not os.path.lexists(tools / tool.name):
+                if tool.name not in missing and not os.path.lexists(tools / tool.name):
                     (tools / tool.name).symlink_to(tool)
         del self.env["OMASEEK_ENGINE"]
         self.env["PATH"] = str(tools)
 
+    def test_docker_is_the_default_without_podman(self):
+        self.path_without("podman")
+
         self.assertEqual(self.run_mode("--engine").stdout.strip(), "docker")
+
+    def test_with_neither_engine_podman_is_recommended_first(self):
+        self.path_without("podman", "docker")
+
+        result = self.run_mode("start")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("neither Podman nor Docker is installed", result.stderr)
+        podman = result.stderr.index("sudo pacman -S podman")
+        self.assertLess(podman, result.stderr.index("sudo pacman -S docker"), "Podman comes first")
+        self.assertIn("Recommended (rootless", result.stderr)
 
     def test_an_unknown_engine_is_refused(self):
         self.env["OMASEEK_ENGINE"] = "lxc"

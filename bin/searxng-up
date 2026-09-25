@@ -142,7 +142,12 @@ connect() {
     podman info >/dev/null 2>&1 || die "podman cannot run containers as you — see: podman info"
     return
   fi
-  command -v docker >/dev/null || die "docker is not installed — sudo pacman -S docker"
+  if ! command -v docker >/dev/null; then
+    command -v podman >/dev/null && die "docker is not installed — sudo pacman -S docker, or use Podman: $0 --use podman"
+    die "neither Podman nor Docker is installed.
+       Recommended (rootless, no sudo afterwards): sudo pacman -S podman
+       Or Docker:                                  sudo pacman -S docker"
+  fi
   docker=(docker)
   if ! docker info >/dev/null 2>&1; then
     if ! systemctl is-active --quiet docker; then
