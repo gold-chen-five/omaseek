@@ -45,7 +45,7 @@ test('the search-speed row times one real search, as a keypress sends it', () =>
 test('the update row says which version runs and whether a newer one exists', () => {
   const hint = version => settingsRows(readSettings(''), 'running', null, null, null, version)
     .find(r => r.key === 'engineUpdate').hint
-  assert.match(hint(null), /pull the latest image/, 'before a check it says what the button does')
+  assert.match(hint(null), /offer the newest image/, 'before a check it says what the button does')
   assert.equal(hint({ checking: true }), 'checking the running version…')
   assert.equal(hint({ ok: true, version: '2026.9.16+461f174b0', latest: '2026.9.16-461f174b0', current: true }),
     '2026.9.16 — the latest')

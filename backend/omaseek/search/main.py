@@ -1,5 +1,5 @@
-"""bin/search's commands: --status, --test, --time, --version, --next, and
-a search."""
+"""bin/search's commands: --status, --test, --time, --version, --newest-image,
+--next, and a search."""
 
 import json
 import sys
@@ -9,7 +9,7 @@ from .config import (CURRENT, configured_engines, configured_language, configure
                      configured_url, emit, fail, read_config)
 from .probe import test_endpoint, time_search
 from .session import emit_page, load_session, start_session
-from .version import report_version
+from .version import print_newest_image, report_version
 
 
 def main():
@@ -36,6 +36,10 @@ def main():
 
     if argv and argv[0] == "--version":
         report_version(base)
+        return
+
+    if argv and argv[0] == "--newest-image":
+        print_newest_image()
         return
 
     # The dropdown under the bar. Off asks nothing: the typed text stays here.

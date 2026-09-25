@@ -204,11 +204,25 @@ the same commit, or a newer date (a local build). Docker Hub is sent the tags UR
 and nothing else, and an unreachable Hub still reports the running version.
 `Engine.probe()` runs it each time Settings opens.
 
+**The image is named by digest, never by a tag.** `bin/searxng-up` pins
+`PINNED_TAG`/`PINNED_DIGEST` — the marketplace review flagged running the
+mutable `latest` tag, through sudo docker at that. SearXNG has no stable
+releases (its CHANGELOG: every master commit is one), so bumping the pin means
+choosing a dated Docker Hub tag whose commit passed SearXNG's CI and copying
+that tag's digest. A newer build runs only when the reader says yes in
+`--update`, which then records `<tag> <digest>` in
+`~/.local/state/omaseek/searxng-image`; start, purge and later updates read it,
+and a malformed line is ignored for the pin.
+
 Updates are deliberate rather than tied to opening the panel. Settings launches
-`bin/searxng-up --update` in a terminal: it pulls before touching the current
-container, does not restart an already-current image, preserves a stopped state,
-and restores the previous image when a replacement fails its JSON readiness
-probe. The config mount under `~/.config/searxng/` is never replaced.
+`bin/searxng-up --update` in a terminal: `bin/search --newest-image` resolves
+the dated tag and digest behind `latest`, the terminal shows current and newest
+and asks, and the pull is by that digest — so `latest` moving in between cannot
+change what was agreed to. It pulls before touching the current container, does
+not restart an already-current image, preserves a stopped state, and restores
+the previous image when a replacement fails its JSON readiness probe; the
+choice is recorded only after the switch succeeds. The config mount under
+`~/.config/searxng/` is never replaced.
 
 **Removal asks about SearXNG** although Omarchy runs nothing from a plugin it
 removes (no hook, no manifest field — its README says so). What it does do is

@@ -62,7 +62,7 @@ export function searchSpeedText (speed) {
  * the commit after it is only noise here.
  */
 export function versionText (version) {
-  if (!version) return 'pull the latest image; restart only when it changed'
+  if (!version) return 'offer the newest image, and switch only on a yes'
   if (version.checking) return 'checking the running version…'
   if (!version.ok) return 'not running — start it to see its version'
   const running = version.version ? String(version.version).split('+')[0] : 'unknown version'

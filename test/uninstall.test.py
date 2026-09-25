@@ -70,7 +70,7 @@ class UninstallTests(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
         self.assertIn("gum confirm Also remove the SearXNG", self.calls())
         self.assertIn("docker rm -f searxng", self.calls())
-        self.assertIn("docker image rm searxng/searxng:latest", self.calls())
+        self.assertIn("docker image rm searxng/searxng@sha256:38ed750807fb00c26047e51896b50f83e7843d120d9e65f950770305f62c7111", self.calls())
         self.assertIn("omarchy plugin remove omaseek --yes", self.calls())
         self.assertNotIn(BIND_LINE, self.bindings.read_text())
         self.assertNotIn("-- omaseek", self.bindings.read_text())

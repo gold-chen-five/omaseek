@@ -129,7 +129,7 @@ class OnRemoveTests(unittest.TestCase):
         self.stage_and_remove()
         self.run_script(self.stage / "on-remove", "--ask")
         self.assertIn("docker rm -f searxng", self.calls())
-        self.assertIn("docker image rm searxng/searxng:latest", self.calls())
+        self.assertIn("docker image rm searxng/searxng@sha256:38ed750807fb00c26047e51896b50f83e7843d120d9e65f950770305f62c7111", self.calls())
         self.assertFalse(self.stage.exists())
 
     def test_no_in_the_terminal_keeps_searxng(self):

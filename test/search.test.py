@@ -296,6 +296,14 @@ class VersionTests(unittest.TestCase):
         self.assertEqual(self.search.latest_tag(tags[2:]), "2026.9.16-1354f3952", "no latest: the newest dated tag")
         self.assertIsNone(self.search.latest_tag([{"name": "latest"}]))
 
+    def test_the_newest_image_is_named_by_its_digest(self):
+        digest = "sha256:" + "a" * 64
+        tags = [{"name": "latest", "digest": digest}, {"name": "2026.9.16-461f174b0", "digest": digest}]
+        self.assertEqual(self.search.newest_image(tags), ("2026.9.16-461f174b0", digest))
+        self.assertIsNone(self.search.newest_image([{"name": "2026.9.16-461f174b0", "digest": "sha256:aaa"}]),
+                          "no well-formed digest, nothing to pull")
+        self.assertIsNone(self.search.newest_image([]))
+
     def test_current_means_the_same_commit_or_a_newer_build(self):
         current = self.search.is_current
         self.assertTrue(current("2026.9.16+461f174b0", "2026.9.16-461f174b0"))

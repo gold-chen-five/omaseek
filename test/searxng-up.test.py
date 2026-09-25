@@ -10,6 +10,10 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "bin" / "searxng-up"
+PINNED = "searxng/searxng@sha256:38ed750807fb00c26047e51896b50f83e7843d120d9e65f950770305f62c7111"
+NEWEST_TAG = "2026.9.30-abcdef123"
+NEWEST_DIGEST = "sha256:" + "b" * 64
+NEWEST = "searxng/searxng@" + NEWEST_DIGEST
 
 
 class SearxngUpdateTests(unittest.TestCase):
@@ -35,7 +39,7 @@ class SearxngUpdateTests(unittest.TestCase):
             shift || true
 
             record_image() {
-              if [[ $1 == searxng/searxng:latest ]]; then
+              if [[ $1 == searxng/searxng[:@]* ]]; then
                 cp "$state/local_image" "$state/container_image"
               else
                 printf '%s\n' "$1" > "$state/container_image"
@@ -83,13 +87,13 @@ class SearxngUpdateTests(unittest.TestCase):
                 ;;
               run)
                 image=${!#}
-                [[ ! -f $state/fail_run_new || $image != searxng/searxng:latest ]] || exit 43
+                [[ ! -f $state/fail_run_new || $image != searxng/searxng[:@]* ]] || exit 43
                 touch "$state/exists" "$state/running"
                 record_image "$image"
                 ;;
               create)
                 image=${!#}
-                [[ ! -f $state/fail_create_new || $image != searxng/searxng:latest ]] || exit 44
+                [[ ! -f $state/fail_create_new || $image != searxng/searxng[:@]* ]] || exit 44
                 touch "$state/exists"
                 rm -f "$state/running"
                 record_image "$image"
@@ -113,6 +117,12 @@ class SearxngUpdateTests(unittest.TestCase):
             #!/usr/bin/env bash
             set -euo pipefail
             state=${FAKE_DOCKER_STATE:?}
+            # bin/search --newest-image, which bin/searxng-up runs through this.
+            if [[ ${2:-} == --newest-image ]]; then
+              [[ -f $state/newest ]] || exit 1
+              cat "$state/newest"
+              exit 0
+            fi
             if [[ -f $state/fail_health_for_new && -f $state/container_image ]]; then
               current=$(<"$state/container_image")
               latest=$(<"$state/local_image")
@@ -135,11 +145,15 @@ class SearxngUpdateTests(unittest.TestCase):
         )
         self.write_executable("sleep", "#!/usr/bin/env bash\nexit 0\n")
 
+        (self.state / "newest").write_text(f"{NEWEST_TAG} {NEWEST_DIGEST}\n", encoding="utf-8")
+        self.choice = self.base / "state-home" / "omaseek" / "searxng-image"
+
         self.env = os.environ.copy()
         self.env.update(
             {
                 "HOME": str(self.base / "home"),
                 "XDG_CONFIG_HOME": str(self.base / "config"),
+                "XDG_STATE_HOME": str(self.base / "state-home"),
                 "FAKE_DOCKER_STATE": str(self.state),
                 "PATH": f"{self.fake_bin}:/usr/bin:/bin",
             }
@@ -162,7 +176,7 @@ class SearxngUpdateTests(unittest.TestCase):
         return subprocess.run([str(SCRIPT), mode], cwd=ROOT, env=self.env, text=True,
                               capture_output=True, check=False)
 
-    def run_update(self, close_stderr=False):
+    def run_update(self, close_stderr=False, answer="y\n"):
         command = [str(SCRIPT), "--update"]
         if close_stderr:
             command = ["bash", "-c", 'exec 2>&-; exec "$1" --update', "bash", str(SCRIPT)]
@@ -170,6 +184,7 @@ class SearxngUpdateTests(unittest.TestCase):
             command,
             cwd=ROOT,
             env=self.env,
+            input=answer,
             text=True,
             capture_output=True,
             check=False,
@@ -185,7 +200,7 @@ class SearxngUpdateTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         commands = self.commands()
-        pull = commands.index("pull searxng/searxng:latest")
+        pull = commands.index(f"pull {NEWEST}")
         inspect = next(i for i, command in enumerate(commands) if command.startswith("image inspect"))
         remove = next(i for i, command in enumerate(commands) if command.startswith("rm -f"))
         run = next(i for i, command in enumerate(commands) if command.startswith("run -d"))
@@ -194,7 +209,8 @@ class SearxngUpdateTests(unittest.TestCase):
         self.assertLess(remove, run)
         self.assertEqual((self.state / "container_image").read_text().strip(), "sha256:new")
         self.assertTrue((self.state / "running").exists())
-        self.assertIn("updated SearXNG and restarted it", result.stdout)
+        self.assertIn(f"updated SearXNG to {NEWEST_TAG} and restarted it", result.stdout)
+        self.assertEqual(self.choice.read_text().strip(), f"{NEWEST_TAG} {NEWEST_DIGEST}")
 
     def test_current_container_is_not_recreated(self):
         self.arrange_container("sha256:same", "sha256:same")
@@ -266,6 +282,7 @@ class SearxngUpdateTests(unittest.TestCase):
         self.assertEqual((self.state / "container_image").read_text().strip(), "sha256:old")
         self.assertTrue((self.state / "running").exists())
         self.assertIn("restored the previous image", result.stderr)
+        self.assertFalse(self.choice.exists(), "a failed switch is not remembered")
 
     def test_failed_stopped_replacement_restores_a_stopped_container(self):
         self.arrange_container("sha256:old", "sha256:new", running=False)
@@ -332,7 +349,7 @@ class SearxngUpdateTests(unittest.TestCase):
         self.assertFalse((self.state / "exists").exists())
         self.assertFalse((self.state / "local_image").exists())
         self.assertTrue(config.is_dir())
-        self.assertIn("removed the searxng/searxng:latest image", result.stdout)
+        self.assertIn(f"removed the {PINNED} image", result.stdout)
 
     def test_purge_keeps_an_image_another_container_uses(self):
         self.arrange_container("sha256:old", "sha256:old")
@@ -342,7 +359,93 @@ class SearxngUpdateTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertFalse((self.state / "exists").exists())
-        self.assertIn("kept the searxng/searxng:latest image", result.stderr)
+        self.assertIn(f"kept the {PINNED} image", result.stderr)
+
+    def test_the_update_names_both_builds_and_changes_nothing_on_a_no(self):
+        self.arrange_container("sha256:old", "sha256:new")
+
+        result = self.run_update(answer="n\n")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("current: 2026.9.25-d8ae3abd5", result.stdout)
+        self.assertIn(f"newest:  {NEWEST_TAG}  ({NEWEST_DIGEST})", result.stdout)
+        verbs = [command.split()[0] for command in self.commands()]
+        self.assertNotIn("pull", verbs)
+        self.assertNotIn("rm", verbs)
+        self.assertEqual((self.state / "container_image").read_text().strip(), "sha256:old")
+        self.assertFalse(self.choice.exists())
+
+    def test_an_unanswered_prompt_is_a_no(self):
+        self.arrange_container("sha256:old", "sha256:new")
+
+        result = self.run_update(answer="")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("pull", [command.split()[0] for command in self.commands()])
+
+    def test_a_failed_lookup_changes_nothing(self):
+        self.arrange_container("sha256:old", "sha256:new")
+        (self.state / "newest").unlink()
+
+        result = self.run_update()
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("nothing was changed", result.stderr)
+        self.assertNotIn("pull", [command.split()[0] for command in self.commands()])
+
+    def test_a_malformed_lookup_is_refused(self):
+        self.arrange_container("sha256:old", "sha256:new")
+        (self.state / "newest").write_text("latest sha256:nope\n", encoding="utf-8")
+
+        result = self.run_update()
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("pull", [command.split()[0] for command in self.commands()])
+
+    def test_a_fresh_start_runs_the_pinned_digest(self):
+        (self.state / "local_image").write_text("sha256:pinned\n", encoding="utf-8")  # what run pulls
+        result = self.run_mode("start")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        run = next(command for command in self.commands() if command.startswith("run -d"))
+        self.assertTrue(run.endswith(" " + PINNED), run)
+
+    def test_a_start_after_an_update_runs_the_chosen_digest(self):
+        (self.state / "remote_image").write_text("sha256:new\n", encoding="utf-8")
+        self.assertEqual(self.run_update().returncode, 0)
+        (self.state / "log").write_text("", encoding="utf-8")
+
+        result = self.run_mode("start")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        run = next(command for command in self.commands() if command.startswith("run -d"))
+        self.assertTrue(run.endswith(" " + NEWEST), run)
+
+    def test_a_malformed_choice_falls_back_to_the_pin(self):
+        (self.state / "local_image").write_text("sha256:pinned\n", encoding="utf-8")  # what run pulls
+        self.choice.parent.mkdir(parents=True)
+        self.choice.write_text("latest\n", encoding="utf-8")
+
+        result = self.run_mode("start")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("ignoring", result.stderr)
+        run = next(command for command in self.commands() if command.startswith("run -d"))
+        self.assertTrue(run.endswith(" " + PINNED), run)
+
+    def test_purge_also_takes_the_old_latest_image_and_the_choice(self):
+        (self.state / "remote_image").write_text("sha256:new\n", encoding="utf-8")
+        self.assertEqual(self.run_update().returncode, 0)
+        (self.state / "local_image").write_text("sha256:x\n", encoding="utf-8")
+
+        result = self.run_mode("--purge")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        removed = [command for command in self.commands() if command.startswith("image rm")]
+        self.assertEqual(removed, [f"image rm {NEWEST}"], "the fake holds one image, removed by the first name")
+        self.assertIn(f"image inspect {PINNED}", self.commands())
+        self.assertIn("image inspect searxng/searxng:latest", self.commands())
+        self.assertFalse(self.choice.exists())
 
 
 if __name__ == "__main__":

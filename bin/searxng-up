@@ -4,17 +4,29 @@
 #   ./bin/searxng-up          create or start it, and wait until it answers
 #   ./bin/searxng-up --stop   stop it, keeping the container
 #   ./bin/searxng-up --down   stop and remove the container (config is kept)
-#   ./bin/searxng-up --update pull the latest image, replacing only an older container
+#   ./bin/searxng-up --update offer the newest image by its digest, and switch on a yes
 #   ./bin/searxng-up --purge  remove the container and its image (config is kept)
 #   ./bin/searxng-up --present exit 0 when there may be a container or image to remove
 #
 # Asks for sudo only for docker calls, and only outside the docker group.
+#
+# The image is always named by its digest, never by a moving tag: what runs is
+# the build reviewed with this plugin, or a newer one the reader agreed to in
+# --update, which is remembered in $CHOSEN. SearXNG has no stable releases —
+# every commit to master is one, published as a dated tag — so bumping PINNED
+# means picking a dated tag whose CI passed and copying its digest from Docker
+# Hub.
 
 set -euo pipefail
 
 NAME=searxng
 PORT=8888
-IMAGE=searxng/searxng:latest
+REPO=searxng/searxng
+PINNED_TAG=2026.9.25-d8ae3abd5
+PINNED_DIGEST=sha256:38ed750807fb00c26047e51896b50f83e7843d120d9e65f950770305f62c7111
+# What earlier versions ran; still looked for so removal takes it too.
+LEGACY_IMAGE=$REPO:latest
+CHOSEN="${XDG_STATE_HOME:-$HOME/.local/state}/omaseek/searxng-image"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/searxng"
 SETTINGS="$CONFIG_DIR/settings.yml"
 URL="http://localhost:$PORT"
@@ -22,6 +34,21 @@ URL="http://localhost:$PORT"
 say()  { printf '\033[1m==>\033[0m %s\n' "$*" || true; }
 warn() { printf '\033[33m warn:\033[0m %s\n' "$*" >&2 || true; }
 die()  { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
+
+# "<dated tag> <digest>", as --update writes it and bin/search --newest-image prints it.
+valid_choice() { [[ $1 =~ ^[0-9]{4}\.[0-9]{1,2}\.[0-9]{1,2}-[0-9a-f]{7,40}\ sha256:[0-9a-f]{64}$ ]]; }
+
+TAG=$PINNED_TAG
+DIGEST=$PINNED_DIGEST
+if [[ -f $CHOSEN ]]; then
+  chosen=$(<"$CHOSEN")
+  if valid_choice "$chosen"; then
+    read -r TAG DIGEST <<<"$chosen"
+  else
+    warn "ignoring $CHOSEN — not a '<tag> sha256:<digest>' line; using $PINNED_TAG"
+  fi
+fi
+IMAGE=$REPO@$DIGEST
 
 MODE=${1:-start}
 (( $# <= 1 )) || die "usage: $0 [--stop|--down|--update|--purge|--present]"
@@ -36,8 +63,11 @@ esac
 if [[ $MODE == --present ]]; then
   command -v docker >/dev/null || exit 1
   docker info >/dev/null 2>&1 || exit 0
-  docker container inspect "$NAME" >/dev/null 2>&1 || docker image inspect "$IMAGE" >/dev/null 2>&1
-  exit
+  docker container inspect "$NAME" >/dev/null 2>&1 && exit 0
+  for image in "$IMAGE" "$REPO@$PINNED_DIGEST" "$LEGACY_IMAGE"; do
+    docker image inspect "$image" >/dev/null 2>&1 && exit 0
+  done
+  exit 1
 fi
 
 command -v docker >/dev/null || die "docker is not installed — sudo pacman -S docker"
@@ -139,24 +169,61 @@ restore_interrupted() {
   exit "$status"
 }
 
+confirm() {
+  if [[ -t 0 ]] && command -v gum >/dev/null; then
+    gum confirm "$1"
+  else
+    local reply=""
+    read -r -p "$1 [y/N] " reply || true
+    [[ $reply == [yY]* ]]
+  fi
+}
+
+# Remembered only once the new image runs, or is ready to: a failed switch
+# leaves start, purge and the next update on the image that was restored.
+remember_choice() {
+  mkdir -p "$(dirname -- "$CHOSEN")"
+  printf '%s %s\n' "$1" "$2" > "$CHOSEN.tmp"
+  mv -f "$CHOSEN.tmp" "$CHOSEN"
+}
+
 update_image() {
-  local previous_image="" latest_image="" was_running=false
+  local previous_image="" latest_image="" was_running=false newest new_tag new_digest new_image
   if exists; then
     previous_image=$("${docker[@]}" inspect --format '{{.Image}}' "$NAME")
     running && was_running=true
   fi
 
+  # The digest behind `latest` right now, so what is shown is what is pulled.
+  say "looking up the newest SearXNG image on Docker Hub"
+  newest=$("$(dirname -- "${BASH_SOURCE[0]}")/search" --newest-image) ||
+    die "could not look up the newest image on Docker Hub — nothing was changed"
+  valid_choice "$newest" || die "Docker Hub answered with an unexpected image: $newest"
+  read -r new_tag new_digest <<<"$newest"
+  new_image=$REPO@$new_digest
+
+  say "current: $TAG  ($DIGEST)"
+  if [[ $new_digest == "$DIGEST" ]]; then
+    say "newest:  the same image"
+  else
+    say "newest:  $new_tag  ($new_digest)"
+    confirm "Switch SearXNG to $new_tag?" || { say "kept $TAG — nothing was changed"; return; }
+  fi
+
   # Pull before touching a working container. A registry or network failure
-  # therefore leaves the search service exactly as it was.
-  say "pulling the latest SearXNG image"
-  "${docker[@]}" pull "$IMAGE"
-  latest_image=$("${docker[@]}" image inspect --format '{{.Id}}' "$IMAGE")
+  # therefore leaves the search service exactly as it was. Pulled by digest,
+  # Docker refuses any image that does not match it.
+  say "pulling $new_tag"
+  "${docker[@]}" pull "$new_image"
+  latest_image=$("${docker[@]}" image inspect --format '{{.Id}}' "$new_image")
 
   if [[ -z $previous_image ]]; then
-    say "latest image is ready — start SearXNG from Settings"
+    remember_choice "$new_tag" "$new_digest"
+    say "$new_tag is ready — start SearXNG from Settings"
     return
   fi
   if [[ $previous_image == "$latest_image" ]]; then
+    remember_choice "$new_tag" "$new_digest"
     say "SearXNG is already up to date"
     return
   fi
@@ -167,14 +234,16 @@ update_image() {
   trap 'restore_interrupted "$previous_image" "$was_running" 143' TERM
   "${docker[@]}" rm -f "$NAME" >/dev/null
   if [[ $was_running == true ]]; then
-    run_container "$IMAGE" || restore_running "$previous_image" "could not create the updated container"
+    run_container "$new_image" || restore_running "$previous_image" "could not create the updated container"
     wait_until_ready || restore_running "$previous_image" "the updated container did not become ready"
     trap - HUP INT TERM
-    say "updated SearXNG and restarted it"
+    remember_choice "$new_tag" "$new_digest"
+    say "updated SearXNG to $new_tag and restarted it"
   else
-    create_container "$IMAGE" || restore_stopped "$previous_image" "could not create the updated container"
+    create_container "$new_image" || restore_stopped "$previous_image" "could not create the updated container"
     trap - HUP INT TERM
-    say "updated SearXNG; it remains stopped"
+    remember_choice "$new_tag" "$new_digest"
+    say "updated SearXNG to $new_tag; it remains stopped"
   fi
 }
 
@@ -201,13 +270,15 @@ if [[ $MODE == --purge ]]; then
   else
     say "no $NAME container to remove"
   fi
-  if "${docker[@]}" image inspect "$IMAGE" >/dev/null 2>&1; then
-    if "${docker[@]}" image rm "$IMAGE" >/dev/null; then
-      say "removed the $IMAGE image"
+  for image in "$IMAGE" "$REPO@$PINNED_DIGEST" "$LEGACY_IMAGE"; do
+    "${docker[@]}" image inspect "$image" >/dev/null 2>&1 || continue
+    if "${docker[@]}" image rm "$image" >/dev/null; then
+      say "removed the $image image"
     else
-      warn "kept the $IMAGE image — another container still uses it"
+      warn "kept the $image image — another container still uses it"
     fi
-  fi
+  done
+  rm -f "$CHOSEN"
   say "$CONFIG_DIR was left alone — delete it yourself if you no longer want it"
   exit 0
 fi
@@ -268,7 +339,7 @@ elif exists; then
   say "starting the existing $NAME container"
   "${docker[@]}" start "$NAME" >/dev/null
 else
-  say "creating the $NAME container (first run pulls ~200MB)"
+  say "creating the $NAME container from $TAG (first run pulls ~200MB)"
   run_container "$IMAGE"
 fi
 

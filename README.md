@@ -46,7 +46,10 @@ o.bind("SUPER + d", "Search", "omarchy-shell shell toggle omaseek")
 **SearXNG.** Searching needs one. The panel offers to create it the first time
 you search, or run `bin/searxng-up`: it starts the `searxng/searxng` Docker
 image on `127.0.0.1:8888` and writes `~/.config/searxng/settings.yml` with the
-JSON API on.
+JSON API on. The image is pinned by digest to a build reviewed with this
+release, so no moving tag decides what runs. SearXNG is a rolling release, so
+Settings → **Update SearXNG** shows the newest build and its digest, and
+switches to exactly that one only when you say yes.
 
 **Asking** uses whichever agent CLI you have — `claude`, `codex`, `crush`,
 `opencode`, `gemini`, `hermes`, `copilot`, `cursor-agent`.
@@ -147,10 +150,12 @@ Left for you to delete: `~/.config/omaseek`, `~/.local/share/omaseek`,
   source chosen in Settings (never a question, and nothing when it is off);
   DuckDuckGo's favicon
   service, sent each result's bare domain and never your query; Docker Hub, for
-  whether a newer SearXNG image exists; your agent CLI's own provider. No
+  whether a newer SearXNG image exists and, when you update, its digest; your
+  agent CLI's own provider. No
   telemetry.
 - **Files** — `~/.config/omaseek`, `~/.local/share/omaseek`, `~/.cache/omaseek`,
-  `~/.config/searxng`, and removal scripts under `$XDG_RUNTIME_DIR`. Your
+  `~/.config/searxng`, `~/.local/state/omaseek/searxng-image` (the SearXNG
+  build you chose in Update), and removal scripts under `$XDG_RUNTIME_DIR`. Your
   Hyprland config is touched only when you ask — Settings → Keys → Add,
   `bin/install`, or yes at removal — always through `bin/keybind`, one line,
   with a backup.
