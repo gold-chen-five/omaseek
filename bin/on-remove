@@ -74,7 +74,7 @@ case "${1:-}" in
       if gum confirm "Remove the SearXNG container and image too? (~/.config/searxng is kept)"; then
         bash "$STAGE/searxng-up" --purge
       else
-        echo "  kept — to remove it later: docker rm -f searxng && docker image rm \$(docker image ls -q searxng/searxng)"
+        echo "  kept — to remove it later: docker rm -f searxng && docker image rm \$(docker image ls -aq searxng/searxng)"
       fi
     fi
     rm -rf "$STAGE"

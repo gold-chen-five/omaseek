@@ -171,7 +171,7 @@ restore_interrupted() {
 
 confirm() {
   if [[ -t 0 ]] && command -v gum >/dev/null; then
-    gum confirm "$1"
+    gum confirm --default=false "$1"          # Enter keeps what runs
   else
     local reply=""
     read -r -p "$1 [y/N] " reply || true
@@ -188,9 +188,12 @@ remember_choice() {
 }
 
 update_image() {
-  local previous_image="" latest_image="" was_running=false newest new_tag new_digest new_image
+  local previous_image="" previous_ref="" latest_image="" was_running=false newest new_tag new_digest new_image
   if exists; then
     previous_image=$("${docker[@]}" inspect --format '{{.Image}}' "$NAME")
+    # What the container was created from — an older omaseek's `:latest`, say
+    # — which is not necessarily the image start would use now.
+    previous_ref=$("${docker[@]}" inspect --format '{{.Config.Image}}' "$NAME")
     running && was_running=true
   fi
 
@@ -202,12 +205,18 @@ update_image() {
   read -r new_tag new_digest <<<"$newest"
   new_image=$REPO@$new_digest
 
-  say "current: $TAG  ($DIGEST)"
-  if [[ $new_digest == "$DIGEST" ]]; then
+  if [[ -z $previous_ref ]]; then
+    say "current: no container yet — start would use $TAG"
+  elif [[ $previous_ref == "$IMAGE" ]]; then
+    say "current: $TAG  ($DIGEST)"
+  else
+    say "current: $previous_ref"
+  fi
+  if [[ $previous_ref == "$new_image" || ( -z $previous_ref && $new_digest == "$DIGEST" ) ]]; then
     say "newest:  the same image"
   else
     say "newest:  $new_tag  ($new_digest)"
-    confirm "Switch SearXNG to $new_tag?" || { say "kept $TAG — nothing was changed"; return; }
+    confirm "Switch SearXNG to $new_tag?" || { say "kept the current image — nothing was changed"; return; }
   fi
 
   # Pull before touching a working container. A registry or network failure
@@ -222,7 +231,10 @@ update_image() {
     say "$new_tag is ready — start SearXNG from Settings"
     return
   fi
-  if [[ $previous_image == "$latest_image" ]]; then
+  # The same bytes under another name — an older omaseek's `:latest` — are
+  # still recreated, so the container is named by digest and the next update
+  # does not ask again.
+  if [[ $previous_image == "$latest_image" && $previous_ref == "$new_image" ]]; then
     remember_choice "$new_tag" "$new_digest"
     say "SearXNG is already up to date"
     return

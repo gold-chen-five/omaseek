@@ -39,6 +39,7 @@ class SearxngUpdateTests(unittest.TestCase):
             shift || true
 
             record_image() {
+              printf '%s\n' "$1" > "$state/container_ref"
               if [[ $1 == searxng/searxng[:@]* ]]; then
                 cp "$state/local_image" "$state/container_image"
               else
@@ -61,7 +62,7 @@ class SearxngUpdateTests(unittest.TestCase):
                 ;;
               inspect)
                 [[ -f $state/exists ]]
-                cat "$state/container_image"
+                if [[ $* == *Config.Image* ]]; then cat "$state/container_ref"; else cat "$state/container_image"; fi
                 ;;
               image)
                 case ${1:-} in
@@ -164,8 +165,9 @@ class SearxngUpdateTests(unittest.TestCase):
         path.write_text(textwrap.dedent(source).lstrip(), encoding="utf-8")
         path.chmod(0o755)
 
-    def arrange_container(self, previous, latest, running=True, local=None):
+    def arrange_container(self, previous, latest, running=True, local=None, ref="searxng/searxng:latest"):
         (self.state / "exists").touch()
+        (self.state / "container_ref").write_text(ref + "\n", encoding="utf-8")
         if running:
             (self.state / "running").touch()
         (self.state / "container_image").write_text(previous + "\n", encoding="utf-8")
@@ -213,7 +215,7 @@ class SearxngUpdateTests(unittest.TestCase):
         self.assertEqual(self.choice.read_text().strip(), f"{NEWEST_TAG} {NEWEST_DIGEST}")
 
     def test_current_container_is_not_recreated(self):
-        self.arrange_container("sha256:same", "sha256:same")
+        self.arrange_container("sha256:same", "sha256:same", ref=NEWEST)
 
         result = self.run_update()
 
@@ -223,6 +225,16 @@ class SearxngUpdateTests(unittest.TestCase):
         self.assertNotIn("run", verbs)
         self.assertNotIn("create", verbs)
         self.assertIn("already up to date", result.stdout)
+
+    def test_the_same_image_under_the_old_latest_name_is_renamed_by_digest(self):
+        self.arrange_container("sha256:same", "sha256:same")
+
+        result = self.run_update()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.state / "container_ref").read_text().strip(), NEWEST)
+        self.assertTrue((self.state / "running").exists())
+        self.assertIn("restarted it", result.stdout)
 
     def test_stopped_container_is_updated_without_starting_it(self):
         self.arrange_container("sha256:old", "sha256:new", running=False)
@@ -362,7 +374,7 @@ class SearxngUpdateTests(unittest.TestCase):
         self.assertIn(f"kept the {PINNED} image", result.stderr)
 
     def test_the_update_names_both_builds_and_changes_nothing_on_a_no(self):
-        self.arrange_container("sha256:old", "sha256:new")
+        self.arrange_container("sha256:old", "sha256:new", ref=PINNED)
 
         result = self.run_update(answer="n\n")
 
@@ -374,6 +386,24 @@ class SearxngUpdateTests(unittest.TestCase):
         self.assertNotIn("rm", verbs)
         self.assertEqual((self.state / "container_image").read_text().strip(), "sha256:old")
         self.assertFalse(self.choice.exists())
+
+    def test_current_names_what_the_container_was_created_from(self):
+        self.arrange_container("sha256:old", "sha256:new")
+
+        result = self.run_update(answer="n\n")
+
+        self.assertIn("current: searxng/searxng:latest", result.stdout, "an older omaseek's container")
+        self.assertIn(f"newest:  {NEWEST_TAG}", result.stdout)
+
+    def test_a_container_already_on_the_newest_is_not_asked_about(self):
+        self.arrange_container("sha256:new", "sha256:new", ref=NEWEST)
+
+        result = self.run_update(answer="")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("newest:  the same image", result.stdout)
+        self.assertNotIn("Switch SearXNG", result.stdout + result.stderr)
+        self.assertIn("already up to date", result.stdout)
 
     def test_an_unanswered_prompt_is_a_no(self):
         self.arrange_container("sha256:old", "sha256:new")
