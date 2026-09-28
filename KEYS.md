@@ -1,8 +1,6 @@
 # Keys
 
-Every binding in the panel, by the view that owns it. Written flat and
-greppable because it is read as often by an agent as by a person — if you
-change a key, change it here in the same commit.
+Every binding in the panel, by the view that owns it.
 
 Settings → Keys rebinds every key below that has a name in the first column,
 and Settings → Fixed keys lists the rest, so the page doubles as the answer
