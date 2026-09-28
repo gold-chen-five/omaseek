@@ -52,6 +52,10 @@ release, so no moving tag decides what runs. SearXNG is a rolling release, so
 Settings → **Update SearXNG** shows the newest build and its digest, and
 switches to exactly that one only when you say yes. To move an existing Docker
 instance to Podman, or back: `bin/searxng-up --use podman` (or `--use docker`).
+omaseek only ever touches what it made — the container `omaseek-searxng`,
+labelled `omaseek=searxng`, and images it pulled itself — so a SearXNG you run
+yourself is never stopped, replaced or removed. If one already holds port 8888,
+setup stops and says so.
 
 **Asking** uses whichever agent CLI you have — `claude`, `codex`, `crush`,
 `opencode`, `gemini`, `hermes`, `copilot`, `cursor-agent`.
@@ -158,7 +162,8 @@ Left for you to delete: `~/.config/omaseek`, `~/.local/share/omaseek`,
   telemetry.
 - **Files** — `~/.config/omaseek`, `~/.local/share/omaseek`, `~/.cache/omaseek`,
   `~/.config/searxng`, `~/.local/state/omaseek/searxng-image` and
-  `searxng-engine` (the SearXNG build you chose in Update, and Podman or Docker), and removal scripts under `$XDG_RUNTIME_DIR`. Your
+  `searxng-engine` and `searxng-pulled` (the SearXNG build you chose in Update,
+  Podman or Docker, and the images omaseek pulled), and removal scripts under `$XDG_RUNTIME_DIR`. Your
   Hyprland config is touched only when you ask — Settings → Keys → Add,
   `bin/install`, or yes at removal — always through `bin/keybind`, one line,
   with a backup.

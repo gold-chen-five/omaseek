@@ -42,6 +42,8 @@ class SearxngUpdateTests(unittest.TestCase):
             record_image() {
               printf '%s\n' "$1" > "$state/container_ref"
               if [[ $1 == *searxng/searxng[:@]* ]]; then
+                # run and create pull an image that is not there yet.
+                [[ -f $state/local_image ]] || cp "$state/remote_image" "$state/local_image"
                 cp "$state/local_image" "$state/container_image"
               else
                 printf '%s\n' "$1" > "$state/container_image"
@@ -54,10 +56,15 @@ class SearxngUpdateTests(unittest.TestCase):
                 ;;
               ps)
                 [[ ! -f $state/fail_ps ]] || exit 45
+                # The user's own container: a name, and no omaseek label.
+                if [[ $* != *label=omaseek=searxng* && -f $state/user_container ]]; then
+                  printf '%s\n' searxng
+                fi
+                [[ $* != *label=omaseek=searxng* || -f $state/labelled ]] || exit 0
                 if [[ ${1:-} == -a ]]; then
-                  [[ -f $state/exists ]] && printf '%s\n' searxng
+                  [[ -f $state/exists ]] && printf '%s\n' omaseek-searxng
                 else
-                  [[ -f $state/running ]] && printf '%s\n' searxng
+                  [[ -f $state/running ]] && printf '%s\n' omaseek-searxng
                 fi
                 exit 0
                 ;;
@@ -78,7 +85,8 @@ class SearxngUpdateTests(unittest.TestCase):
                 cp "$state/remote_image" "$state/local_image"
                 ;;
               rm)
-                rm -f "$state/exists" "$state/running" "$state/container_image"
+                [[ ${!#} == omaseek-searxng ]] || rm -f "$state/user_container"
+                rm -f "$state/exists" "$state/running" "$state/container_image" "$state/labelled"
                 if [[ -f $state/signal_every_remove ]]; then
                   kill -TERM "$PPID"
                   /bin/sleep 0.05
@@ -92,6 +100,7 @@ class SearxngUpdateTests(unittest.TestCase):
                 image=${!#}
                 [[ ! -f $state/fail_run_new || $image != *searxng/searxng[:@]* ]] || exit 43
                 touch "$state/exists" "$state/running"
+                [[ $* != *"--label omaseek=searxng"* ]] || touch "$state/labelled"
                 record_image "$image"
                 ;;
               create)
@@ -99,6 +108,7 @@ class SearxngUpdateTests(unittest.TestCase):
                 [[ ! -f $state/fail_create_new || $image != *searxng/searxng[:@]* ]] || exit 44
                 touch "$state/exists"
                 rm -f "$state/running"
+                [[ $* != *"--label omaseek=searxng"* ]] || touch "$state/labelled"
                 record_image "$image"
                 ;;
               start)
@@ -125,6 +135,11 @@ class SearxngUpdateTests(unittest.TestCase):
               [[ -f $state/newest ]] || exit 1
               cat "$state/newest"
               exit 0
+            fi
+            # searxng-up's port check: taken only when a test says so.
+            if [[ ${2:-} == port-check ]]; then
+              [[ -f $state/port_taken ]]
+              exit
             fi
             if [[ -f $state/fail_health_for_new && -f $state/container_image ]]; then
               current=$(<"$state/container_image")
@@ -191,6 +206,7 @@ class SearxngUpdateTests(unittest.TestCase):
 
     def arrange_container(self, previous, latest, running=True, local=None, ref="searxng/searxng:latest"):
         (self.state / "exists").touch()
+        (self.state / "labelled").touch()
         (self.state / "container_ref").write_text(ref + "\n", encoding="utf-8")
         if running:
             (self.state / "running").touch()
@@ -227,6 +243,13 @@ class SearxngUpdateTests(unittest.TestCase):
             del self.env["OMASEEK_ENGINE"]
         (self.pstate / "local_image").write_text("sha256:pinned\n", encoding="utf-8")
 
+    def pulled(self):
+        return self.base / "state-home" / "omaseek" / "searxng-pulled"
+
+    def record_pulled(self, *lines):
+        self.pulled().parent.mkdir(parents=True, exist_ok=True)
+        self.pulled().write_text("".join(line + "\n" for line in lines), encoding="utf-8")
+
     def engine_file(self):
         return self.base / "state-home" / "omaseek" / "searxng-engine"
 
@@ -238,7 +261,7 @@ class SearxngUpdateTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         commands = self.commands()
         pull = commands.index(f"pull {NEWEST}")
-        inspect = next(i for i, command in enumerate(commands) if command.startswith("image inspect"))
+        inspect = next(i for i, command in enumerate(commands) if command.startswith("image inspect --format"))
         remove = next(i for i, command in enumerate(commands) if command.startswith("rm -f"))
         run = next(i for i, command in enumerate(commands) if command.startswith("run -d"))
         self.assertLess(pull, inspect)
@@ -387,6 +410,7 @@ class SearxngUpdateTests(unittest.TestCase):
 
     def test_purge_removes_the_container_and_its_image_but_not_the_config(self):
         self.arrange_container("sha256:old", "sha256:old")
+        self.record_pulled(f"docker {PINNED}")
         config = self.base / "config" / "searxng"
         config.mkdir(parents=True)
 
@@ -397,9 +421,11 @@ class SearxngUpdateTests(unittest.TestCase):
         self.assertFalse((self.state / "local_image").exists())
         self.assertTrue(config.is_dir())
         self.assertIn(f"removed the {PINNED} image", result.stdout)
+        self.assertEqual(self.pulled().read_text(), "", "a removed image is no longer on record")
 
     def test_purge_keeps_an_image_another_container_uses(self):
         self.arrange_container("sha256:old", "sha256:old")
+        self.record_pulled(f"docker {PINNED}")
         (self.state / "image_in_use").touch()
 
         result = self.run_mode("--purge")
@@ -498,19 +524,74 @@ class SearxngUpdateTests(unittest.TestCase):
         run = next(command for command in self.commands() if command.startswith("run -d"))
         self.assertTrue(run.endswith(" " + PINNED), run)
 
-    def test_purge_also_takes_the_old_latest_image_and_the_choice(self):
+    def test_an_update_records_the_image_it_pulled_and_purge_takes_it(self):
         (self.state / "remote_image").write_text("sha256:new\n", encoding="utf-8")
         self.assertEqual(self.run_update().returncode, 0)
-        (self.state / "local_image").write_text("sha256:x\n", encoding="utf-8")
+        self.assertEqual(self.pulled().read_text(), f"docker {NEWEST}\n")
 
         result = self.run_mode("--purge")
 
         self.assertEqual(result.returncode, 0, result.stderr)
         removed = [command for command in self.commands() if command.startswith("image rm")]
-        self.assertEqual(removed, [f"image rm {NEWEST}"], "the fake holds one image, removed by the first name")
-        self.assertIn(f"image inspect {PINNED}", self.commands())
-        self.assertIn("image inspect searxng/searxng:latest", self.commands())
+        self.assertEqual(removed, [f"image rm {NEWEST}"])
         self.assertFalse(self.choice.exists())
+
+    def test_purge_leaves_images_omaseek_did_not_pull(self):
+        self.arrange_container("sha256:old", "sha256:old")
+        self.engine_file().parent.mkdir(parents=True)
+        self.engine_file().write_text("docker\n", encoding="utf-8")
+
+        result = self.run_mode("--purge")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse((self.state / "exists").exists(), "omaseek's own container goes")
+        self.assertTrue((self.state / "local_image").exists(), "an image that was already there stays")
+        self.assertFalse([c for c in self.commands() if c.startswith("image rm")])
+        self.assertFalse([c for c in self.commands() if ":latest" in c], "the :latest tag is never looked at")
+
+    def test_a_fresh_start_records_the_image_only_when_it_pulled_it(self):
+        (self.state / "remote_image").write_text("sha256:pinned\n", encoding="utf-8")
+
+        self.assertEqual(self.run_mode("start").returncode, 0)
+
+        self.assertEqual(self.pulled().read_text(), f"docker {PINNED}\n")
+
+    def test_the_users_own_searxng_container_is_never_touched(self):
+        (self.state / "user_container").touch()
+        (self.state / "local_image").write_text("sha256:theirs\n", encoding="utf-8")
+        (self.state / "remote_image").write_text("sha256:new\n", encoding="utf-8")
+        self.engine_file().parent.mkdir(parents=True)
+        self.engine_file().write_text("docker\n", encoding="utf-8")
+
+        for mode in ("--stop", "--down", "--update", "--purge"):
+            with self.subTest(mode=mode):
+                result = self.run_mode(mode) if mode != "--update" else self.run_update()
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertTrue((self.state / "user_container").exists(), mode)
+        verbs = [c.split()[0] + " " + c.split()[-1] for c in self.commands() if c.split()[0] in ("rm", "stop", "start")]
+        self.assertFalse([v for v in verbs if v.endswith(" searxng")], verbs)
+
+    def test_a_taken_port_is_left_alone_and_explained(self):
+        (self.state / "port_taken").touch()
+
+        result = self.run_mode("start")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("leaves what it did not", result.stderr)
+        self.assertIn("rm -f searxng", result.stderr)
+        verbs = [c.split()[0] for c in self.commands()]
+        self.assertNotIn("run", verbs)
+        self.assertNotIn("rm", verbs)
+
+    def test_hint_names_only_what_omaseek_made(self):
+        self.record_pulled(f"docker {PINNED}", f"podman {PODMAN_PINNED}")
+
+        result = self.run_mode("--hint")
+
+        self.assertEqual(result.stdout.splitlines(), [
+            f"podman rm -f omaseek-searxng && podman image rm {PODMAN_PINNED}",
+            f"docker rm -f omaseek-searxng && docker image rm {PINNED}",
+        ])
 
 
     def test_podman_runs_rootless_as_the_images_own_user(self):
@@ -579,6 +660,7 @@ class SearxngUpdateTests(unittest.TestCase):
 
     def test_use_podman_moves_searxng_out_of_docker(self):
         self.arrange_container("sha256:old", "sha256:old")
+        self.record_pulled(f"docker {PINNED}")
         self.with_podman(engine=None)
 
         result = self.run_mode("--use")
@@ -587,7 +669,7 @@ class SearxngUpdateTests(unittest.TestCase):
                                 capture_output=True, check=False)
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("rm -f searxng", self.commands())
+        self.assertIn("rm -f omaseek-searxng", self.commands())
         self.assertIn(f"image rm {PINNED}", self.commands())
         self.assertFalse((self.state / "exists").exists(), "the docker container is gone")
         self.assertTrue((self.pstate / "running").exists(), "and SearXNG runs under podman")
@@ -595,8 +677,10 @@ class SearxngUpdateTests(unittest.TestCase):
 
     def test_purge_empties_both_engines(self):
         self.arrange_container("sha256:old", "sha256:old")
+        self.record_pulled(f"docker {PINNED}", f"podman {PODMAN_PINNED}")
         self.with_podman()
         (self.pstate / "exists").touch()
+        (self.pstate / "labelled").touch()
         (self.pstate / "container_image").write_text("sha256:pinned\n", encoding="utf-8")
 
         result = self.run_mode("--purge")
@@ -622,6 +706,7 @@ class SearxngUpdateTests(unittest.TestCase):
     def test_present_sees_a_podman_container(self):
         self.with_podman()
         (self.pstate / "exists").touch()
+        (self.pstate / "labelled").touch()
         (self.pstate / "container_ref").write_text(PODMAN_PINNED + "\n", encoding="utf-8")
         (self.pstate / "container_image").write_text("sha256:pinned\n", encoding="utf-8")
         (self.pstate / "local_image").unlink()

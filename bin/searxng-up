@@ -8,9 +8,15 @@
 #   ./bin/searxng-up --purge  remove the container and its image (config is kept)
 #   ./bin/searxng-up --use podman|docker
 #                             run SearXNG with that engine from now on, removing
-#                             the other one's container and images, then start
+#                             omaseek's container and images from the other, then start
 #   ./bin/searxng-up --engine print the engine in use: podman or docker
 #   ./bin/searxng-up --present exit 0 when there may be a container or image to remove
+#   ./bin/searxng-up --hint   print the commands that would remove them by hand
+#
+# Only what omaseek made is ever touched: the container named $NAME and
+# labelled $LABEL, and images it pulled itself (recorded in $PULLED). A
+# SearXNG the user runs — a container named `searxng`, the `:latest` image,
+# an image that was already there — is never stopped, replaced or removed.
 #
 # Podman when it is installed: it runs rootless, so neither this script nor the
 # image ever gets root. Docker otherwise, asking for sudo only for docker calls,
@@ -26,13 +32,16 @@
 
 set -euo pipefail
 
-NAME=searxng
+NAME=omaseek-searxng
+LABEL=omaseek=searxng
 PORT=8888
 PINNED_TAG=2026.9.25-d8ae3abd5
 PINNED_DIGEST=sha256:38ed750807fb00c26047e51896b50f83e7843d120d9e65f950770305f62c7111
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omaseek"
 CHOSEN="$STATE_DIR/searxng-image"
 ENGINE_FILE="$STATE_DIR/searxng-engine"
+# "<engine> <image>" per line: images omaseek pulled, not ones already there.
+PULLED="$STATE_DIR/searxng-pulled"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/searxng"
 SETTINGS="$CONFIG_DIR/settings.yml"
 URL="http://localhost:$PORT"
@@ -43,7 +52,7 @@ say()  { printf '\033[1m==>\033[0m %s\n' "$*" || true; }
 warn() { printf '\033[33m warn:\033[0m %s\n' "$*" >&2 || true; }
 die()  { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 
-usage="usage: $0 [--stop|--down|--update|--purge|--present|--engine|--use podman|docker]"
+usage="usage: $0 [--stop|--down|--update|--purge|--present|--hint|--engine|--use podman|docker]"
 
 # "<dated tag> <digest>", as --update writes it and bin/search --newest-image prints it.
 valid_choice() { [[ $1 =~ ^[0-9]{4}\.[0-9]{1,2}\.[0-9]{1,2}-[0-9a-f]{7,40}\ sha256:[0-9a-f]{64}$ ]]; }
@@ -60,8 +69,7 @@ if [[ -f $CHOSEN ]]; then
 fi
 
 # OMASEEK_ENGINE, then the engine the container was created with, then Podman
-# when it is installed. ENGINE_DECIDED is false only for that last guess.
-ENGINE_DECIDED=true
+# when it is installed.
 recorded=""
 [[ -f $ENGINE_FILE ]] && recorded=$(<"$ENGINE_FILE")
 case "${OMASEEK_ENGINE:-}" in
@@ -70,7 +78,6 @@ case "${OMASEEK_ENGINE:-}" in
     case "$recorded" in
       podman|docker) ENGINE=$recorded ;;
       *)
-        ENGINE_DECIDED=false
         if command -v podman >/dev/null; then ENGINE=podman; else ENGINE=docker; fi
         ;;
     esac
@@ -82,14 +89,15 @@ esac
 # registry is meant, and there may be no terminal to ask in.
 repo_of() { [[ $1 == podman ]] && echo docker.io/searxng/searxng || echo searxng/searxng; }
 
-# Every name the engine may hold this plugin's image under: the one in use, the
-# pin, and the `:latest` earlier versions ran.
-images_of() {
-  local repo; repo=$(repo_of "$1")
-  printf '%s\n' "$repo@$DIGEST"
-  [[ $DIGEST == "$PINNED_DIGEST" ]] || printf '%s\n' "$repo@$PINNED_DIGEST"
-  printf '%s\n' "$repo:latest"
+# The images omaseek pulled into engine $1.
+pulled_of() {
+  [[ -f $PULLED ]] || return 0
+  awk -v engine="$1" '$1 == engine { print $2 }' "$PULLED"
 }
+
+# Whether omaseek ever put anything in engine $1. Docker is asked only then, so
+# a Podman user is never asked for sudo just to look.
+used_engine() { [[ $recorded == "$1" || -n $(pulled_of "$1") ]]; }
 
 REPO=$(repo_of "$ENGINE")
 IMAGE=$REPO@$DIGEST
@@ -97,7 +105,7 @@ IMAGE=$REPO@$DIGEST
 MODE=${1:-start}
 USE=""
 case "$MODE" in
-  start|--stop|--down|--update|--purge|--present|--engine) (( $# <= 1 )) || die "$usage" ;;
+  start|--stop|--down|--update|--purge|--present|--hint|--engine) (( $# <= 1 )) || die "$usage" ;;
   --use)
     (( $# == 2 )) || die "$usage"
     USE=$2
@@ -111,22 +119,35 @@ if [[ $MODE == --engine ]]; then
   exit 0
 fi
 
+# The removal commands, one line per engine omaseek used, for bin/uninstall and
+# bin/on-remove to print when SearXNG is kept.
+if [[ $MODE == --hint ]]; then
+  for engine in podman docker; do
+    used_engine "$engine" || continue
+    line="$engine rm -f $NAME"
+    images=$(pulled_of "$engine" | tr '\n' ' ')
+    [[ -z ${images// } ]] || line+=" && $engine image rm ${images% }"
+    echo "$line"
+  done
+  exit 0
+fi
+
 # Whether removing omaseek should ask about SearXNG, under either engine.
 # Answered without sudo and without starting a daemon, so it runs unattended;
-# when docker cannot be asked, the container may well exist, so the question is
-# still worth putting.
+# when docker cannot be asked but omaseek used it, the container may well
+# exist, so the question is still worth putting.
 if [[ $MODE == --present ]]; then
   present_in() {
     local engine=$1 image
     command -v "$engine" >/dev/null || return 1
     if ! "$engine" info >/dev/null 2>&1; then
-      [[ $engine == docker ]]
+      [[ $engine == docker ]] && used_engine docker
       return
     fi
-    "$engine" container inspect "$NAME" >/dev/null 2>&1 && return 0
+    "$engine" ps -a --filter "label=$LABEL" --format '{{.Names}}' 2>/dev/null | grep -qx "$NAME" && return 0
     while read -r image; do
       "$engine" image inspect "$image" >/dev/null 2>&1 && return 0
-    done < <(images_of "$engine")
+    done < <(pulled_of "$engine")
     return 1
   }
   present_in podman || present_in docker
@@ -162,23 +183,37 @@ connect() {
   fi
 }
 
-exists() {
+# omaseek's container: its name and its label both. Another container by that
+# name, which omaseek did not create, is not it.
+ours() {
   local names
-  if ! names=$("${docker[@]}" ps -a --format '{{.Names}}'); then
+  if ! names=$("${docker[@]}" ps "$@" --filter "label=$LABEL" --format '{{.Names}}'); then
     die "could not list $ENGINE containers"
   fi
   grep -qx "$NAME" <<<"$names"
 }
+exists() { ours -a; }
+running() { ours; }
 
-running() {
-  local names
-  if ! names=$("${docker[@]}" ps --format '{{.Names}}'); then
-    die "could not list running $ENGINE containers"
-  fi
-  grep -qx "$NAME" <<<"$names"
+have_image() { "${docker[@]}" image inspect "$1" >/dev/null 2>&1; }
+
+# Recorded only when it was not there before omaseek pulled it ($2 = false):
+# an image the user already had stays theirs.
+note_pulled() {
+  [[ $2 == false ]] || return 0
+  mkdir -p "$STATE_DIR"
+  grep -qxF "$ENGINE $1" "$PULLED" 2>/dev/null || printf '%s %s\n' "$ENGINE" "$1" >> "$PULLED"
 }
 
-# The container and every image name this plugin gave the engine in docker=().
+forget_pulled() {
+  [[ -f $PULLED ]] || return 0
+  awk -v line="$ENGINE $1" '$0 != line' "$PULLED" > "$PULLED.tmp"
+  mv -f "$PULLED.tmp" "$PULLED"
+}
+
+# omaseek's container, and the images omaseek pulled, from the engine in
+# docker=(). An image goes only when nothing else still uses it, which the
+# engine itself refuses on our behalf.
 remove_all() {
   local image
   if exists; then
@@ -188,21 +223,23 @@ remove_all() {
     say "no $NAME container to remove"
   fi
   while read -r image; do
-    "${docker[@]}" image inspect "$image" >/dev/null 2>&1 || continue
-    if "${docker[@]}" image rm "$image" >/dev/null; then
+    if ! have_image "$image"; then
+      forget_pulled "$image"
+    elif "${docker[@]}" image rm "$image" >/dev/null; then
       say "removed the $image image"
+      forget_pulled "$image"
     else
       warn "kept the $image image — another container still uses it"
     fi
-  done < <(images_of "$ENGINE")
+  done < <(pulled_of "$ENGINE")
 }
 
 if [[ -n $USE ]]; then
   other=docker
   [[ $USE == docker ]] && other=podman
-  # Only an engine that is there and running can hold a container; a stopped
-  # docker daemon is not started just to be emptied.
-  if command -v "$other" >/dev/null &&
+  # Only an engine omaseek used, that is there and running, can hold its
+  # container; a stopped docker daemon is not started just to be emptied.
+  if used_engine "$other" && command -v "$other" >/dev/null &&
      { [[ $other == podman ]] || systemctl is-active --quiet docker; }; then
     ENGINE=$other
     connect "$other"
@@ -211,15 +248,13 @@ if [[ -n $USE ]]; then
   fi
   mkdir -p "$STATE_DIR"
   echo "$USE" > "$ENGINE_FILE"
-  ENGINE=$USE ENGINE_DECIDED=true REPO=$(repo_of "$USE") IMAGE=$(repo_of "$USE")@$DIGEST
+  ENGINE=$USE REPO=$(repo_of "$USE") IMAGE=$(repo_of "$USE")@$DIGEST
   say "omaseek now runs SearXNG with $USE"
   MODE=start
 fi
 
 # What bin/uninstall runs when asked to take SearXNG too, from whichever
-# engine holds it: one an earlier omaseek used may not be the one in use now.
-# An image goes only when nothing else still uses it, which the engine itself
-# refuses on our behalf.
+# engine omaseek used: after --use, that may not be the one in use now.
 if [[ $MODE == --purge ]]; then
   rm -f "$CHOSEN" "$ENGINE_FILE"
   for ENGINE in podman docker; do
@@ -227,9 +262,7 @@ if [[ $MODE == --purge ]]; then
     if [[ $ENGINE == podman ]]; then
       podman info >/dev/null 2>&1 || continue
     else
-      # A Podman install never used Docker, and --use podman emptied it:
-      # no sudo just to look.
-      [[ $recorded == podman ]] && continue
+      used_engine docker || continue
       systemctl is-active --quiet docker || continue
     fi
     connect "$ENGINE"
@@ -244,6 +277,7 @@ connect "$ENGINE"
 
 container_args=(
   --name "$NAME"
+  --label "$LABEL"
   -p "127.0.0.1:$PORT:8080"
   -v "$CONFIG_DIR:/etc/searxng"
 )
@@ -276,6 +310,16 @@ run_container() {
   "${docker[@]}" run -d "${container_args[@]}" "$1" >/dev/null && created
 }
 
+port_taken() {
+  python3 - port-check "$PORT" <<'PROBE' 2>/dev/null
+import socket, sys
+try:
+    socket.create_connection(("127.0.0.1", int(sys.argv[2])), timeout=1).close()
+except OSError:
+    sys.exit(1)
+PROBE
+}
+
 wait_until_ready() {
   local deadline=$(( $(date +%s) + 60 ))
   say "waiting for the JSON API on $URL"
@@ -298,7 +342,7 @@ restore_running() {
   local image=$1 reason=$2
   trap '' HUP INT TERM
   warn "$reason — restoring the previous image"
-  "${docker[@]}" rm -f "$NAME" >/dev/null 2>&1 || true
+  ! (exists) || "${docker[@]}" rm -f "$NAME" >/dev/null 2>&1 || true
   if run_container "$image" && wait_until_ready; then
     die "$reason; restored the previous image"
   fi
@@ -309,7 +353,7 @@ restore_stopped() {
   local image=$1 reason=$2
   trap '' HUP INT TERM
   warn "$reason — restoring the previous stopped container"
-  "${docker[@]}" rm -f "$NAME" >/dev/null 2>&1 || true
+  ! (exists) || "${docker[@]}" rm -f "$NAME" >/dev/null 2>&1 || true
   create_container "$image" || die "$reason, and the previous container could not be restored"
   die "$reason; restored the previous stopped container"
 }
@@ -320,7 +364,7 @@ restore_interrupted() {
   # being put back under the container's well-known name.
   trap '' HUP INT TERM
   warn "update interrupted — restoring the previous container"
-  "${docker[@]}" rm -f "$NAME" >/dev/null 2>&1 || true
+  ! (exists) || "${docker[@]}" rm -f "$NAME" >/dev/null 2>&1 || true
   if [[ $was_running == true ]]; then
     run_container "$image" || die "update interrupted, and the previous container could not be restored"
   else
@@ -383,7 +427,10 @@ update_image() {
   # therefore leaves the search service exactly as it was. Pulled by digest,
   # Docker refuses any image that does not match it.
   say "pulling $new_tag"
+  local had=false
+  have_image "$new_image" && had=true
   "${docker[@]}" pull "$new_image"
+  note_pulled "$new_image" "$had"
   latest_image=$("${docker[@]}" image inspect --format '{{.Id}}' "$new_image")
 
   if [[ -z $previous_image ]]; then
@@ -489,15 +536,19 @@ elif exists; then
   say "starting the existing $NAME container"
   "${docker[@]}" start "$NAME" >/dev/null
 else
-  # An earlier omaseek's Docker container, say, still holding the port: a
-  # second SearXNG could not bind it. Only when the engine was a guess.
-  if [[ $ENGINE_DECIDED == false ]] && (exec 3<>"/dev/tcp/127.0.0.1/$PORT") 2>/dev/null; then
-    die "something already listens on 127.0.0.1:$PORT — likely SearXNG in Docker from an
-       earlier omaseek. Move it to rootless Podman: $0 --use podman
-       or keep Docker:                          $0 --use docker"
+  # Whatever holds the port — the user's own SearXNG, or the `searxng`
+  # container an earlier omaseek made — is not ours to stop, so say so.
+  if port_taken; then
+    die "something already listens on 127.0.0.1:$PORT, and omaseek leaves what it did not
+       create alone. If it is SearXNG from an earlier omaseek (a container named
+       'searxng'), remove it yourself, then run this again:
+         podman rm -f searxng        or        sudo docker rm -f searxng"
   fi
   say "creating the $NAME container from $TAG with $ENGINE (first run pulls ~200MB)"
+  had=false
+  have_image "$IMAGE" && had=true
   run_container "$IMAGE"
+  note_pulled "$IMAGE" "$had"
 fi
 
 # Bound to 127.0.0.1 above, so the instance is not reachable from the network.

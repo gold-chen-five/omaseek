@@ -35,7 +35,7 @@ class OnRemoveTests(unittest.TestCase):
         self.fake_bin = base / "fakes"
         self.fake_bin.mkdir()
         log = self.log
-        self.fake("docker", f'echo "docker $*" >> {log}; [[ $1 != ps ]] || echo searxng')
+        self.fake("docker", f'echo "docker $*" >> {log}; [[ $1 != ps ]] || echo omaseek-searxng')
         # This machine's own Podman and daemons stay out of it.
         self.fake("podman", "exit 1")
         self.fake("systemctl", "exit 0")
@@ -55,6 +55,11 @@ class OnRemoveTests(unittest.TestCase):
                         XDG_DATA_HOME=str(base / "data"), XDG_STATE_HOME=str(base / "state"),
                         OMARCHY_PATH=str(base / "no-omarchy"),
                         PATH=f"{self.fake_bin}:{os.environ['PATH']}", GUM_ANSWER="n")
+        # What omaseek made: SearXNG under Docker, from an image it pulled.
+        state = base / "state" / "omaseek"
+        state.mkdir(parents=True)
+        (state / "searxng-engine").write_text("docker\n")
+        (state / "searxng-pulled").write_text("docker searxng/searxng@sha256:38ed750807fb00c26047e51896b50f83e7843d120d9e65f950770305f62c7111\n")
 
     def fake(self, name, body):
         path = self.fake_bin / name
@@ -131,7 +136,7 @@ class OnRemoveTests(unittest.TestCase):
         self.env["GUM_ANSWER"] = "y"
         self.stage_and_remove()
         self.run_script(self.stage / "on-remove", "--ask")
-        self.assertIn("docker rm -f searxng", self.calls())
+        self.assertIn("docker rm -f omaseek-searxng", self.calls())
         self.assertIn("docker image rm searxng/searxng@sha256:38ed750807fb00c26047e51896b50f83e7843d120d9e65f950770305f62c7111", self.calls())
         self.assertFalse(self.stage.exists())
 
@@ -140,6 +145,7 @@ class OnRemoveTests(unittest.TestCase):
         done = self.run_script(self.stage / "on-remove", "--ask")
         self.assertNotIn("docker rm", self.calls())
         self.assertIn("kept", done.stdout)
+        self.assertIn("docker rm -f omaseek-searxng && docker image rm searxng/searxng@sha256:38ed", done.stdout)
 
     def add_keybind(self):
         subprocess.run(["bash", str(self.plugin / "bin" / "keybind"), "--add", "--yes"],

@@ -39,10 +39,15 @@ class UninstallTests(unittest.TestCase):
         log = self.log
         self.fake("omarchy", f'echo "omarchy $*" >> {log}')
         self.fake("hyprctl", f'echo "hyprctl $*" >> {log}')
-        self.fake("docker", f'echo "docker $*" >> {log}; [[ $1 != ps ]] || echo searxng')
+        self.fake("docker", f'echo "docker $*" >> {log}; [[ $1 != ps ]] || echo omaseek-searxng')
         # This machine's own Podman and daemons stay out of it.
         self.fake("podman", "exit 1")
         self.fake("systemctl", "exit 0")
+        # What omaseek made: SearXNG under Docker, from an image it pulled.
+        state = self.config / "state" / "omaseek"
+        state.mkdir(parents=True)
+        (state / "searxng-engine").write_text("docker\n")
+        (state / "searxng-pulled").write_text("docker searxng/searxng@sha256:38ed750807fb00c26047e51896b50f83e7843d120d9e65f950770305f62c7111\n")
         # Answers each question from $GUM_ANSWERS in turn: y or n.
         self.fake("gum", textwrap.dedent(f"""\
             echo "gum $*" >> {log}
@@ -72,7 +77,7 @@ class UninstallTests(unittest.TestCase):
         done = self.run_uninstall(answers="yy", tty=True)
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
         self.assertIn("gum confirm Also remove the SearXNG", self.calls())
-        self.assertIn("docker rm -f searxng", self.calls())
+        self.assertIn("docker rm -f omaseek-searxng", self.calls())
         self.assertIn("docker image rm searxng/searxng@sha256:38ed750807fb00c26047e51896b50f83e7843d120d9e65f950770305f62c7111", self.calls())
         self.assertIn("omarchy plugin remove omaseek --yes", self.calls())
         self.assertNotIn(BIND_LINE, self.bindings.read_text())
@@ -84,6 +89,8 @@ class UninstallTests(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
         self.assertNotIn("docker rm", self.calls())
         self.assertIn("SearXNG left in place", done.stdout)
+        self.assertIn("docker rm -f omaseek-searxng && docker image rm searxng/searxng@sha256:38ed", done.stdout,
+                      "the hint names only what omaseek made")
         self.assertIn("omarchy plugin remove omaseek --yes", self.calls())
 
     def test_declining_the_plugin_removes_nothing_and_asks_nothing_more(self):

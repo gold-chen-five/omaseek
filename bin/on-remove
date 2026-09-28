@@ -70,12 +70,12 @@ case "${1:-}" in
       echo
     fi
     if "$STAGE/searxng-up" --present; then
-      echo "Its SearXNG Docker container is still there."
+      echo "omaseek's SearXNG container is still there."
       if gum confirm "Remove the SearXNG container and image too? (~/.config/searxng is kept)"; then
         bash "$STAGE/searxng-up" --purge
       else
-        engine=$(bash "$STAGE/searxng-up" --engine)
-        echo "  kept — to remove it later: $engine rm -f searxng && $engine image rm \$($engine image ls -aq searxng/searxng)"
+        echo "  kept — to remove it later:"
+        bash "$STAGE/searxng-up" --hint | sed 's/^/    /'
       fi
     fi
     rm -rf "$STAGE"

@@ -212,10 +212,22 @@ then Podman when installed. Podman runs rootless with
 so its entrypoint has nothing to chown and `~/.config/searxng` stays yours.
 Podman gets the fully qualified `docker.io/searxng/searxng` (a short name can
 stop to ask for a registry) and `--restart always`, the one policy
-`podman-restart.service` restarts at login. When the engine is only a guess and
-something already holds the port — an earlier omaseek's Docker container — it
-refuses rather than start a second SearXNG, and names `--use podman|docker`,
-which empties the other engine and records the choice. `--purge` empties both.
+`podman-restart.service` restarts at login. `--use podman|docker` removes
+omaseek's container and pulled images from the other engine and records the
+choice. `--purge` empties both.
+
+**Only what omaseek made is touched** (a marketplace review found the generic
+name `searxng` could stop or delete a user's own SearXNG). The container is
+`omaseek-searxng` with the label `omaseek=searxng`, and every lookup filters on
+both; rm, stop, start and inspect run only after one matched. Images are
+removed only if `~/.local/state/omaseek/searxng-pulled` lists them, and a line
+is written only when the image was absent before omaseek pulled it — never the
+`:latest` tag, never an image the user already had. Docker is looked in only
+when omaseek used it (the engine file, or a pulled line), so a Podman user is
+never asked for sudo. Whatever holds port 8888 when there is no omaseek
+container is left alone: setup stops and names the `rm -f searxng` an older
+omaseek's container needs, for the user to run. `--hint` prints the removal
+commands for exactly these, for bin/uninstall and bin/on-remove.
 Tests put fake `podman` and `systemctl` first on PATH and their own
 `XDG_STATE_HOME`: this machine's containers and state are never touched.
 

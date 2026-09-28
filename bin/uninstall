@@ -14,7 +14,6 @@ set -euo pipefail
 
 REPO=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 PLUGIN_ID=omaseek
-SEARXNG_NAME=searxng
 # bin/on-remove reads this: the question was put here, so it is not put twice.
 DECIDED="${XDG_RUNTIME_DIR:-}/omaseek-removal/searxng-decided"
 
@@ -56,7 +55,7 @@ fi
 if [[ $searxng == ask ]]; then
   if ! searxng_present; then
     searxng=keep
-  elif interactive && confirm "Also remove the SearXNG Docker container and image? (~/.config/searxng is kept)"; then
+  elif interactive && confirm "Also remove the SearXNG container and image omaseek made? (~/.config/searxng is kept)"; then
     searxng=remove
   else
     searxng=keep
@@ -67,9 +66,8 @@ fi
 if [[ $searxng == remove ]]; then
   "$REPO/bin/searxng-up" --purge
 elif searxng_present; then
-  engine=$("$REPO/bin/searxng-up" --engine)
   say "SearXNG left in place — to remove it later:"
-  say "    $engine rm -f $SEARXNG_NAME && $engine image rm \$($engine image ls -aq searxng/searxng)"
+  while IFS= read -r line; do say "    $line"; done < <("$REPO/bin/searxng-up" --hint)
 fi
 
 # Only the exact line bin/keybind adds; a binding written by hand stays.
