@@ -1,6 +1,7 @@
-# AGENT.md
+# Developing omaseek
 
-This file provides guidance to coding agents when working with code in this repository.
+How the code is laid out, how to run and test it, and why things are the way
+they are — for whoever changes it next.
 
 ## What this is
 
@@ -657,8 +658,14 @@ layer-shell and open/close/dismiss/toggle contract mirrors
     into that directory with a real `.git`; `omarchy plugin update` and
     `remove` both depend on it (update skips a plugin without a `.git`
     directory). `omarchy plugin validate` must pass on a clean clone: it
-    refuses any symlink in the folder, which is why `CLAUDE.md` is a one-line
-    `@AGENT.md` import rather than a link.
+    refuses any symlink in the folder.
+  - **No coding-agent instruction files in the repository.** An installed
+    plugin is a clone under `~/.config`, where a user's own coding agent may
+    pick up `CLAUDE.md`, `AGENTS.md`, `AGENT.md` or the like without the user
+    having asked for it (the marketplace review flagged a root `CLAUDE.md`).
+    This guide lives in `docs/` under a name no agent loads by itself; they are
+    in `.gitignore`, so a developer can keep an untracked one-line
+    `@docs/DEVELOPING.md` import in their own checkout.
   - **This dev checkout's `.git` is a pointer** to `~/.local/share/omaseek.git`
     (`git init --separate-git-dir`), from when Omarchy's watcher excluded
     nothing and every `git status` reloaded the panel ("k stops working after a

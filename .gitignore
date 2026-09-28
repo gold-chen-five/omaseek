@@ -4,3 +4,11 @@ __pycache__/
 
 # Claude Code worktrees — other sessions' in-flight work
 .claude/
+
+# Coding-agent instruction files stay local: an installed plugin must not hand
+# its instructions to a user's agent. See docs/DEVELOPING.md.
+CLAUDE.md
+AGENTS.md
+AGENT.md
+GEMINI.md
+CRUSH.md
