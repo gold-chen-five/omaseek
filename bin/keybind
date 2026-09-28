@@ -138,7 +138,7 @@ reload () { hyprctl reload >/dev/null 2>&1 && say "reloaded hyprland" || say "ru
 confirm () { (( $1 )) || gum confirm "$2"; }
 
 add () {
-  local yes=$1 want=$2 line bound ours holder
+  local yes=$1 want=$2 line bound ours holder backup
   line=$(line_for "$want")
   if [[ ! -f $BINDINGS ]]; then
     say "no $BINDINGS — add this line to your Hyprland bindings yourself:"
@@ -173,12 +173,12 @@ add () {
       say "left as it was"
       return 0
     fi
-    cp --remove-destination "$BINDINGS" "$BINDINGS.omaseek-backup" || return 1
+    backup_bindings || return 1
     awk -v mark="$MARK" -v id="toggle $PLUGIN_ID" -v line="$line" '
       after && index($0, id) { print line; after = 0; next }
       { print; after = ($0 == mark) }
-    ' "$BINDINGS.omaseek-backup" >"$BINDINGS" || return 1
-    say "omaseek now opens with $want (backup: $BINDINGS.omaseek-backup)"
+    ' "$backup" >"$BINDINGS" || return 1
+    say "omaseek now opens with $want (backup: $backup)"
     reload
     return 0
   fi
@@ -187,28 +187,40 @@ add () {
     say "left as it was"
     return 0
   fi
-  cp --remove-destination "$BINDINGS" "$BINDINGS.omaseek-backup" || return 1
+  backup_bindings || return 1
   printf '\n%s\n%s\n' "$MARK" "$line" >>"$BINDINGS" || return 1
-  say "bound $want (backup: $BINDINGS.omaseek-backup)"
+  say "bound $want (backup: $backup)"
   reload
+}
+
+# A new backup every time, under a name mktemp creates exclusively, so no
+# earlier backup — nor anything else the user keeps beside the file — is ever
+# overwritten. Its path is left in $backup, for the caller to name.
+backup_bindings () {
+  backup=$(mktemp -- "$BINDINGS.omaseek-backup.XXXXXX") || return 1
+  if ! cat -- "$BINDINGS" >"$backup"; then
+    rm -f -- "$backup"
+    return 1
+  fi
+  chmod --reference="$BINDINGS" -- "$backup" 2>/dev/null || true
 }
 
 present () { [[ -n $(our_line) ]]; }
 
 # Only the line --add writes, and its marker; a binding written by hand stays.
 remove () {
-  local ours
+  local ours backup
   ours=$(our_line)
   [[ -n $ours ]] || return 0
-  cp --remove-destination "$BINDINGS" "$BINDINGS.omaseek-backup" || return 1
+  backup_bindings || return 1
   # The blank line --add puts before the marker goes with it.
   awk -v line="$ours" -v mark="$MARK" '
     held { if ($0 != mark) print ""; held = 0 }
     $0 == "" { held = 1; next }
     $0 != line && $0 != mark { print }
     END { if (held) print "" }
-  ' "$BINDINGS.omaseek-backup" >"$BINDINGS" || return 1
-  say "removed the $(printf '%s\n' "$ours" | key_of) keybind (backup: $BINDINGS.omaseek-backup)"
+  ' "$backup" >"$BINDINGS" || return 1
+  say "removed the $(printf '%s\n' "$ours" | key_of) keybind (backup: $backup)"
   reload
 }
 

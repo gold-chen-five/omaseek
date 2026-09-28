@@ -243,8 +243,10 @@ The page cache (`session.py`) writes a temporary file and `os.replace`s it, and
 caches nothing in a linked directory. `JsonFile` refuses a linked directory or
 file for the data files (sessions, queries, first run); `config.json` and
 Hyprland's `bindings.lua` are the user's own configuration and are written
-through a link on purpose, as dotfiles setups expect — their backups use
-`cp --remove-destination`. The uninstall mark and the removal stage in
+through a link on purpose, as dotfiles setups expect. Their backups are new
+files every time, `mktemp`'s exclusive `bindings.lua.omaseek-backup.XXXXXX`
+(and `….omaseek-menu-backup.XXXXXX`): an earlier backup, even one the user
+edited, is never overwritten (marketplace review). The uninstall mark and the removal stage in
 `$XDG_RUNTIME_DIR` are created afresh the same way.
 
 **The image is named by digest, never by a tag.** `bin/searxng-up` pins

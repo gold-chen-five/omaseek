@@ -54,19 +54,33 @@ class KeybindTests(unittest.TestCase):
         self.assertIn(LINE, done.stdout, "the line is shown before the question")
         self.assertIn("gum confirm", self.log.read_text())
         self.assertTrue(self.bindings.read_text().endswith(f"\n-- omaseek\n{LINE}\n"))
-        self.assertEqual(pathlib.Path(f"{self.bindings}.omaseek-backup").read_text(), MINE)
+        self.assertEqual([b.read_text() for b in self.backups()], [MINE])
+        self.assertIn(str(self.backups()[0]), done.stdout, "the backup's own name is shown")
         self.assertIn("hyprctl reload", self.log.read_text())
         self.assertEqual(self.status()["state"], "bound")
 
-    def test_a_symlink_at_the_backup_name_is_replaced_not_written_through(self):
+    def backups(self):
+        return sorted(self.bindings.parent.glob(f"{self.bindings.name}.omaseek-backup.*"),
+                      key=lambda path: path.stat().st_mtime_ns)
+
+    def test_every_change_gets_its_own_backup_and_none_is_overwritten(self):
+        # An older omaseek's fixed-name backup, since edited by the user, and a
+        # link at that name: both stay exactly as they are.
+        older = pathlib.Path(f"{self.bindings}.omaseek-backup")
+        older.write_text("the user's edited backup\n")
         victim = self.bindings.parent / "victim.txt"
         victim.write_text("do not touch\n")
-        backup = pathlib.Path(f"{self.bindings}.omaseek-backup")
-        backup.symlink_to(victim)
+        pathlib.Path(f"{self.bindings}.omaseek-backup.link").symlink_to(victim)
+
         self.run_keybind("--add")
+        added = self.bindings.read_text()
+        self.run_keybind("--remove")
+
+        self.assertEqual(older.read_text(), "the user's edited backup\n")
         self.assertEqual(victim.read_text(), "do not touch\n")
-        self.assertFalse(backup.is_symlink())
-        self.assertEqual(backup.read_text(), MINE)
+        backups = [b for b in self.backups() if not b.is_symlink()]
+        self.assertEqual([b.read_text() for b in backups], [MINE, added], "one per change, oldest first")
+        self.assertEqual(len({b.name for b in backups}), 2)
 
     def test_no_leaves_the_file_as_it_was(self):
         self.env["GUM_ANSWER"] = "n"

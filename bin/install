@@ -100,8 +100,10 @@ fi
 # Remove only the exact row written by the old installer, not a user-authored
 # entry that happens to use the same id.
 if [[ -f $MENU_EXT ]] && grep -qxF "$LEGACY_MENU_LINE" "$MENU_EXT"; then
-  menu_backup="$MENU_EXT.omaseek-menu-backup"
-  cp --remove-destination "$MENU_EXT" "$menu_backup"
+  # A new, exclusively created backup: an earlier one is never overwritten.
+  menu_backup=$(mktemp -- "$MENU_EXT.omaseek-menu-backup.XXXXXX")
+  cat -- "$MENU_EXT" >"$menu_backup"
+  chmod --reference="$MENU_EXT" -- "$menu_backup" 2>/dev/null || true
   awk -v line="$LEGACY_MENU_LINE" '$0 != line' "$menu_backup" >"$MENU_EXT"
   say "removed the old Omarchy menu entry (backup: $menu_backup)"
 fi

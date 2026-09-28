@@ -64,6 +64,26 @@ class InstallTests(unittest.TestCase):
     def calls(self):
         return self.log.read_text()
 
+    def test_the_old_menu_entry_goes_with_a_new_backup_and_an_earlier_one_kept(self):
+        # The exact row the old installer wrote, read from the installer itself.
+        legacy = subprocess.run(["bash", "-c", 'source <(grep ^PLUGIN_ID= "$1"; grep ^LEGACY_MENU_LINE= "$1"); '
+                                 'printf %s "$LEGACY_MENU_LINE"', "x", str(ROOT / "bin" / "install")],
+                                capture_output=True, text=True, check=True).stdout
+        menu = self.config / "omarchy" / "extensions" / "omarchy-menu.jsonc"
+        menu.parent.mkdir(parents=True)
+        original = "{\n" + legacy + "\n  \"mine\": {}\n}\n"
+        menu.write_text(original)
+        earlier = pathlib.Path(f"{menu}.omaseek-menu-backup")
+        earlier.write_text("an earlier backup\n")
+
+        self.install()
+
+        self.assertNotIn(legacy, menu.read_text())
+        self.assertIn('"mine"', menu.read_text())
+        self.assertEqual(earlier.read_text(), "an earlier backup\n")
+        fresh = list(menu.parent.glob("omarchy-menu.jsonc.omaseek-menu-backup.*"))
+        self.assertEqual([b.read_text() for b in fresh], [original])
+
     def test_a_clone_in_place_keeps_its_git_directory_for_omarchy_plugin_update(self):
         self.install()
         self.assertTrue((self.plugin / ".git").is_dir(), "omarchy plugin update needs a .git directory")

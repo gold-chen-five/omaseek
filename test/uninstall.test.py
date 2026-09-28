@@ -103,7 +103,8 @@ class UninstallTests(unittest.TestCase):
     def test_without_docker_there_is_nothing_to_ask(self):
         (self.fake_bin / "docker").unlink()
         # Only the tools the script needs, so a real docker cannot be found.
-        for tool in ("bash", "env", "awk", "grep", "cp", "cut", "dirname", "mkdir", "touch", "rm", "script", "sed", "head", "find"):
+        for tool in ("bash", "env", "awk", "grep", "cp", "cut", "dirname", "mkdir", "touch", "rm", "script", "sed", "head", "find",
+                     "cat", "mktemp", "chmod"):
             (self.fake_bin / tool).symlink_to(shutil.which(tool))
         done = self.run_uninstall(answers="y", tty=True, path=str(self.fake_bin))
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
