@@ -8,6 +8,7 @@ import io
 import json
 import os
 import pathlib
+import shutil
 import socket
 import subprocess
 import sys
@@ -106,6 +107,26 @@ class SearchBackendTests(unittest.TestCase):
         done = subprocess.run([str(SCRIPT), *args], capture_output=True, text=True, env=env, timeout=30)
         self.assertEqual(done.returncode, 0, done.stderr)
         return json.loads(done.stdout)
+
+    def test_the_page_cache_never_writes_through_a_symlink(self):
+        self.run_search("rust")
+        cache = self.base / "cache" / "omaseek"
+        saved = next(p for p in cache.iterdir() if p.is_file() and not p.name.startswith("."))
+        victim = self.base / "victim.json"
+        victim.write_text("do not touch")
+        saved.unlink()
+        saved.symlink_to(victim)
+        self.run_search("rust")
+        self.assertEqual(victim.read_text(), "do not touch")
+        self.assertFalse(saved.is_symlink(), "the link is replaced by the new page")
+
+        elsewhere = self.base / "elsewhere"
+        elsewhere.mkdir()
+        shutil.rmtree(cache)
+        cache.symlink_to(elsewhere)
+        self.assertTrue(self.run_search("python")["ok"], "searching still works")
+        pages = [p for p in elsewhere.iterdir() if p.is_file()]
+        self.assertEqual(pages, [], "no page is cached in a linked directory")
 
     def test_rows_name_the_engines_that_found_them(self):
         page = self.run_search("rust")

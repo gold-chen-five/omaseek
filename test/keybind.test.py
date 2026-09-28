@@ -58,6 +58,16 @@ class KeybindTests(unittest.TestCase):
         self.assertIn("hyprctl reload", self.log.read_text())
         self.assertEqual(self.status()["state"], "bound")
 
+    def test_a_symlink_at_the_backup_name_is_replaced_not_written_through(self):
+        victim = self.bindings.parent / "victim.txt"
+        victim.write_text("do not touch\n")
+        backup = pathlib.Path(f"{self.bindings}.omaseek-backup")
+        backup.symlink_to(victim)
+        self.run_keybind("--add")
+        self.assertEqual(victim.read_text(), "do not touch\n")
+        self.assertFalse(backup.is_symlink())
+        self.assertEqual(backup.read_text(), MINE)
+
     def test_no_leaves_the_file_as_it_was(self):
         self.env["GUM_ANSWER"] = "n"
         self.run_keybind("--add")

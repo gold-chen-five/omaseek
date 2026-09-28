@@ -5,6 +5,7 @@ budget; a page that fails keeps its continuation for a retry."""
 import hashlib
 import json
 import os
+import tempfile
 
 from .client import fetch
 from .config import CACHE_DIR, CURRENT, MAX_FETCHES_PER_PAGE, SearchError, emit, fail
@@ -19,6 +20,8 @@ def session_path(query):
 
 
 def load_session(query):
+    if os.path.islink(CACHE_DIR) or os.path.islink(session_path(query)):
+        return None
     try:
         with open(session_path(query), encoding="utf-8") as handle:
             session = json.load(handle)
@@ -28,10 +31,20 @@ def load_session(query):
 
 
 def save_session(session):
+    """Written as a new file renamed into place, and not at all in a linked
+    cache directory: a symlink is replaced, never written through."""
+    if os.path.islink(CACHE_DIR):
+        return
     try:
         os.makedirs(CACHE_DIR, exist_ok=True)
-        with open(session_path(session["query"]), "w", encoding="utf-8") as handle:
-            json.dump(session, handle)
+        fd, tmp = tempfile.mkstemp(dir=CACHE_DIR, prefix=".session.")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                json.dump(session, handle)
+            os.replace(tmp, session_path(session["query"]))
+        except BaseException:
+            os.unlink(tmp)
+            raise
     except OSError:
         pass  # paging will just refetch
 

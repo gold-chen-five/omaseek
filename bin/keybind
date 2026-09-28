@@ -173,7 +173,7 @@ add () {
       say "left as it was"
       return 0
     fi
-    cp "$BINDINGS" "$BINDINGS.omaseek-backup" || return 1
+    cp --remove-destination "$BINDINGS" "$BINDINGS.omaseek-backup" || return 1
     awk -v mark="$MARK" -v id="toggle $PLUGIN_ID" -v line="$line" '
       after && index($0, id) { print line; after = 0; next }
       { print; after = ($0 == mark) }
@@ -187,7 +187,7 @@ add () {
     say "left as it was"
     return 0
   fi
-  cp "$BINDINGS" "$BINDINGS.omaseek-backup" || return 1
+  cp --remove-destination "$BINDINGS" "$BINDINGS.omaseek-backup" || return 1
   printf '\n%s\n%s\n' "$MARK" "$line" >>"$BINDINGS" || return 1
   say "bound $want (backup: $BINDINGS.omaseek-backup)"
   reload
@@ -200,7 +200,7 @@ remove () {
   local ours
   ours=$(our_line)
   [[ -n $ours ]] || return 0
-  cp "$BINDINGS" "$BINDINGS.omaseek-backup" || return 1
+  cp --remove-destination "$BINDINGS" "$BINDINGS.omaseek-backup" || return 1
   # The blank line --add puts before the marker goes with it.
   awk -v line="$ours" -v mark="$MARK" '
     held { if ($0 != mark) print ""; held = 0 }

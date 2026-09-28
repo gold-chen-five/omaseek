@@ -74,8 +74,11 @@ fi
 "$REPO/bin/keybind" --remove
 
 # Omarchy disables it, takes it off the bar, and deletes the clone.
-if [[ -n ${XDG_RUNTIME_DIR:-} ]]; then
-  mkdir -p "$(dirname -- "$DECIDED")"
-  touch "$DECIDED"
+# Created afresh and exclusively (noclobber): a symlink left at that name is
+# removed, never followed.
+if [[ -n ${XDG_RUNTIME_DIR:-} && ! -L $(dirname -- "$DECIDED") ]]; then
+  mkdir -p -m 700 "$(dirname -- "$DECIDED")"
+  rm -f "$DECIDED"
+  (set -C; : > "$DECIDED") 2>/dev/null || true
 fi
 omarchy plugin remove "$PLUGIN_ID" --yes || { rm -f "$DECIDED"; exit 1; }

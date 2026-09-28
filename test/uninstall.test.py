@@ -120,6 +120,15 @@ class UninstallTests(unittest.TestCase):
         self.run_uninstall("--yes", "--keep-searxng")
         self.assertTrue((self.runtime / "omaseek-removal" / "searxng-decided").exists())
 
+    def test_the_decided_mark_does_not_follow_a_symlink(self):
+        stage = self.runtime / "omaseek-removal"
+        stage.mkdir(parents=True)
+        victim = self.runtime / "victim.txt"
+        (stage / "searxng-decided").symlink_to(victim)
+        self.run_uninstall("--yes", "--keep-searxng")
+        self.assertFalse(victim.exists(), "a dangling link is not followed to create its target")
+        self.assertFalse((stage / "searxng-decided").is_symlink())
+
     def test_refuses_to_guess_without_a_terminal(self):
         done = self.run_uninstall()
         self.assertNotEqual(done.returncode, 0)

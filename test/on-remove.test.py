@@ -72,6 +72,13 @@ class OnRemoveTests(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
         return done
 
+    def test_a_linked_stage_directory_is_not_used(self):
+        elsewhere = self.runtime / "elsewhere"
+        elsewhere.mkdir()
+        self.stage.symlink_to(elsewhere)
+        self.run_script(self.plugin / "bin" / "on-remove", "--stage")
+        self.assertEqual(list(elsewhere.iterdir()), [])
+
     def stage_and_remove(self):
         self.run_script(self.plugin / "bin" / "on-remove", "--stage")
         shutil.rmtree(self.plugin)              # what omarchy plugin remove does next

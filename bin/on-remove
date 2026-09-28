@@ -29,8 +29,11 @@ HERE=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
 case "${1:-}" in
   --stage)
-    mkdir -p "$STAGE"
-    cp -f "$HERE/on-remove" "$HERE/searxng-up" "$HERE/keybind" "$STAGE/"
+    # Copies replace what stands at their names, a symlink included, rather
+    # than write through it; a linked stage directory is not used at all.
+    [[ ! -L $STAGE ]] || exit 0
+    mkdir -p -m 700 "$STAGE"
+    cp --remove-destination "$HERE/on-remove" "$HERE/searxng-up" "$HERE/keybind" "$STAGE/"
     ;;
 
   --watch)

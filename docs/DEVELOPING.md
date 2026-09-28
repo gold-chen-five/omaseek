@@ -231,6 +231,22 @@ commands for exactly these, for bin/uninstall and bin/on-remove.
 Tests put fake `podman` and `systemctl` first on PATH and their own
 `XDG_STATE_HOME`: this machine's containers and state are never touched.
 
+**No write follows a symlink into somewhere else** (marketplace review: a
+planted link could redirect a state write into an unrelated file).
+`bin/searxng-up` keeps its state in `~/.local/state/omaseek` (mode 700) and
+refuses to run a writing mode when that directory or `searxng-image`,
+`searxng-engine` or `searxng-pulled` is a symlink; every write is a `mktemp`
+file renamed over the name, which replaces a link rather than writing through
+it, and a linked record is ignored when only read (`--hint`, `--present`).
+`settings.yml` is created with noclobber and never through a dangling link.
+The page cache (`session.py`) writes a temporary file and `os.replace`s it, and
+caches nothing in a linked directory. `JsonFile` refuses a linked directory or
+file for the data files (sessions, queries, first run); `config.json` and
+Hyprland's `bindings.lua` are the user's own configuration and are written
+through a link on purpose, as dotfiles setups expect — their backups use
+`cp --remove-destination`. The uninstall mark and the removal stage in
+`$XDG_RUNTIME_DIR` are created afresh the same way.
+
 **The image is named by digest, never by a tag.** `bin/searxng-up` pins
 `PINNED_TAG`/`PINNED_DIGEST` — the marketplace review flagged running the
 mutable `latest` tag, through sudo docker at that. SearXNG has no stable

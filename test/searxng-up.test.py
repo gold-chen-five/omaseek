@@ -714,5 +714,84 @@ class SearxngUpdateTests(unittest.TestCase):
         self.assertEqual(self.run_mode("--present").returncode, 0)
 
 
+    def plant_link(self, name):
+        """A symlink where omaseek keeps state, pointing at an unrelated file."""
+        victim = self.base / "victim.txt"
+        victim.write_text("do not touch\n", encoding="utf-8")
+        link = self.base / "state-home" / "omaseek" / name
+        link.parent.mkdir(parents=True, exist_ok=True)
+        link.symlink_to(victim)
+        return victim
+
+    def test_a_symlinked_state_file_is_refused_and_its_target_untouched(self):
+        for name in ("searxng-engine", "searxng-pulled", "searxng-image"):
+            with self.subTest(name=name):
+                self.setUp()
+                (self.state / "remote_image").write_text("sha256:pinned\n", encoding="utf-8")
+                victim = self.plant_link(name)
+
+                result = self.run_mode("start")
+
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("it is a symlink", result.stderr)
+                self.assertEqual(victim.read_text(), "do not touch\n")
+                self.assertNotIn("run", [c.split()[0] for c in self.commands()], "refused before anything ran")
+
+    def test_a_symlinked_state_directory_is_refused(self):
+        elsewhere = self.base / "elsewhere"
+        elsewhere.mkdir()
+        (self.base / "state-home").mkdir()
+        (self.base / "state-home" / "omaseek").symlink_to(elsewhere)
+
+        result = self.run_mode("start")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("it is a symlink", result.stderr)
+        self.assertEqual(list(elsewhere.iterdir()), [])
+
+    def test_an_update_refuses_a_symlinked_choice(self):
+        self.arrange_container("sha256:old", "sha256:new", ref=PINNED)
+        victim = self.plant_link("searxng-image")
+
+        result = self.run_update()
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(victim.read_text(), "do not touch\n")
+        self.assertEqual((self.state / "container_image").read_text().strip(), "sha256:old")
+
+    def test_reading_modes_ignore_a_symlinked_record(self):
+        victim = self.plant_link("searxng-pulled")
+        victim.write_text(f"docker {PINNED}\n", encoding="utf-8")
+
+        hint = self.run_mode("--hint")
+
+        self.assertEqual(hint.returncode, 0, hint.stderr)
+        self.assertEqual(hint.stdout, "", "a linked record is not believed")
+        self.assertIn("ignoring", hint.stderr)
+        self.assertEqual(victim.read_text(), f"docker {PINNED}\n")
+
+    def test_state_files_are_written_whole_and_private(self):
+        (self.state / "remote_image").write_text("sha256:pinned\n", encoding="utf-8")
+
+        self.assertEqual(self.run_mode("start").returncode, 0)
+
+        directory = self.base / "state-home" / "omaseek"
+        self.assertEqual(oct(directory.stat().st_mode & 0o777), "0o700")
+        self.assertEqual(sorted(p.name for p in directory.iterdir()), ["searxng-engine", "searxng-pulled"],
+                         "no temporary file is left behind")
+
+    def test_a_dangling_settings_symlink_is_not_written_through(self):
+        config = self.base / "config" / "searxng"
+        config.mkdir(parents=True)
+        target = self.base / "would-be-created.yml"
+        (config / "settings.yml").symlink_to(target)
+
+        result = self.run_mode("start")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("symlink to nothing", result.stderr)
+        self.assertFalse(target.exists())
+
+
 if __name__ == "__main__":
     unittest.main()

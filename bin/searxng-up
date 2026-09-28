@@ -52,6 +52,42 @@ say()  { printf '\033[1m==>\033[0m %s\n' "$*" || true; }
 warn() { printf '\033[33m warn:\033[0m %s\n' "$*" >&2 || true; }
 die()  { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 
+# omaseek's state lives in a directory of its own, and no write there follows a
+# symlink: the directory or a file in it being one is refused, and every file
+# is written as a new file beside it and renamed over it, which replaces a link
+# rather than writing through it. A link could point a write at anything.
+refuse_links() {
+  local path
+  for path in "$STATE_DIR" "$CHOSEN" "$ENGINE_FILE" "$PULLED"; do
+    [[ ! -L $path ]] || die "refusing to use $path: it is a symlink"
+  done
+}
+
+state_dir() {
+  refuse_links
+  mkdir -p -m 700 -- "$STATE_DIR"
+  [[ -d $STATE_DIR && -O $STATE_DIR ]] || die "refusing to use $STATE_DIR: not a directory of yours"
+  chmod 700 -- "$STATE_DIR"                  # one an older omaseek made may be 755
+}
+
+# Replaces file $1 with the text $2.
+state_write() {
+  local tmp
+  state_dir
+  tmp=$(mktemp -- "$STATE_DIR/.write.XXXXXX") || die "could not write $1"
+  if ! printf '%s' "$2" > "$tmp" || ! mv -fT -- "$tmp" "$1"; then
+    rm -f -- "$tmp"
+    die "could not write $1"
+  fi
+}
+
+# File $1's text; nothing when it is absent, or a symlink, which is not read.
+state_read() {
+  [[ ! -L $1 ]] || { warn "ignoring $1: it is a symlink"; return 0; }
+  [[ -f $1 ]] || return 0
+  cat -- "$1"
+}
+
 usage="usage: $0 [--stop|--down|--update|--purge|--present|--hint|--engine|--use podman|docker]"
 
 # "<dated tag> <digest>", as --update writes it and bin/search --newest-image prints it.
@@ -59,8 +95,8 @@ valid_choice() { [[ $1 =~ ^[0-9]{4}\.[0-9]{1,2}\.[0-9]{1,2}-[0-9a-f]{7,40}\ sha2
 
 TAG=$PINNED_TAG
 DIGEST=$PINNED_DIGEST
-if [[ -f $CHOSEN ]]; then
-  chosen=$(<"$CHOSEN")
+chosen=$(state_read "$CHOSEN")
+if [[ -n $chosen ]]; then
   if valid_choice "$chosen"; then
     read -r TAG DIGEST <<<"$chosen"
   else
@@ -70,8 +106,7 @@ fi
 
 # OMASEEK_ENGINE, then the engine the container was created with, then Podman
 # when it is installed.
-recorded=""
-[[ -f $ENGINE_FILE ]] && recorded=$(<"$ENGINE_FILE")
+recorded=$(state_read "$ENGINE_FILE")
 case "${OMASEEK_ENGINE:-}" in
   podman|docker) ENGINE=$OMASEEK_ENGINE ;;
   "")
@@ -91,8 +126,7 @@ repo_of() { [[ $1 == podman ]] && echo docker.io/searxng/searxng || echo searxng
 
 # The images omaseek pulled into engine $1.
 pulled_of() {
-  [[ -f $PULLED ]] || return 0
-  awk -v engine="$1" '$1 == engine { print $2 }' "$PULLED"
+  state_read "$PULLED" | awk -v engine="$1" '$1 == engine { print $2 }'
 }
 
 # Whether omaseek ever put anything in engine $1. Docker is asked only then, so
@@ -112,6 +146,13 @@ case "$MODE" in
     [[ $USE == podman || $USE == docker ]] || die "$usage"
     ;;
   *) die "$usage" ;;
+esac
+
+# Every mode past here may write state: a symlinked state path stops it before
+# anything is done, not halfway through.
+case "$MODE" in
+  --engine|--hint|--present) ;;
+  *) refuse_links ;;
 esac
 
 if [[ $MODE == --engine ]]; then
@@ -201,14 +242,20 @@ have_image() { "${docker[@]}" image inspect "$1" >/dev/null 2>&1; }
 # an image the user already had stays theirs.
 note_pulled() {
   [[ $2 == false ]] || return 0
-  mkdir -p "$STATE_DIR"
-  grep -qxF "$ENGINE $1" "$PULLED" 2>/dev/null || printf '%s %s\n' "$ENGINE" "$1" >> "$PULLED"
+  local pulled
+  pulled=$(state_read "$PULLED")
+  grep -qxF "$ENGINE $1" <<<"$pulled" || state_write "$PULLED" "${pulled:+$pulled
+}$ENGINE $1
+"
 }
 
 forget_pulled() {
-  [[ -f $PULLED ]] || return 0
-  awk -v line="$ENGINE $1" '$0 != line' "$PULLED" > "$PULLED.tmp"
-  mv -f "$PULLED.tmp" "$PULLED"
+  local pulled rest
+  pulled=$(state_read "$PULLED")
+  [[ -n $pulled ]] || return 0
+  rest=$(awk -v line="$ENGINE $1" '$0 != line' <<<"$pulled")
+  state_write "$PULLED" "${rest:+$rest
+}"
 }
 
 # omaseek's container, and the images omaseek pulled, from the engine in
@@ -246,8 +293,8 @@ if [[ -n $USE ]]; then
     say "removing SearXNG from $other"
     remove_all
   fi
-  mkdir -p "$STATE_DIR"
-  echo "$USE" > "$ENGINE_FILE"
+  state_write "$ENGINE_FILE" "$USE
+"
   ENGINE=$USE REPO=$(repo_of "$USE") IMAGE=$(repo_of "$USE")@$DIGEST
   say "omaseek now runs SearXNG with $USE"
   MODE=start
@@ -292,8 +339,8 @@ fi
 
 # Once a container exists, its engine is the one to come back to.
 created() {
-  mkdir -p "$STATE_DIR"
-  echo "$ENGINE" > "$ENGINE_FILE"
+  state_write "$ENGINE_FILE" "$ENGINE
+"
   [[ $ENGINE == podman ]] || return 0
   # Podman has no daemon to bring the container back after a reboot; this
   # user unit does, at login.
@@ -386,9 +433,8 @@ confirm() {
 # Remembered only once the new image runs, or is ready to: a failed switch
 # leaves start, purge and the next update on the image that was restored.
 remember_choice() {
-  mkdir -p "$(dirname -- "$CHOSEN")"
-  printf '%s %s\n' "$1" "$2" > "$CHOSEN.tmp"
-  mv -f "$CHOSEN.tmp" "$CHOSEN"
+  state_write "$CHOSEN" "$1 $2
+"
 }
 
 update_image() {
@@ -487,11 +533,17 @@ fi
 
 # SearXNG serves HTML only until told otherwise, and its limiter would block
 # the very plugin it is here to serve. Both are settled once, here.
-if [[ ! -f $SETTINGS ]]; then
+# A dangling symlink is not a missing file: writing it would create the file
+# it points at. And the write is exclusive (noclobber), so nothing that
+# appears there meanwhile is written through either.
+if [[ -L $SETTINGS && ! -e $SETTINGS ]]; then
+  die "refusing to write $SETTINGS: it is a symlink to nothing"
+fi
+if [[ ! -e $SETTINGS ]]; then
   say "writing $SETTINGS"
   mkdir -p "$CONFIG_DIR"
   secret=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
-  cat > "$SETTINGS" <<YAML
+  (set -C; cat > "$SETTINGS") <<YAML
 # Settings for the omaseek panel's SearXNG instance.
 # Minimal on purpose: anything not named here comes from SearXNG's defaults.
 use_default_settings: true

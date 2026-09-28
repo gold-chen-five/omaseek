@@ -101,7 +101,7 @@ fi
 # entry that happens to use the same id.
 if [[ -f $MENU_EXT ]] && grep -qxF "$LEGACY_MENU_LINE" "$MENU_EXT"; then
   menu_backup="$MENU_EXT.omaseek-menu-backup"
-  cp "$MENU_EXT" "$menu_backup"
+  cp --remove-destination "$MENU_EXT" "$menu_backup"
   awk -v line="$LEGACY_MENU_LINE" '$0 != line' "$menu_backup" >"$MENU_EXT"
   say "removed the old Omarchy menu entry (backup: $menu_backup)"
 fi

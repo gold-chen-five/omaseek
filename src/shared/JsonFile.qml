@@ -33,9 +33,15 @@ Item {
 
   function reload () { view.reload() }
 
+  // A data file is written only where no symlink stands, the directory or the
+  // file: a link could point the write at an unrelated file. config.json is
+  // the user's own settings and may be a dotfiles link on purpose, so it is
+  // written through like any config file.
   function write (text) {
     writer.pending = text
-    writer.command = ["mkdir", "-p", file.dir]
+    writer.command = file.base === "config"
+      ? ["mkdir", "-p", file.dir]
+      : ["sh", "-c", '[ ! -L "$1" ] && [ ! -L "$2" ] && mkdir -p -- "$1"', "omaseek", file.dir, file.path]
     writer.running = true
   }
 
@@ -65,9 +71,10 @@ Item {
 
     property string pending: ""
 
-    onExited: {
+    onExited: exitCode => {
       if (!writer.pending) return
-      view.setText(writer.pending)
+      if (exitCode === 0) view.setText(writer.pending)
+      else console.warn("omaseek: not writing " + file.path + ": it or its directory is a symlink")
       writer.pending = ""
     }
   }
