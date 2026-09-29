@@ -34,7 +34,21 @@ set -euo pipefail
 
 NAME=omaseek-searxng
 LABEL=omaseek=searxng
-PORT=8888
+# The host port comes from searxng_url in the panel's config.json — the same key
+# the backend reads — and 8888 when it is absent or unparsable. Another service
+# may already hold 8888 (a proxy, say), so the port is the reader's to move.
+CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/omaseek/config.json"
+PORT=$(python3 - "$CONFIG_FILE" <<'PY' 2>/dev/null || true
+import json, sys, urllib.parse
+try:
+    url = json.load(open(sys.argv[1])).get("searxng_url")
+except Exception:
+    url = None
+port = urllib.parse.urlparse(url).port if isinstance(url, str) else None
+print(port or "")
+PY
+)
+PORT=${PORT:-8888}
 PINNED_TAG=2026.9.25-d8ae3abd5
 PINNED_DIGEST=sha256:38ed750807fb00c26047e51896b50f83e7843d120d9e65f950770305f62c7111
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omaseek"
