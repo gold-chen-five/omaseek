@@ -16,12 +16,13 @@ https://github.com/user-attachments/assets/32309219-5fd9-43a7-801b-6d99b5b26ce2
 omarchy plugin add https://github.com/gold-chen-five/omaseek.git --enable
 ```
 
-Not in the Omarchy plugin marketplace yet, hence the repository URL. Plugins run
-unsandboxed inside `omarchy-shell`, so read the code before enabling it.
+Listed and verified in the [Omarchy plugin marketplace](https://plugins.omarchy.org/plugin.html?id=omaseek).
+Plugins run unsandboxed inside `omarchy-shell`, so read the code before
+enabling it.
 
 **Opening it.** Right after install the panel opens by itself on a welcome
-page that sets up the two things omaseek needs — SearXNG, and a key to open it
-(`SUPER + d`, or **Change key** for another) — each with a button that runs it
+page that offers two optional steps — SearXNG for web search, and a key to open
+it (`SUPER + d`, or **Change key** for another) — each with a button that runs it
 in a terminal you can watch; the panel comes back when you close that terminal.
 It keeps opening there, with the finished steps ticked, until you choose
 **Start searching**.
