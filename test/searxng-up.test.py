@@ -3,6 +3,7 @@
 import os
 import pathlib
 import subprocess
+import sys
 import tempfile
 import textwrap
 import unittest
@@ -126,18 +127,23 @@ class SearxngUpdateTests(unittest.TestCase):
         )
         self.write_executable(
             "python3",
-            r"""
+            f"""
             #!/usr/bin/env bash
             set -euo pipefail
-            state=${FAKE_DOCKER_STATE:?}
+            state=${{FAKE_DOCKER_STATE:?}}
+            # bin/searxng-up's config parse: the real interpreter, so the
+            # searxng_url -> port logic itself is what the test exercises.
+            if [[ ${{2:-}} == *config.json ]]; then
+              exec "{sys.executable}" "$@"
+            fi
             # bin/search --newest-image, which bin/searxng-up runs through this.
-            if [[ ${2:-} == --newest-image ]]; then
+            if [[ ${{2:-}} == --newest-image ]]; then
               [[ -f $state/newest ]] || exit 1
               cat "$state/newest"
               exit 0
             fi
             # searxng-up's port check: taken only when a test says so.
-            if [[ ${2:-} == port-check ]]; then
+            if [[ ${{2:-}} == port-check ]]; then
               [[ -f $state/port_taken ]]
               exit
             fi
@@ -555,6 +561,28 @@ class SearxngUpdateTests(unittest.TestCase):
         self.assertEqual(self.run_mode("start").returncode, 0)
 
         self.assertEqual(self.pulled().read_text(), f"docker {PINNED}\n")
+
+    def test_the_host_port_comes_from_a_hand_edited_searxng_url(self):
+        (self.state / "remote_image").write_text("sha256:pinned\n", encoding="utf-8")
+        config = self.base / "config" / "omaseek"
+        config.mkdir(parents=True)
+        (config / "config.json").write_text(
+            '{"searxng_url": "http://localhost:8899"}\n', encoding="utf-8")
+
+        result = self.run_mode("start")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        run = next(c for c in self.commands() if c.startswith("run -d"))
+        self.assertIn("-p 127.0.0.1:8899:8080", run)
+
+    def test_the_host_port_falls_back_to_8888_without_a_config(self):
+        (self.state / "remote_image").write_text("sha256:pinned\n", encoding="utf-8")
+
+        result = self.run_mode("start")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        run = next(c for c in self.commands() if c.startswith("run -d"))
+        self.assertIn("-p 127.0.0.1:8888:8080", run)
 
     def test_the_users_own_searxng_container_is_never_touched(self):
         (self.state / "user_container").touch()
