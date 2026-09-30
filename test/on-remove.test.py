@@ -51,6 +51,8 @@ class OnRemoveTests(unittest.TestCase):
         self.first_run = base / "data" / "omaseek" / "first-run.json"
         self.first_run.parent.mkdir(parents=True)
         self.first_run.write_text('{"version":1,"done":true}\n')
+        # Where an earlier omaseek kept the setup page's count; now it lives in
+        # the plugin's folder, and this is only cleaned up.
         self.hints = self.first_run.parent / "hints.json"
         self.hints.write_text('{"version":2,"setupPages":3,"browserHints":3}\n')
         self.env = dict(os.environ, XDG_RUNTIME_DIR=str(self.runtime), XDG_CONFIG_HOME=str(config),
@@ -104,12 +106,12 @@ class OnRemoveTests(unittest.TestCase):
         self.run_script(self.plugin / "bin" / "on-remove", "--stage")
         self.run_script(self.stage / "on-remove", "--watch")
         self.assertTrue(self.first_run.exists(), "a disable or reload keeps it")
-        self.assertTrue(self.hints.exists(), "and the setup page's count")
+        self.assertTrue(self.hints.exists(), "and an earlier version's count")
         self.fake("docker", f'echo "docker $*" >> {self.log}; [[ $1 == info ]]')
         shutil.rmtree(self.plugin)
         self.run_script(self.stage / "on-remove", "--watch")
         self.assertFalse(self.first_run.exists(), "a reinstall opens on the welcome page again")
-        self.assertFalse(self.hints.exists(), "and shows the setup page and the hint afresh")
+        self.assertFalse(self.hints.exists(), "and an earlier version's count is not left behind")
 
     def test_the_question_names_the_key_that_was_bound(self):
         self.env["GUM_ANSWER"] = "n"

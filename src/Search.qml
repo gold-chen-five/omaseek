@@ -312,12 +312,15 @@ Item {
 
   HistoryStore { id: queries }
 
-  // How many times Enter without SearXNG asked to set it up, and how many times
-  // a search sent to the browser was explained on the next open.
+  // How many times a search sent to the browser for want of SearXNG led to the
+  // setup page, and to the hint. Kept in the plugin's folder, so removing
+  // omaseek forgets them and a reinstall shows the page again; an update keeps
+  // them.
   JsonFile {
     id: hints
 
-    name: "omaseek/hints.json"
+    base: "plugin"
+    name: ".state/hints.json"
     onLoaded: text => {
       const counts = SearchLib.readHints(text)
       root.setupPages = counts.setupPages
