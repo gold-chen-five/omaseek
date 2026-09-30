@@ -1,0 +1,50 @@
+# Every push to main and every pull request: the plugin manifest against
+# Omarchy's own validator, then bin/test. It runs on Arch, as Omarchy does, so
+# the QML tests meet the Qt that users have. A pull request's code runs with a
+# read-only token and no secrets.
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container: archlinux:base
+    env:
+      # omarchy-plugin-validate from Omarchy v4.0.4, by commit and checksum, so
+      # a moved tag cannot change what runs here.
+      OMARCHY_COMMIT: c668141e9c42b13c80c9ca4ea108e11708c5e8a5
+      VALIDATE_SHA256: f7507e5042eb970e3dc918bdf6bf251c7557443892a77e71a17d7019ddde72c8
+    steps:
+      - name: Install what bin/test needs
+        run: pacman -Syu --noconfirm --needed curl git jq nodejs python qt6-declarative
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate the manifest
+        run: |
+          curl -fsSL -o /tmp/omarchy-plugin-validate \
+            "https://raw.githubusercontent.com/basecamp/omarchy/$OMARCHY_COMMIT/bin/omarchy-plugin-validate"
+          echo "$VALIDATE_SHA256  /tmp/omarchy-plugin-validate" | sha256sum -c -
+          bash /tmp/omarchy-plugin-validate "$GITHUB_WORKSPACE"
+
+      # Not as root: the tests check that unreadable and linked paths are
+      # refused, which root would read and write straight through.
+      - name: Run bin/test
+        run: |
+          useradd --create-home tester
+          chown -R tester "$GITHUB_WORKSPACE"
+          runuser -u tester -- env HOME=/home/tester bin/test
