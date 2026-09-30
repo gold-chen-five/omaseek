@@ -26,7 +26,8 @@ Item {
   property int tabs: 0
   property var translated: []
   property var handedOff: []                 // [text, everything] per ga / gA
-  property var barCommands: []               // [command, text] per gd / gj / gs
+  property var barCommands: []               // [command, text] per gd / gj / gs / gS / ctrl+enter
+  property int submits: 0
   property int cancels: 0
   property var opened: []
 
@@ -49,6 +50,8 @@ Item {
     function onAskNowRequested (text, whole) { barCommands = barCommands.concat([[whole ? "ask" : "askSelection", text]]) }
     function onAskAboutRequested (text) { barCommands = barCommands.concat([["askAbout", text]]) }
     function onSearchRequested (text) { barCommands = barCommands.concat([["search", text]]) }
+    function onBrowserSearchRequested (text) { barCommands = barCommands.concat([["browserSearch", text]]) }
+    function onSubmitted () { submits++ }
   }
 
 }

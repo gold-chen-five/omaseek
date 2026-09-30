@@ -28,6 +28,7 @@ Item {
     if (chord === field.chords.closeSession) return "closeSession"
     if (chord === field.chords.retryAnswer) return "retryAnswer"
     if (chord === field.chords.search) return "submit"
+    if (chord === field.chords.browserSearch) return "browserSearch"
     if (chord === field.chords.switchMode) return "toggleMode"
     if (chord === field.chords.switchAgent) return "switchAgent"
     if (chord === field.chords.translateBarAnywhere) return "translateBar"
@@ -49,6 +50,7 @@ Item {
     case "retryAnswer":   field.retryRequested(); break
     // Both leave the field for good; a half-typed escape sequence goes with it.
     case "submit":        field.insertKeys.clearEscapePending(); field.submitted(); break
+    case "browserSearch": field.insertKeys.clearEscapePending(); field.browserSearchRequested(field.text); break
     case "toggleMode":    field.insertKeys.clearEscapePending(); field.tabbed(); break
     case "switchAgent":   field.agentSwitchRequested(); break
     // ctrl+t: gT without leaving insert mode — the words just typed, translated.

@@ -203,3 +203,12 @@ test('suggestions come from duckduckgo unless another source, or off, is chosen'
   assert.equal(row.value, 'off')
   assert.match(row.hint, /nothing typed leaves this machine/)
 })
+
+test('the browser search engine reads, falls back to Google, and round-trips', () => {
+  assert.equal(readSettings('').browserSearch, 'google')
+  assert.equal(readSettings('{"browser_search":"duckduckgo"}').browserSearch, 'duckduckgo')
+  assert.equal(readSettings('{"browser_search":"altavista"}').browserSearch, 'google')
+  const written = writeSettings(changeSetting(readSettings(''), 'browserSearch', 'brave'), '')
+  assert.equal(JSON.parse(written).browser_search, 'brave')
+  assert.equal(readSettings(written).browserSearch, 'brave')
+})

@@ -81,7 +81,7 @@ test('L and H are the answer’s, rebindable, and the field walks the ring with 
   assert.equal(moved['g N'], 'nextSession', 'rebinding moves it')
   assert.equal(moved['L'], undefined, 'and frees the old key')
   const own = { translateBar: 'g T', previousAsked: 'U', translate: 'g t', handoff: 'g a', handoffAll: 'g A',
-    askNow: 'g d', askAbout: 'g j', searchFor: 'g s' }
+    askNow: 'g d', askAbout: 'g j', searchFor: 'g s', browserSearchFor: 'g S' }
   assert.deepEqual(normalChords({}), { ...own, nextChat: 'L', previousChat: 'H' })
   assert.deepEqual(normalChords({ nextChatKey: 'ctrl+l' }), { ...own, previousChat: 'H' },
     'a ctrl chord is the panel’s; the field takes a key, or g and one more')
@@ -380,4 +380,15 @@ test('the clipboard keys cannot be rebound, and New session keeps ctrl+c', () =>
   assert.match(bindingProblem('newSession', 'ctrl+v', DEFAULTS), /taken in the field: paste/)
   assert.match(bindingProblem('settings', 'ctrl+shift+c', DEFAULTS), /copy/)
   assert.match(bindingProblem('open', 'ctrl+shift+v', DEFAULTS), /paste/)
+})
+
+test('gS searches in the browser from the results, the answer and the field; ctrl+enter from the field', () => {
+  assert.equal(resolve(LIST_KEYS, 'g', 'S').command, 'browserSearchFor', 'a result’s title, in the browser')
+  assert.equal(resolve(ANSWER_KEYS, 'g', 'S').command, 'browserSearchFor')
+  assert.equal(resolve(LIST_KEYS, 'g', 's').command, 'searchFor', 'gs is still SearXNG')
+  assert.equal(normalChords({}).browserSearchFor, 'g S')
+  const chords = panelChords(null)
+  assert.equal(chords.browserSearch, 'C-Return')
+  assert.equal(chords.search, 'Return', 'Enter still searches as before')
+  assert.equal(panelChords({ browserSearchKey: 'ctrl+b' }).browserSearch, 'C-b', 'and it is rebindable')
 })

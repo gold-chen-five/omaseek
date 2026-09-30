@@ -90,6 +90,8 @@ Item {
         field.askAboutRequested(barOrSelection())
       } else if (sequence === field.normalChords.searchFor) {
         field.searchRequested(barOrSelection())
+      } else if (sequence === field.normalChords.browserSearchFor) {
+        field.browserSearchRequested(barOrSelection())
       } else if (key === "x") {
         field.pending.openLinkUnderCursor()
       }

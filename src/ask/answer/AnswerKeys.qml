@@ -127,7 +127,8 @@ Item {
     case "copy":        view.selector.yank(); break
     case "paste":       if (view.selecting) view.selector.stopSelecting(); view.pasteRequested(); break
     case "openLink":    view.actions.openLink(); break
-    case "searchFor":   view.actions.searchFor(); break
+    case "searchFor":   view.actions.searchFor(false); break
+    case "browserSearchFor": view.actions.searchFor(true); break
     case "translate":   view.actions.translate(); break
     case "askAbout":    view.actions.askAbout(); break
     case "askNow":      view.actions.askNow(); break

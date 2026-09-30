@@ -30,6 +30,8 @@ const SPELLED = {
 export const ACTIONS = [
   { id: 'search', config: 'search_key', default: 'enter', scope: 'field',
     label: 'Search / ask', hint: 'field: runs the query or asks the question' },
+  { id: 'browserSearch', config: 'browser_search_key', default: 'ctrl+enter', scope: 'field',
+    label: 'Search in the browser', hint: 'field: the bar’s text, searched in the browser with the engine set under Search' },
   { id: 'translateBarAnywhere', config: 'translate_bar_anywhere_key', default: 'ctrl+t', scope: 'field',
     label: 'Translate the bar (any mode)', hint: 'field, insert mode too: everything in the search or ask bar, as gT does from normal mode' },
   { id: 'translateBar', config: 'translate_bar_key', default: 'gT', scope: 'normal',
@@ -68,6 +70,8 @@ export const ACTIONS = [
     label: 'Put in the ask bar', hint: 'results: the selected URL · answer and translation: the selection, or the line under the cursor · field: the selection, or a search moved over — unsent, to type a question under' },
   { id: 'searchFor', config: 'search_for_key', default: 'gs', scope: 'reader', field: true, panes: ['results', 'answer', 'translation'], command: 'searchFor',
     label: 'Search for this', hint: 'results: search for the selected result’s title · answer: the selection, or the word under the cursor' },
+  { id: 'browserSearchFor', config: 'browser_search_for_key', default: 'gS', scope: 'reader', field: true, panes: ['results', 'answer', 'translation'], command: 'browserSearchFor',
+    label: 'Search for this in the browser', hint: 'as gs, but in the browser, with the engine set under Search' },
   { id: 'openLink', config: 'open_link_key', default: 'gx', scope: 'reader', panes: ['answer', 'translation'], command: 'openLink',
     label: 'Open link', hint: 'answer: the URL under the cursor or in the selection, as vim’s gx' },
   { id: 'nextPage', config: 'next_page_key', default: 'l', scope: 'reader', panes: ['results'], command: 'nextPage',

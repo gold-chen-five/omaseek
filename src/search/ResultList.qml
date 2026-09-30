@@ -24,6 +24,7 @@ ListView {
   signal askRequested(int index)             // gj: this result, over in the ask bar
   signal askNowRequested(int index)          // gd: asked about straight away
   signal searchRequested(int index)          // gs: search for this result's title
+  signal browserSearchRequested(int index)   // gS: the same, in the browser
   signal activated(int index)
   signal escaped()                       // esc: back to the field, normal mode
   signal normalRequested()               // /: back to the field, normal mode
@@ -136,6 +137,7 @@ ListView {
     case "askAbout":     if (count > 0) askRequested(currentIndex); break
     case "askNow":       if (count > 0) askNowRequested(currentIndex); break
     case "searchFor":    if (count > 0) searchRequested(currentIndex); break
+    case "browserSearchFor": if (count > 0) browserSearchRequested(currentIndex); break
     // As in the answer: the search goes before the pane does.
     case "cancel":       if (finder.lastPattern) finder.forget(); else escaped(); break
     case "fieldNormal":  normalRequested(); break

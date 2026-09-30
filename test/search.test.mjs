@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { describeError, normalizeRow, mergeResults, statusText, modeLabel, confirmClearText, pageJumpTarget, passageForQuestion, cleanQuery } from '../src/search/search.mjs'
+import { describeError, normalizeRow, mergeResults, statusText, modeLabel, confirmClearText, pageJumpTarget, passageForQuestion, cleanQuery, browserSearchUrl } from '../src/search/search.mjs'
 import { VIEW, PANEL, FOCUS } from '../src/shared/states.mjs'
 
 test('the status line counts a jump’s pages as they land', () => {
@@ -261,4 +261,14 @@ test('enter searches the query trimmed, with its inner runs of space made one', 
   assert.equal(cleanQuery('rust\n  ownership\t'), 'rust ownership', 'a line break is a space')
   assert.equal(cleanQuery('   '), '')
   assert.equal(cleanQuery(null), '')
+})
+
+test('a browser search is the engine’s search page with the query encoded, Google by default', () => {
+  assert.equal(browserSearchUrl('rust borrow checker', 'google'), 'https://www.google.com/search?q=rust%20borrow%20checker')
+  assert.equal(browserSearchUrl('  c++ & more ', 'duckduckgo'), 'https://duckduckgo.com/?q=c%2B%2B%20%26%20more')
+  assert.equal(browserSearchUrl('a?b#c', 'brave'), 'https://search.brave.com/search?q=a%3Fb%23c')
+  assert.equal(browserSearchUrl('x', 'startpage'), 'https://www.startpage.com/do/search?q=x')
+  assert.equal(browserSearchUrl('x', 'bing'), 'https://www.bing.com/search?q=x')
+  assert.equal(browserSearchUrl('x', 'altavista'), 'https://www.google.com/search?q=x', 'an unknown engine is Google')
+  assert.equal(browserSearchUrl('   ', 'google'), '', 'nothing to search')
 })

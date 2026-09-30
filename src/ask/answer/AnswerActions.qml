@@ -48,11 +48,13 @@ Item {
 
   // gs: the selection, else the word under the cursor, the way vim's * takes one.
   // A selection is already a whole query, so Search.qml runs it rather than
-  // leaving it in the field.
-  function searchFor () {
+  // leaving it in the field. gS, `inBrowser`, searches it in the browser.
+  function searchFor (inBrowser) {
     const text = (view.selecting ? view.selector.selection() : wordUnderCursor()).trim()
     if (view.selecting) view.selector.stopSelecting()
-    if (text) view.searchRequested(text)
+    if (!text) return
+    if (inBrowser) view.browserSearchRequested(text)
+    else view.searchRequested(text)
   }
 
   // gt: the selection, else the word under the cursor — what gs would search.

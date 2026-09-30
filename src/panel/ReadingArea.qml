@@ -58,6 +58,7 @@ Item {
       onHandedOff: context => area.ai.launch(context)
       onLinkOpened: url => area.commands.openUrl(url)
       onSearchRequested: text => area.commands.searchFor(text)
+      onBrowserSearchRequested: text => area.commands.browserSearch(text)
       onAskRequested: text => area.commands.askAboutText(text)
       onAskNowRequested: text => area.commands.askNow(text)
       onTranslateRequested: text => area.commands.translateText(text)
@@ -104,6 +105,10 @@ Item {
       onSearchRequested: index => {
         const row = area.session.rowAt(index)
         if (row && row.title) area.commands.searchFor(row.title)
+      }
+      onBrowserSearchRequested: index => {
+        const row = area.session.rowAt(index)
+        if (row && row.title) area.commands.browserSearch(row.title)
       }
       onActivated: index => area.commands.openResult(index)
       onEscaped: area.host.focusSearch("normal")
@@ -174,6 +179,7 @@ Item {
     onHandedOff: context => area.ai.launch(context)
     onLinkOpened: url => area.commands.openUrl(url)
     onSearchRequested: text => area.commands.searchFor(text)
+    onBrowserSearchRequested: text => area.commands.browserSearch(text)
     onAskRequested: text => area.commands.askAboutText(text)
     onAskNowRequested: text => area.commands.askNow(text)
     onTranslateRequested: text => area.commands.translateText(text)

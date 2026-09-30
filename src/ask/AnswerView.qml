@@ -155,6 +155,7 @@ FocusScope {
   signal handedOff(string context)             // Enter: give this to the agent
   signal linkOpened(string url)                // gx on a link
   signal searchRequested(string text)          // gs: search the web for this
+  signal browserSearchRequested(string text)   // gS: the same, in the browser
   signal escaped()                             // esc: back to the field, normal mode
   signal normalRequested()                     // /: back to the field, normal mode
   signal insertRequested()                     // i: back to the field, insert before the cursor

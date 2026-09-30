@@ -208,6 +208,23 @@ export function passageForQuestion (text) {
  * line breaks inside it one space. The field is then shown this, so what is
  * on screen, what was searched and what ↑ brings back are the same text.
  */
+// The browser's search page for each BROWSER_SEARCH_CHOICES engine; the
+// query is appended, encoded.
+const BROWSER_SEARCH_URLS = {
+  google: 'https://www.google.com/search?q=',
+  duckduckgo: 'https://duckduckgo.com/?q=',
+  brave: 'https://search.brave.com/search?q=',
+  startpage: 'https://www.startpage.com/do/search?q=',
+  bing: 'https://www.bing.com/search?q='
+}
+
+/** The query as a search in the browser, on `engine` (Google if unknown); '' when blank. */
+export function browserSearchUrl (query, engine) {
+  const text = cleanQuery(query)
+  if (!text) return ''
+  return (BROWSER_SEARCH_URLS[engine] || BROWSER_SEARCH_URLS.google) + encodeURIComponent(text)
+}
+
 export function cleanQuery (text) {
   return String(text == null ? '' : text).replace(/\s+/g, ' ').trim()
 }

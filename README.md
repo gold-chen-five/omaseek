@@ -44,8 +44,10 @@ way. Or add the line yourself:
 o.bind("SUPER + d", "Search", "omarchy-shell shell toggle omaseek")
 ```
 
-**SearXNG.** Searching needs one. The panel offers to create it the first time
-you search, or run `bin/searxng-up`: it starts the `searxng/searxng` container
+**SearXNG.** Searching in the panel needs one. Until you set it up, Enter
+searches in your browser instead; set it up from the welcome page or Settings,
+or run `bin/searxng-up`. Once omaseek has made it, a search while it is stopped
+offers to start it again. `bin/searxng-up` starts the `searxng/searxng` container
 image on `127.0.0.1:8888` — with rootless Podman when it is installed, so
 nothing runs as root, and with Docker otherwise and writes `~/.config/searxng/settings.yml` with the
 JSON API on. The image is pinned by digest to a build reviewed with this
@@ -84,6 +86,7 @@ yourself: omaseek searches it as it is and sets nothing up for it.
 | `/` `?` `n` `N` | search the results or the answer |
 | `ga` `gA` | hand off to the agent in a terminal: this result, or everything |
 | `gd` `gj` `gs` | ask the AI about a result or a selected passage now, put it in the ask bar unsent, or search for a selection |
+| `gS` `ctrl+enter` | search in the browser: what `gs` would search, or the bar |
 | `gt` `gT` | translate the selection, or the whole bar (`ctrl+t` while typing), into a panel on the right; `ctrl+x` closes it |
 | `ctrl+c` `ctrl+n` `ctrl+x` | a new conversation, the next saved one, forget this one — in search, `ctrl+c` clears the results |
 | `L` `H` | in ask mode: the next saved conversation, or the one before |
@@ -111,8 +114,9 @@ ten conversations, which survive a restart.
 `ctrl+s`, saved as you go to `~/.config/omaseek/config.json`.
 
 - **Search** — start or stop SearXNG, update its image, language and region,
-  results per page, and where suggestions come from (DuckDuckGo, Google, Brave,
-  Qwant, Wikipedia — or off).
+  results per page, where suggestions come from (DuckDuckGo, Google, Brave,
+  Qwant, Wikipedia — or off), and the engine a browser search uses (Google,
+  DuckDuckGo, Brave, Startpage, Bing).
 - **Ask** — the agent, its model and reasoning effort, streaming, and where a
   hand-off opens. Effort goes on the command line of each agent omaseek starts,
   so an agent you already have open keeps its own.

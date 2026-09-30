@@ -88,6 +88,7 @@ TextArea {
   signal askNowRequested(string text, bool whole)
   signal askAboutRequested(string text)
   signal searchRequested(string text)
+  signal browserSearchRequested(string text) // gS, or ctrl+enter on the whole bar: in the browser
   signal newSessionRequested()              // the new-session chord: start over
   signal nextSessionRequested()             // the next saved conversation
   signal sessionWalked(int delta)           // L / H in normal mode: through the ring

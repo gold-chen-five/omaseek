@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import "../shared"
 import "../shared/terminal.mjs" as Terminal
 
@@ -31,6 +32,17 @@ Item {
   Component.onDestruction: Quickshell.execDetached([
     "bash", "-c", '[ -n "$XDG_RUNTIME_DIR" ] && exec bash "$XDG_RUNTIME_DIR/omaseek-removal/on-remove" --watch'
   ])
+
+  // Whether omaseek ever set SearXNG up: a container or an image it made, under
+  // either engine. bin/searxng-up --present answers without sudo or a daemon;
+  // exit 0 is yes. `done` gets a bool.
+  property var presentCallback: null
+
+  function checkPresent (done) {
+    presentCallback = done
+    presentProcess.running = false
+    presentProcess.running = true
+  }
 
   // /healthz touches no upstream engine, so this is cheap to ask.
   function probe () {
@@ -95,6 +107,17 @@ Item {
 
     onParsed: payload => engine.version = payload
     onUnreadable: engine.version = ({ ok: true, version: null, latest: null, current: null })
+  }
+
+  Process {
+    id: presentProcess
+
+    command: [engine.scriptPath, "--present"]
+    onExited: exitCode => {
+      const done = engine.presentCallback
+      engine.presentCallback = null
+      if (done) done(exitCode === 0)
+    }
   }
 
   JsonProcess {

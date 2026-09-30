@@ -132,6 +132,17 @@ Item {
     focusSearch("normal")
   }
 
+  // Nothing answered on this machine. SearXNG omaseek set up before is only
+  // stopped, so offer to start it; one it never set up is not wanted yet, so
+  // the query goes to the browser instead — as Enter would anywhere else.
+  function searchWithoutEngine (reason) {
+    const query = session.lastQuery
+    engine.checkPresent(present => {
+      if (present || !query) askToStartEngine(reason)
+      else commands.browserSearch(query)
+    })
+  }
+
   // The instance is down: ask to start it rather than show an error.
   function askToStartEngine (reason) {
     engine.state = "stopped"
@@ -372,7 +383,7 @@ Item {
       if (root.view === States.VIEW.SEARCH && root.panelMode === States.PANEL.SEARCH)
         root.focusResults()
     }
-    onEngineDown: reason => root.askToStartEngine(reason)
+    onEngineDown: reason => root.searchWithoutEngine(reason)
     onEngineUp: engine.state = "running"
   }
 
@@ -445,6 +456,7 @@ Item {
     function onAskNowRequested (text, whole) { commands.askFromBar(text, whole) }
     function onAskAboutRequested (text) { commands.askAboutText(text) }
     function onSearchRequested (text) { commands.searchFor(String(text).split(root.input.lineBreak).join(" ")) }
+    function onBrowserSearchRequested (text) { commands.browserSearch(text) }
     function onNewSessionRequested () { chat.newChat() }
     function onNextSessionRequested () { chat.nextChat() }
     function onSessionWalked (delta) { chat.walkChats(delta) }

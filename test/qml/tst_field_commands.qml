@@ -207,5 +207,31 @@ Item {
       compare(field.text, "what is ownership", "none of them edits the bar")
       field.normalChords = ({})
     }
+
+    function test_gS_and_ctrl_enter_search_in_the_browser() {
+      fixture.barCommands = []
+      fixture.submits = 0
+      field.normalChords = { searchFor: "g s", browserSearchFor: "g S" }
+      setNormal("what is ownership", 8)
+
+      keyClick("g"); keyClick("S")
+      compare(fixture.barCommands, [["browserSearch", "what is ownership"]], "gS: all of the bar, in the browser")
+
+      keyClick("v")                                   // select "ownership"
+      for (let i = 0; i < 8; i++) keyClick("l")
+      keyClick("g"); keyClick("S")
+      compare(fixture.barCommands[1], ["browserSearch", "ownership"], "gS in visual mode: the selection")
+
+      keyClick("i")
+      keyClick(Qt.Key_Return, Qt.ControlModifier)
+      compare(fixture.barCommands[2], ["browserSearch", "what is ownership"], "ctrl+enter: the bar, from insert mode")
+      compare(fixture.submits, 0, "and it does not also search with SearXNG")
+
+      keyClick(Qt.Key_Return)
+      compare(fixture.submits, 1, "Enter still searches")
+      compare(fixture.barCommands.length, 3, "and does not open the browser")
+      compare(field.text, "what is ownership", "none of them edits the bar")
+      field.normalChords = ({})
+    }
   }
 }

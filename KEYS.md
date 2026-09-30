@@ -9,7 +9,8 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 | setting | config key | default | what it does |
 |---|---|---|---|
 | Leave insert with | `escape_sequence` | `jk` | typed within vim's timeoutlen, leaves insert |
-| Search / ask | `search_key` | `enter` | field: runs the query or asks the question |
+| Search / ask | `search_key` | `enter` | field: runs the query or asks the question — with no SearXNG set up, searches in the browser instead |
+| Search in the browser | `browser_search_key` | `ctrl+enter` | field, either mode: the bar's text, searched in the browser with the engine set under Settings → Search |
 | Translate the bar (any mode) | `translate_bar_anywhere_key` | `ctrl+t` | field, insert mode too: everything in the search or ask bar |
 | Translate the bar | `translate_bar_key` | `gT` | field, normal mode: everything in the search or ask bar |
 | Translate | `translate_key` | `gt` | answer: the selection, or the word under the cursor · field: the selection, in visual mode |
@@ -31,6 +32,7 @@ to "what can I press". Changes are saved in `~/.config/omaseek/config.json`.
 | Ask about this | `ask_now_key` | `gd` | results: the selected result's title and URL · answer and translation: the selection, or the line under the cursor — asked straight away, and you land in the answer |
 | Put in the ask bar | `ask_about_key` | `gj` | results: the selected URL over in the ask bar · answer and translation: the selection, or the line under the cursor — unsent |
 | Search for this | `search_for_key` | `gs` | results: search for the selected result's title · answer: search the web for the selection, or the word under the cursor |
+| Search for this in the browser | `browser_search_for_key` | `gS` | what `gs` would search, searched in the browser instead |
 | Open link | `open_link_key` | `gx` | answer: the URL under the cursor or in the selection |
 | Next page | `next_page_key` | `l` | results (`right` always works too) |
 | Previous page | `previous_page_key` | `h` | results (`left` always works too) |
@@ -155,8 +157,10 @@ Insert mode:
 | `gd` (Ask about this) | the bar, or the selection, asked straight away — as Enter in the ask bar, from search too; you land in the answer |
 | `gj` (Put in the ask bar) | the selection, or a search moved over, into the ask bar unsent |
 | `gs` (Search for this) | the bar, or the selection, searched — as Enter in search, from ask too |
+| `gS` (Search for this in the browser) | the same, searched in the browser |
 | `U` (Previous query / question) | normal mode: one step back through what was searched or asked before, as `up` is — in either half, a count stepping further (`3U`) |
-| `enter` (Search / ask) | search and focus the first result when it arrives — or, when the field holds an address, open it in the browser; asking moves you into the answer |
+| `enter` (Search / ask) | search and focus the first result when it arrives — or, when the field holds an address, open it in the browser; asking moves you into the answer. With no SearXNG set up, the search goes to the browser |
+| `ctrl+enter` (Search in the browser) | the bar's text, searched in the browser — from ask too |
 
 `gx` in normal mode opens the URL or bare domain under the cursor in the browser,
 as vim's does; in visual mode, the selected one.
@@ -247,6 +251,7 @@ typing in the field never looks like it would act on a row.
 | `gd` (Ask about this) | ask the AI about the selected result — its title and URL — straight away |
 | `gj` (Put in the ask bar) | the selected URL over in the ask bar, to type a question around — it is not sent |
 | `gs` (Search for this) | search for the selected result's title |
+| `gS` (Search for this in the browser) | search for the selected result's title in the browser |
 | `ctrl+v` `ctrl+shift+v` | paste into the search bar, typing |
 | `ctrl+l` | into the translation beside the results, while one is open |
 | `ctrl+x` (Close session) | close the translation beside the results — there is no conversation here to forget |
@@ -287,6 +292,7 @@ follow the layout when the panel width changes and are excluded from copied text
 | `ctrl+v` `ctrl+shift+v` | paste into the ask bar, typing |
 | `p` `P` | put into the ask bar and go there: the selection in visual mode, else the clipboard (so `yiw` then `p`) |
 | `gs` (Search for this) | search the web for the selection, or the word under the cursor — a selection is already a whole query, so this one runs |
+| `gS` (Search for this in the browser) | the same, searched in the browser |
 | `gx` (Open link) | open the link under the cursor — a Markdown link, a bare URL, or a bare domain such as `rust-lang.org` — or, in visual mode, the selected URL; http and https only, a bare domain gets `https://` |
 | `enter` (Open) | open the link under the cursor or in the selection |
 | `ga` (Hand off to agent) | the selection; else the reply under the cursor and the question it answers, as the agent wrote them — an editable draft |

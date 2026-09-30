@@ -8,7 +8,7 @@ import { ACTIONS, settingKey, normalizeBinding } from '../shared/vim/keybinds.mj
 import { FOLLOW_SEARCH, readTarget } from '../translate/translate.mjs'
 import {
   LINE_NUMBER_CHOICES, PAGE_NUMBER_CHOICES, PAGE_SIZE_CHOICES, DEFAULT_ENGINES, LANGUAGE_CHOICES,
-  LANGUAGE_PATTERN, LAUNCHER_CHOICES, DEFAULT_AGENT, SAME_AS_ASK, EFFORT_CHOICES, SUGGESTION_CHOICES, DEFAULTS
+  LANGUAGE_PATTERN, LAUNCHER_CHOICES, DEFAULT_AGENT, SAME_AS_ASK, EFFORT_CHOICES, SUGGESTION_CHOICES, BROWSER_SEARCH_CHOICES, DEFAULTS
 } from './choices.mjs'
 
 export function oneOf (value, choices, fallback) {
@@ -42,6 +42,7 @@ export function readSettings (source) {
     translateEfforts: readEfforts(config.translate_efforts),
     searxngLanguage: readLanguage(config.searxng_language),
     searchSuggestions: oneOf(config.search_suggestions, SUGGESTION_CHOICES, DEFAULTS.searchSuggestions),
+    browserSearch: oneOf(config.browser_search, BROWSER_SEARCH_CHOICES, DEFAULTS.browserSearch),
     sequences: keymap.sequences
   }
   // An unparseable key falls back to its default.
@@ -177,6 +178,7 @@ export function writeSettings (settings, source) {
   if (language === LANGUAGE_CHOICES[0]) delete config.searxng_language   // absent is the instance's default
   else config.searxng_language = language
   config.search_suggestions = oneOf(settings.searchSuggestions, SUGGESTION_CHOICES, DEFAULTS.searchSuggestions)
+  config.browser_search = oneOf(settings.browserSearch, BROWSER_SEARCH_CHOICES, DEFAULTS.browserSearch)
   for (let i = 0; i < ACTIONS.length; i++) {
     const action = ACTIONS[i]
     config[action.config] = normalizeBinding(action, settings[settingKey(action)]) || action.default

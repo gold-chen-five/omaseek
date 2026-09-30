@@ -191,6 +191,17 @@ Item {
     runSearch(true)
   }
 
+  // gS, ctrl+enter, and Enter while SearXNG is not set up: the query in the
+  // browser, searched with the engine set under Search. Remembered, as a
+  // search is, so the arrows walk back to it.
+  function browserSearch (text) {
+    const query = SearchLib.cleanQuery(String(text || "").split(host.input.lineBreak).join(" "))
+    if (!query) return
+    queries.remember(query)
+    resetHistoryWalk()
+    openUrl(SearchLib.browserSearchUrl(query, config.settings.browserSearch))
+  }
+
   function openResult (index) {
     if (index < 0 || index >= session.results.count) return
     openUrl(session.results.get(index).url)

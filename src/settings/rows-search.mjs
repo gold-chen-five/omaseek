@@ -1,7 +1,7 @@
 // The Search and Engines sections: the instance itself, and which of its
 // engines are asked. Row objects as the page draws them (SettingRow.qml).
 
-import { ENGINE_CHOICES, ENGINE_LABELS, LANGUAGE_CHOICES, PAGE_SIZE_CHOICES, SUGGESTION_CHOICES } from './choices.mjs'
+import { BROWSER_SEARCH_CHOICES, ENGINE_CHOICES, ENGINE_LABELS, LANGUAGE_CHOICES, PAGE_SIZE_CHOICES, SUGGESTION_CHOICES } from './choices.mjs'
 import { readEngines, readLanguage } from './config.mjs'
 import { endpointTestText, searchSpeedText, versionText } from './reports.mjs'
 
@@ -60,6 +60,15 @@ export function searchRows (settings, state, version) {
         : 'a list under the bar as you type, from ' + settings.searchSuggestions + ' through SearXNG, with your past searches first',
       options: SUGGESTION_CHOICES,
       value: settings.searchSuggestions
+    },
+    {
+      key: 'browserSearch',
+      type: 'choice',
+      control: 'dropdown',
+      label: 'Browser search',
+      hint: 'gS and ctrl+enter search with ' + settings.browserSearch + ' in the browser, as Enter does while SearXNG is not set up',
+      options: BROWSER_SEARCH_CHOICES,
+      value: settings.browserSearch
     }
   )
   return rows
