@@ -3,6 +3,7 @@ import qs.Commons
 import qs.Ui
 import "../shared/states.mjs" as States
 import "../shared/pixels.mjs" as Pixels
+import "../search/search.mjs" as SearchLib
 import "../ask"
 import "../engine"
 import "../search"
@@ -178,9 +179,11 @@ BorderSurface {
       visible: panelCard.host.view === States.VIEW.SETUP
       width: parent.width
       reason: panelCard.host.setupReason
+      notSetUp: panelCard.host.setupBrowserQuery !== ""
+      setupPath: SearchLib.setupPath(panelCard.config.settings.settingsKey)
 
       onConfirmed: panelCard.engine.start()
-      onCancelled: panelCard.host.closeSetup()
+      onCancelled: panelCard.host.cancelSetup()
     }
 
     // The first open after install: SearXNG and SUPER + d, set up from here.

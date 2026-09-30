@@ -8,6 +8,11 @@ Item {
   id: prompt
 
   property string reason: ""                 // what the backend actually reported
+  // Never set up rather than stopped: the way out searches in the browser, and
+  // the page says where to set it up later.
+  property bool notSetUp: false
+  property string setupPath: ""              // search.mjs setupPath: where Settings sets it up
+  readonly property var buttons: notSetUp ? ["Search in browser", "Set it up"] : ["Not now", "Start it"]
   property color foreground: Color.menu.text
   property color accent: Color.menu.selectedText
   property string fontFamily: Style.font.menuFamily
@@ -56,7 +61,7 @@ Item {
     Text {
       width: parent.width
       textFormat: Text.PlainText
-      text: "SearXNG isn’t running"
+      text: prompt.notSetUp ? "SearXNG isn’t set up" : "SearXNG isn’t running"
       color: prompt.accent
       font.family: prompt.fontFamily
       font.pixelSize: Style.font.heading
@@ -80,7 +85,8 @@ Item {
     Text {
       width: parent.width
       textFormat: Text.PlainText
-      text: "Start it now? A terminal opens and runs bin/searxng-up. The first "
+      text: (prompt.notSetUp ? "Set it up now?" : "Start it now?")
+          + " A terminal opens and runs bin/searxng-up. The first "
           + "run downloads about 200 MB and asks for your password."
       color: prompt.foreground
       opacity: 0.75
@@ -88,6 +94,18 @@ Item {
       font.pixelSize: Style.font.body
       wrapMode: Text.WordWrap
       lineHeight: 1.3
+    }
+
+    Text {
+      width: parent.width
+      visible: prompt.notSetUp && prompt.setupPath !== ""
+      textFormat: Text.PlainText
+      text: "Later: " + prompt.setupPath
+      color: prompt.foreground
+      opacity: 0.75
+      font.family: prompt.fontFamily
+      font.pixelSize: Style.font.body
+      wrapMode: Text.WordWrap
     }
 
     Text {
@@ -108,7 +126,7 @@ Item {
       spacing: Style.space(10)
 
       Repeater {
-        model: ["Not now", "Start it"]
+        model: prompt.buttons
 
         BorderSurface {
           required property int index
@@ -116,7 +134,7 @@ Item {
 
           readonly property bool selected: prompt.selectedIndex === index
 
-          width: Style.space(88)
+          width: Math.max(Style.space(88), label.implicitWidth + Style.space(24))
           height: Style.space(34)
           color: selected ? prompt.selectedBackground : "transparent"
           borderSpec: Border.flat(selected ? prompt.accent : Util.alpha(prompt.foreground, 0.38),
@@ -124,6 +142,7 @@ Item {
           radius: Style.cornerRadius
 
           Text {
+            id: label
             textFormat: Text.PlainText
             anchors.centerIn: parent
             text: modelData
@@ -146,7 +165,7 @@ Item {
     Text {
       width: parent.width
       textFormat: Text.PlainText
-      text: "h l  choose        enter  confirm        esc  not now"
+      text: "h l  choose        enter  confirm        esc  " + (prompt.notSetUp ? "search in browser" : "not now")
       color: prompt.foreground
       opacity: 0.45
       font.family: prompt.fontFamily

@@ -78,10 +78,10 @@ export function statusText ({
   hasNext = false, loadingPage = false, errorMessage = '', backend = '', pageTarget = 0,
   pageError = '', nextPageKey = 'l',
   agent = '', effort = '', selecting = false, link = '', session = '',
-  stopKey = 'esc', retryKey = 'ctrl+shift+r', canRetry = false, address = ''
+  stopKey = 'esc', retryKey = 'ctrl+shift+r', canRetry = false, address = '', setupBrowser = false
 } = {}) {
   if (view === VIEW.SETTINGS) return 'j/k rows · h/l change · enter opens · / filter · esc back'
-  if (view === VIEW.SETUP) return 'h/l choose · enter confirm · esc not now'
+  if (view === VIEW.SETUP) return setupBrowser ? 'h/l choose · enter confirm · esc searches in the browser' : 'h/l choose · enter confirm · esc not now'
   if (view === VIEW.WELCOME) return 'j/k choose · enter does it · esc starts searching'
   if (panelMode === PANEL.AI) return askStatusText({ status, errorMessage, agent, effort, selecting, link, session, stopKey, retryKey, canRetry })
   // The field holds an address: Enter opens it rather than searching, so say so first.
@@ -218,23 +218,32 @@ const BROWSER_SEARCH_URLS = {
   bing: 'https://www.bing.com/search?q='
 }
 
-// Enter sends a search to the browser while SearXNG is not set up, and says
-// why on the next open — only the first few times, so it teaches without nagging.
+// Enter while SearXNG is not set up: the first few times the panel asks —
+// set it up, or search in the browser — then it searches in the browser and
+// says why on the next open a few more times, then it just searches there.
+export const SETUP_PROMPTS = 3
 export const BROWSER_FALLBACK_HINTS = 3
+
+/** Where SearXNG is set up later, as the prompt and the hint name it. */
+export function setupPath (settingsKey) {
+  return `${settingsKey || 'ctrl+s'} → Search → SearXNG`
+}
 
 /** The line the next open shows after a search went to the browser. */
 export function browserFallbackHint (settingsKey) {
-  return `searched in your browser · set up SearXNG to search here: ${settingsKey || 'ctrl+s'} → Search`
+  return `searched in your browser · to search here: ${setupPath(settingsKey)}`
 }
 
-/** hints.json -> how many times the hint was shown; 0 when absent or unreadable. */
-export function readBrowserHints (text) {
+/** hints.json -> how many times each was shown; 0 when absent or unreadable. */
+export function readHints (text) {
+  let data = null
   try {
-    const count = JSON.parse(String(text || '')).browserFallback
-    return Number.isInteger(count) && count > 0 ? count : 0
+    data = JSON.parse(String(text || ''))
   } catch (error) {
-    return 0
+    data = null
   }
+  const count = value => Number.isInteger(value) && value > 0 ? value : 0
+  return { setupPrompts: count(data?.setupPrompts), browserFallback: count(data?.browserFallback) }
 }
 
 /** The query as a search in the browser, on `engine` (Google if unknown); '' when blank. */

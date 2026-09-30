@@ -55,6 +55,7 @@ StatusLine {
         : host.input.mode === "insert" ? "esc esc" : "esc",
       retryKey: config.settings.retryAnswerKey,
       canRetry: ai.canRetry,
+      setupBrowser: host.setupBrowserQuery !== "",
       address: !asking && host.focusArea === States.FOCUS.FIELD
         ? Urls.queryUrl(host.input.text.split(host.input.lineBreak).join(" ")) : ""
     })

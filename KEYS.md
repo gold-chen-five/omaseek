@@ -159,7 +159,7 @@ Insert mode:
 | `gs` (Search for this) | the bar, or the selection, searched — as Enter in search, from ask too |
 | `gS` (Search for this in the browser) | the same, searched in the browser |
 | `U` (Previous query / question) | normal mode: one step back through what was searched or asked before, as `up` is — in either half, a count stepping further (`3U`) |
-| `enter` (Search / ask) | search and focus the first result when it arrives — or, when the field holds an address, open it in the browser; asking moves you into the answer. With no SearXNG set up, the search goes to the browser |
+| `enter` (Search / ask) | search and focus the first result when it arrives — or, when the field holds an address, open it in the browser; asking moves you into the answer. With no SearXNG set up, the first three searches ask whether to set it up or search in the browser, and later ones go to the browser |
 | `ctrl+enter` (Search in the browser) | the bar's text, searched in the browser — from ask too |
 
 `gx` in normal mode opens the URL or bare domain under the cursor in the browser,

@@ -39,6 +39,8 @@ Item {
   property string hint: ""                     // a note on the status line until the next thing typed
   property bool browserHintPending: false      // a search just went to the browser: say why on the next open
   property int browserHints: 0                 // how many times that was said (hints.json)
+  property int setupPrompts: 0                 // how many times Enter asked to set SearXNG up (hints.json)
+  property string setupBrowserQuery: ""        // the search the not-set-up prompt sends to the browser on its way out
   property bool keysOpen: false                // the ctrl+k lookup is over the card
   property string keysReturnTo: ""             // the focusArea it was opened from
   property bool introPending: false            // the welcome page is not finished: opening shows it
@@ -90,6 +92,7 @@ Item {
       return
     }
     view = States.VIEW.SEARCH                  // never reopen into settings or setup
+    setupBrowserQuery = ""
     hint = browserHintPending ? SearchLib.browserFallbackHint(config.settings.settingsKey) : ""
     browserHintPending = false
     focusSearch(fieldMode)                     // first launch inherits the field's insert default
@@ -149,25 +152,47 @@ Item {
         askToStartEngine(reason)
         return
       }
+      if (setupPrompts < SearchLib.SETUP_PROMPTS) {
+        setupPrompts = setupPrompts + 1
+        saveHints()
+        askToStartEngine(reason, query)
+        return
+      }
       if (browserHints < SearchLib.BROWSER_FALLBACK_HINTS) {
         browserHintPending = true
         browserHints = browserHints + 1
-        hints.write(JSON.stringify({ version: 1, browserFallback: browserHints }) + "\n")
+        saveHints()
       }
       commands.browserSearch(query)
     })
   }
 
-  // The instance is down: ask to start it rather than show an error.
-  function askToStartEngine (reason) {
+  function saveHints () {
+    hints.write(JSON.stringify({ version: 1, setupPrompts: setupPrompts, browserFallback: browserHints }) + "\n")
+  }
+
+  // The instance is down: ask to start it rather than show an error. With
+  // `browserQuery`, it was never set up, and the way out searches that in the
+  // browser instead of doing nothing.
+  function askToStartEngine (reason, browserQuery) {
+    setupBrowserQuery = browserQuery || ""
     engine.state = "stopped"
     setupReason = reason
     view = States.VIEW.SETUP
     card.setupPrompt.open()
   }
 
+  // Search in browser, or esc: the prompt closes, and a search that was never
+  // going to reach SearXNG goes to the browser.
+  function cancelSetup () {
+    const query = setupBrowserQuery
+    closeSetup()
+    if (query) commands.browserSearch(query)
+  }
+
   function closeSetup () {
     view = States.VIEW.SEARCH
+    setupBrowserQuery = ""
     setupReason = ""
     focusSearch("insert")
   }
@@ -276,12 +301,17 @@ Item {
 
   HistoryStore { id: queries }
 
-  // How many times a search sent to the browser was explained on the next open.
+  // How many times Enter without SearXNG asked to set it up, and how many times
+  // a search sent to the browser was explained on the next open.
   JsonFile {
     id: hints
 
     name: "omaseek/hints.json"
-    onLoaded: text => root.browserHints = SearchLib.readBrowserHints(text)
+    onLoaded: text => {
+      const counts = SearchLib.readHints(text)
+      root.setupPrompts = counts.setupPrompts
+      root.browserHints = counts.browserFallback
+    }
   }
 
   // The first time omaseek is loaded it opens itself, on the welcome page: a

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { describeError, normalizeRow, mergeResults, statusText, modeLabel, confirmClearText, pageJumpTarget, passageForQuestion, cleanQuery, browserSearchUrl, browserFallbackHint, readBrowserHints, BROWSER_FALLBACK_HINTS } from '../src/search/search.mjs'
+import { describeError, normalizeRow, mergeResults, statusText, modeLabel, confirmClearText, pageJumpTarget, passageForQuestion, cleanQuery, browserSearchUrl, browserFallbackHint, readHints, setupPath, SETUP_PROMPTS, BROWSER_FALLBACK_HINTS } from '../src/search/search.mjs'
 import { VIEW, PANEL, FOCUS } from '../src/shared/states.mjs'
 
 test('the status line counts a jump’s pages as they land', () => {
@@ -273,16 +273,22 @@ test('a browser search is the engine’s search page with the query encoded, Goo
   assert.equal(browserSearchUrl('   ', 'google'), '', 'nothing to search')
 })
 
-test('a search sent to the browser is explained a few times, naming the settings key', () => {
+test('without SearXNG, Enter asks three times, then hints three times, naming ctrl+s → Search → SearXNG', () => {
+  assert.equal(SETUP_PROMPTS, 3)
   assert.equal(BROWSER_FALLBACK_HINTS, 3)
-  assert.match(browserFallbackHint('ctrl+s'), /searched in your browser/)
-  assert.match(browserFallbackHint('ctrl+s'), /set up SearXNG .*ctrl\+s → Search/)
-  assert.match(browserFallbackHint('ctrl+o'), /ctrl\+o → Search/, 'a rebound settings key is the one named')
-  assert.match(browserFallbackHint(''), /ctrl\+s → Search/)
-  assert.ok(browserFallbackHint('ctrl+s').length <= 80, 'short enough for the status line')
-  assert.equal(readBrowserHints(''), 0, 'no file yet')
-  assert.equal(readBrowserHints('{"version":1,"browserFallback":2}'), 2)
-  assert.equal(readBrowserHints('{"browserFallback":-1}'), 0)
-  assert.equal(readBrowserHints('{"browserFallback":"2"}'), 0)
-  assert.equal(readBrowserHints('not json'), 0)
+  assert.equal(setupPath('ctrl+s'), 'ctrl+s → Search → SearXNG')
+  assert.equal(setupPath('ctrl+o'), 'ctrl+o → Search → SearXNG', 'a rebound settings key is the one named')
+  assert.equal(setupPath(''), 'ctrl+s → Search → SearXNG')
+  assert.equal(browserFallbackHint('ctrl+s'), 'searched in your browser · to search here: ctrl+s → Search → SearXNG')
+  assert.ok(browserFallbackHint('ctrl+shift+s').length <= 80, 'short enough for the status line')
+  assert.deepEqual(readHints(''), { setupPrompts: 0, browserFallback: 0 }, 'no file yet')
+  assert.deepEqual(readHints('{"version":1,"setupPrompts":3,"browserFallback":1}'), { setupPrompts: 3, browserFallback: 1 })
+  assert.deepEqual(readHints('{"version":1,"browserFallback":2}'), { setupPrompts: 0, browserFallback: 2 }, 'a file from before the prompts counted')
+  assert.deepEqual(readHints('{"setupPrompts":-1,"browserFallback":"2"}'), { setupPrompts: 0, browserFallback: 0 })
+  assert.deepEqual(readHints('not json'), { setupPrompts: 0, browserFallback: 0 })
+})
+
+test('the setup prompt’s status line says where esc goes', () => {
+  assert.equal(statusText({ view: VIEW.SETUP }), 'h/l choose · enter confirm · esc not now')
+  assert.equal(statusText({ view: VIEW.SETUP, setupBrowser: true }), 'h/l choose · enter confirm · esc searches in the browser')
 })

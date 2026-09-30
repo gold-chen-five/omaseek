@@ -44,9 +44,11 @@ way. Or add the line yourself:
 o.bind("SUPER + d", "Search", "omarchy-shell shell toggle omaseek")
 ```
 
-**SearXNG.** Searching in the panel needs one. Until you set it up, Enter
-searches in your browser instead, and the first three times the panel says so
-when it next opens; set it up from the welcome page or Settings,
+**SearXNG.** Searching in the panel needs one. Until you set it up, the first
+three searches ask whether to set it up now or search in your browser; after
+that Enter searches in your browser, and the next three times the panel says so
+when it next opens. Set it up from the welcome page or Settings
+(`ctrl+s` → Search → SearXNG),
 or run `bin/searxng-up`. Once omaseek has made it, a search while it is stopped
 offers to start it again. `bin/searxng-up` starts the `searxng/searxng` container
 image on `127.0.0.1:8888` — with rootless Podman when it is installed, so
