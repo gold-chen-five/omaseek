@@ -39,7 +39,7 @@ Item {
   property string hint: ""                     // a note on the status line until the next thing typed
   property bool browserHintPending: false      // a search just went to the browser: say why on the next open
   property int browserHints: 0                 // how many times that was said (hints.json)
-  property int setupPrompts: 0                 // how many times a search sent to the browser led to the setup page (hints.json)
+  property int setupPages: 0                 // how many times a search sent to the browser led to the setup page (hints.json)
   property bool setupPending: false            // one just did: the next open shows the page
   property bool setupNotSetUp: false           // the setup page is about SearXNG never set up, not stopped
   property bool keysOpen: false                // the ctrl+k lookup is over the card
@@ -161,8 +161,8 @@ Item {
         askToStartEngine(reason)
         return
       }
-      if (setupPrompts < SearchLib.SETUP_PROMPTS) {
-        setupPrompts = setupPrompts + 1
+      if (setupPages < SearchLib.SETUP_PROMPTS) {
+        setupPages = setupPages + 1
         setupPending = true
         saveHints()
       } else if (browserHints < SearchLib.BROWSER_FALLBACK_HINTS) {
@@ -175,7 +175,7 @@ Item {
   }
 
   function saveHints () {
-    hints.write(JSON.stringify({ version: 1, setupPrompts: setupPrompts, browserFallback: browserHints }) + "\n")
+    hints.write(JSON.stringify({ version: 2, setupPages: setupPages, browserHints: browserHints }) + "\n")
   }
 
   // The instance is down: ask to start it rather than show an error.
@@ -307,8 +307,8 @@ Item {
     name: "omaseek/hints.json"
     onLoaded: text => {
       const counts = SearchLib.readHints(text)
-      root.setupPrompts = counts.setupPrompts
-      root.browserHints = counts.browserFallback
+      root.setupPages = counts.setupPages
+      root.browserHints = counts.browserHints
     }
   }
 

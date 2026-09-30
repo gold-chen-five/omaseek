@@ -234,7 +234,11 @@ export function browserFallbackHint (settingsKey) {
   return `searched in your browser · to search here: ${setupPath(settingsKey)}`
 }
 
-/** hints.json -> how many times each was shown; 0 when absent or unreadable. */
+/**
+ * hints.json -> how many times each was shown; 0 when absent or unreadable.
+ * Counted under names of their own: counts an earlier omaseek kept for other
+ * messages (setupPrompts, browserFallback) do not use these up.
+ */
 export function readHints (text) {
   let data = null
   try {
@@ -243,7 +247,7 @@ export function readHints (text) {
     data = null
   }
   const count = value => Number.isInteger(value) && value > 0 ? value : 0
-  return { setupPrompts: count(data?.setupPrompts), browserFallback: count(data?.browserFallback) }
+  return { setupPages: count(data?.setupPages), browserHints: count(data?.browserHints) }
 }
 
 /** The query as a search in the browser, on `engine` (Google if unknown); '' when blank. */
