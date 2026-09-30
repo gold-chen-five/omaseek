@@ -23,6 +23,7 @@ Item {
 
   signal confirmed()
   signal cancelled()
+  signal steppedUp()                         // k or up: back to the bar above, the page still showing
 
   function activate (index) {
     if (index === 0) prompt.cancelled()
@@ -40,6 +41,8 @@ Item {
   Keys.onPressed: event => {
     if (event.key === Qt.Key_Escape) {
       prompt.cancelled()
+    } else if (event.key === Qt.Key_Up || event.text === "k") {
+      prompt.steppedUp()
     } else if (event.key === Qt.Key_Left || event.key === Qt.Key_Right
                || event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab
                || event.text === "h" || event.text === "l") {
@@ -143,7 +146,8 @@ Item {
           required property int index
           required property string modelData
 
-          readonly property bool selected: prompt.selectedIndex === index
+          // Only while the keyboard is here: from the bar above, nothing is chosen yet.
+          readonly property bool selected: prompt.activeFocus && prompt.selectedIndex === index
 
           width: Math.max(Style.space(88), label.implicitWidth + Style.space(24))
           height: Style.space(34)
@@ -176,7 +180,8 @@ Item {
     Text {
       width: parent.width
       textFormat: Text.PlainText
-      text: "h l  choose        enter  confirm        esc  not now"
+      text: prompt.activeFocus ? "h l  choose        enter  confirm        esc  not now        k  back to the bar"
+                               : "j  choose here        or type a search above"
       color: prompt.foreground
       opacity: 0.45
       font.family: prompt.fontFamily

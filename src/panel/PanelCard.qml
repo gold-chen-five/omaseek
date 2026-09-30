@@ -184,6 +184,7 @@ BorderSurface {
 
       onConfirmed: panelCard.engine.start()
       onCancelled: panelCard.host.closeSetup()
+      onSteppedUp: panelCard.host.focusSearch("normal")
     }
 
     // The first open after install: SearXNG and SUPER + d, set up from here.

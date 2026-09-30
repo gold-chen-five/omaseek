@@ -18,11 +18,14 @@ StatusLine {
   property var chat: null                      // its armed clear
 
   readonly property bool asking: host.panelMode === States.PANEL.AI
+  // The setup page below the bar speaks for itself; while the keyboard is still
+  // in the bar, the line is the bar's.
+  readonly property string shownView: host.view === States.VIEW.SETUP && !host.setupFocused ? States.VIEW.SEARCH : host.view
   readonly property string clearKeyText: config.settings.clearSessionsKey || "ctrl+shift+x"
 
   isError: (asking ? ai.status : session.status) === "error"
   mode: SearchLib.modeLabel({
-    view: host.view, panelMode: host.panelMode, focusArea: host.focusArea,
+    view: status.shownView, panelMode: host.panelMode, focusArea: host.focusArea,
     mode: host.input.mode, selecting: answer.selecting
   })
   // The destructive key takes the line over while it waits to be sure.
@@ -31,7 +34,7 @@ StatusLine {
     : host.notice ? host.notice
     : host.hint && host.view === States.VIEW.SEARCH ? host.hint
     : SearchLib.statusText({
-      view: host.view,
+      view: status.shownView,
       panelMode: host.panelMode,
       status: asking ? ai.status : session.status,
       count: session.results.count,

@@ -42,6 +42,7 @@ Item {
   property int setupPages: 0                 // how many times a search sent to the browser led to the setup page (hints.json)
   property bool setupPending: false            // one just did: the next open shows the page
   property bool setupNotSetUp: false           // the setup page is about SearXNG never set up, not stopped
+  readonly property bool setupFocused: card.setupPrompt.activeFocus   // the keyboard is on the setup page, not the bar
   property bool keysOpen: false                // the ctrl+k lookup is over the card
   property string keysReturnTo: ""             // the focusArea it was opened from
   property bool introPending: false            // the welcome page is not finished: opening shows it
@@ -97,6 +98,7 @@ Item {
     if (setupPending) {
       setupPending = false
       askToStartEngine("", true)
+      focusSearch(fieldMode)
       return
     }
     view = States.VIEW.SEARCH                  // never reopen into settings or setup
@@ -180,19 +182,30 @@ Item {
 
   // The instance is down: ask to start it rather than show an error.
   // `notSetUp`: it never was, and the last search already went to the browser.
+  // The page shown on opening leaves the keyboard in the bar, to type a search
+  // straight away; j goes down to it. The one Enter just raised takes it.
   function askToStartEngine (reason, notSetUp) {
     setupNotSetUp = notSetUp === true
     engine.state = "stopped"
     setupReason = reason
     view = States.VIEW.SETUP
+    if (!setupNotSetUp) card.setupPrompt.open()
+  }
+
+  function focusSetup () {
     card.setupPrompt.open()
   }
 
   function closeSetup () {
+    closeSetupPage()
+    focusSearch("insert")
+  }
+
+  // The page goes; the keyboard stays where it is.
+  function closeSetupPage () {
     view = States.VIEW.SEARCH
     setupNotSetUp = false
     setupReason = ""
-    focusSearch("insert")
   }
 
   function hasBody () {
@@ -480,14 +493,27 @@ Item {
   Connections {
     target: root.input
 
-    function onSubmitted () { commands.runSearch() }
+    // A search from the bar replaces the setup page below it with its results.
+    function onSubmitted () {
+      if (root.view === States.VIEW.SETUP) root.closeSetupPage()
+      commands.runSearch()
+    }
     function onCancelled () { root.dismiss() }
-    // With nothing below to read, j reaches a translation of the bar (gT).
-    function onSteppedDown () { if (root.hasBody()) root.focusResults(); else root.focusTranslation() }
+    // With nothing below to read, j reaches a translation of the bar (gT) —
+    // or the setup page, while it shows.
+    function onSteppedDown () {
+      if (root.view === States.VIEW.SETUP) root.focusSetup()
+      else if (root.hasBody()) root.focusResults()
+      else root.focusTranslation()
+    }
     function onHistoryPrevRequested () { commands.walkHistory(1) }
     function onCompletionStepped (delta) { commands.stepSuggestion(delta) }
     // Past the draft there is no query left, so Down means the results.
-    function onHistoryNextRequested () { if (!commands.walkHistory(-1) && root.hasBody()) root.focusResults() }
+    function onHistoryNextRequested () {
+      if (commands.walkHistory(-1)) return
+      if (root.view === States.VIEW.SETUP) root.focusSetup()
+      else if (root.hasBody()) root.focusResults()
+    }
     // Typing leaves the walk: the field is the reader's again. A walk writing
     // the field is not typing, hence the flag. Only what is typed into a search
     // asks for suggestions: a question, or the bar rewritten by a walk or the

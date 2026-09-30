@@ -10,8 +10,10 @@ QtObject {
     property real md: 6
   }
   property real cornerRadius: 4
+  property real normalBorderWidth: 1
   readonly property QtObject font: QtObject {
     property real body: 12
+    property real heading: 14
     property real caption: 10
     property string menuFamily: "monospace"
   }
