@@ -39,8 +39,9 @@ Item {
   property string hint: ""                     // a note on the status line until the next thing typed
   property bool browserHintPending: false      // a search just went to the browser: say why on the next open
   property int browserHints: 0                 // how many times that was said (hints.json)
-  property int setupPrompts: 0                 // how many times Enter asked to set SearXNG up (hints.json)
-  property string setupBrowserQuery: ""        // the search the not-set-up prompt sends to the browser on its way out
+  property int setupPrompts: 0                 // how many times a search sent to the browser led to the setup page (hints.json)
+  property bool setupPending: false            // one just did: the next open shows the page
+  property bool setupNotSetUp: false           // the setup page is about SearXNG never set up, not stopped
   property bool keysOpen: false                // the ctrl+k lookup is over the card
   property string keysReturnTo: ""             // the focusArea it was opened from
   property bool introPending: false            // the welcome page is not finished: opening shows it
@@ -91,8 +92,15 @@ Item {
       card.welcomePage.open()
       return
     }
+    // A search just went to the browser for want of SearXNG: open on the page
+    // that says so, rather than on the bar.
+    if (setupPending) {
+      setupPending = false
+      askToStartEngine("", true)
+      return
+    }
     view = States.VIEW.SEARCH                  // never reopen into settings or setup
-    setupBrowserQuery = ""
+    setupNotSetUp = false
     hint = browserHintPending ? SearchLib.browserFallbackHint(config.settings.settingsKey) : ""
     browserHintPending = false
     focusSearch(fieldMode)                     // first launch inherits the field's insert default
@@ -143,8 +151,9 @@ Item {
   }
 
   // Nothing answered on this machine. SearXNG omaseek set up before is only
-  // stopped, so offer to start it; one it never set up is not wanted yet, so
-  // the query goes to the browser instead — as Enter would anywhere else.
+  // stopped, so offer to start it. One it never set up is not wanted yet: the
+  // query goes straight to the browser, and the next open says why — the setup
+  // page the first few times, a line on the status bar a few more.
   function searchWithoutEngine (reason) {
     const query = session.lastQuery
     engine.checkPresent(present => {
@@ -154,11 +163,9 @@ Item {
       }
       if (setupPrompts < SearchLib.SETUP_PROMPTS) {
         setupPrompts = setupPrompts + 1
+        setupPending = true
         saveHints()
-        askToStartEngine(reason, query)
-        return
-      }
-      if (browserHints < SearchLib.BROWSER_FALLBACK_HINTS) {
+      } else if (browserHints < SearchLib.BROWSER_FALLBACK_HINTS) {
         browserHintPending = true
         browserHints = browserHints + 1
         saveHints()
@@ -171,28 +178,19 @@ Item {
     hints.write(JSON.stringify({ version: 1, setupPrompts: setupPrompts, browserFallback: browserHints }) + "\n")
   }
 
-  // The instance is down: ask to start it rather than show an error. With
-  // `browserQuery`, it was never set up, and the way out searches that in the
-  // browser instead of doing nothing.
-  function askToStartEngine (reason, browserQuery) {
-    setupBrowserQuery = browserQuery || ""
+  // The instance is down: ask to start it rather than show an error.
+  // `notSetUp`: it never was, and the last search already went to the browser.
+  function askToStartEngine (reason, notSetUp) {
+    setupNotSetUp = notSetUp === true
     engine.state = "stopped"
     setupReason = reason
     view = States.VIEW.SETUP
     card.setupPrompt.open()
   }
 
-  // Search in browser, or esc: the prompt closes, and a search that was never
-  // going to reach SearXNG goes to the browser.
-  function cancelSetup () {
-    const query = setupBrowserQuery
-    closeSetup()
-    if (query) commands.browserSearch(query)
-  }
-
   function closeSetup () {
     view = States.VIEW.SEARCH
-    setupBrowserQuery = ""
+    setupNotSetUp = false
     setupReason = ""
     focusSearch("insert")
   }

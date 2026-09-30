@@ -179,11 +179,11 @@ BorderSurface {
       visible: panelCard.host.view === States.VIEW.SETUP
       width: parent.width
       reason: panelCard.host.setupReason
-      notSetUp: panelCard.host.setupBrowserQuery !== ""
+      notSetUp: panelCard.host.setupNotSetUp
       setupPath: SearchLib.setupPath(panelCard.config.settings.settingsKey)
 
       onConfirmed: panelCard.engine.start()
-      onCancelled: panelCard.host.cancelSetup()
+      onCancelled: panelCard.host.closeSetup()
     }
 
     // The first open after install: SearXNG and SUPER + d, set up from here.

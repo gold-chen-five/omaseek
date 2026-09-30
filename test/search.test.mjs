@@ -273,7 +273,7 @@ test('a browser search is the engine’s search page with the query encoded, Goo
   assert.equal(browserSearchUrl('   ', 'google'), '', 'nothing to search')
 })
 
-test('without SearXNG, Enter asks three times, then hints three times, naming ctrl+s → Search → SearXNG', () => {
+test('without SearXNG, the next open shows the setup page three times, then a hint three times, naming ctrl+s → Search → SearXNG', () => {
   assert.equal(SETUP_PROMPTS, 3)
   assert.equal(BROWSER_FALLBACK_HINTS, 3)
   assert.equal(setupPath('ctrl+s'), 'ctrl+s → Search → SearXNG')
@@ -286,9 +286,4 @@ test('without SearXNG, Enter asks three times, then hints three times, naming ct
   assert.deepEqual(readHints('{"version":1,"browserFallback":2}'), { setupPrompts: 0, browserFallback: 2 }, 'a file from before the prompts counted')
   assert.deepEqual(readHints('{"setupPrompts":-1,"browserFallback":"2"}'), { setupPrompts: 0, browserFallback: 0 })
   assert.deepEqual(readHints('not json'), { setupPrompts: 0, browserFallback: 0 })
-})
-
-test('the setup prompt’s status line says where esc goes', () => {
-  assert.equal(statusText({ view: VIEW.SETUP }), 'h/l choose · enter confirm · esc not now')
-  assert.equal(statusText({ view: VIEW.SETUP, setupBrowser: true }), 'h/l choose · enter confirm · esc searches in the browser')
 })

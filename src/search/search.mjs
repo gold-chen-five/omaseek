@@ -78,10 +78,10 @@ export function statusText ({
   hasNext = false, loadingPage = false, errorMessage = '', backend = '', pageTarget = 0,
   pageError = '', nextPageKey = 'l',
   agent = '', effort = '', selecting = false, link = '', session = '',
-  stopKey = 'esc', retryKey = 'ctrl+shift+r', canRetry = false, address = '', setupBrowser = false
+  stopKey = 'esc', retryKey = 'ctrl+shift+r', canRetry = false, address = ''
 } = {}) {
   if (view === VIEW.SETTINGS) return 'j/k rows · h/l change · enter opens · / filter · esc back'
-  if (view === VIEW.SETUP) return setupBrowser ? 'h/l choose · enter confirm · esc searches in the browser' : 'h/l choose · enter confirm · esc not now'
+  if (view === VIEW.SETUP) return 'h/l choose · enter confirm · esc not now'
   if (view === VIEW.WELCOME) return 'j/k choose · enter does it · esc starts searching'
   if (panelMode === PANEL.AI) return askStatusText({ status, errorMessage, agent, effort, selecting, link, session, stopKey, retryKey, canRetry })
   // The field holds an address: Enter opens it rather than searching, so say so first.
@@ -218,9 +218,9 @@ const BROWSER_SEARCH_URLS = {
   bing: 'https://www.bing.com/search?q='
 }
 
-// Enter while SearXNG is not set up: the first few times the panel asks —
-// set it up, or search in the browser — then it searches in the browser and
-// says why on the next open a few more times, then it just searches there.
+// Enter while SearXNG is not set up searches in the browser. The next open
+// says why: the first few times on the setup page, a few more as a line on the
+// status bar, then not at all.
 export const SETUP_PROMPTS = 3
 export const BROWSER_FALLBACK_HINTS = 3
 

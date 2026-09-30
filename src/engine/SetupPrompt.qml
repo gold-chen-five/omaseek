@@ -8,11 +8,11 @@ Item {
   id: prompt
 
   property string reason: ""                 // what the backend actually reported
-  // Never set up rather than stopped: the way out searches in the browser, and
-  // the page says where to set it up later.
+  // Never set up rather than stopped: the last search already went to the
+  // browser, and the page says so, and where to set it up later.
   property bool notSetUp: false
   property string setupPath: ""              // search.mjs setupPath: where Settings sets it up
-  readonly property var buttons: notSetUp ? ["Search in browser", "Set it up"] : ["Not now", "Start it"]
+  readonly property var buttons: ["Not now", notSetUp ? "Set it up" : "Start it"]
   property color foreground: Color.menu.text
   property color accent: Color.menu.selectedText
   property string fontFamily: Style.font.menuFamily
@@ -65,6 +65,17 @@ Item {
       color: prompt.accent
       font.family: prompt.fontFamily
       font.pixelSize: Style.font.heading
+      wrapMode: Text.WordWrap
+    }
+
+    Text {
+      width: parent.width
+      visible: prompt.notSetUp
+      textFormat: Text.PlainText
+      text: "Your last search opened in your browser."
+      color: prompt.foreground
+      font.family: prompt.fontFamily
+      font.pixelSize: Style.font.body
       wrapMode: Text.WordWrap
     }
 
@@ -165,7 +176,7 @@ Item {
     Text {
       width: parent.width
       textFormat: Text.PlainText
-      text: "h l  choose        enter  confirm        esc  " + (prompt.notSetUp ? "search in browser" : "not now")
+      text: "h l  choose        enter  confirm        esc  not now"
       color: prompt.foreground
       opacity: 0.45
       font.family: prompt.fontFamily
