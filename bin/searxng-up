@@ -688,7 +688,10 @@ fi
 if exists; then
   old_port=$(published_port)
   # Anything but one plain port — unreadable, or bound twice — is left as it is.
-  [[ ! $old_port =~ ^[0-9]+$ || $old_port == "$PORT" ]] || move_port "$old_port"
+  if [[ $old_port =~ ^[0-9]+$ && $old_port != "$PORT" ]]; then
+    move_port "$old_port"
+    exit 0  # move_port waited for it to answer on the new port
+  fi
 fi
 
 if running; then

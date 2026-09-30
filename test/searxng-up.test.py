@@ -661,6 +661,9 @@ class SearxngUpdateTests(unittest.TestCase):
         self.assertFalse(any(c.startswith("pull") for c in commands))
         self.assertEqual((self.state / "container_port").read_text().strip(), "8899")
         self.assertTrue((self.state / "labelled").exists())
+        # Waited for once, by the move: not again as an already running container.
+        self.assertNotIn("already running", result.stdout)
+        self.assertEqual(result.stdout.count("ready — searching through"), 1, result.stdout)
 
     def test_a_container_made_from_a_tag_moves_by_its_image_id(self):
         # An older omaseek's `:latest`: the ID is the same bytes, and cannot be pulled.
