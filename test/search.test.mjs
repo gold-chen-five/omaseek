@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { describeError, normalizeRow, mergeResults, statusText, modeLabel, confirmClearText, pageJumpTarget, passageForQuestion, cleanQuery, browserSearchUrl } from '../src/search/search.mjs'
+import { describeError, normalizeRow, mergeResults, statusText, modeLabel, confirmClearText, pageJumpTarget, passageForQuestion, cleanQuery, browserSearchUrl, browserFallbackHint, readBrowserHints, BROWSER_FALLBACK_HINTS } from '../src/search/search.mjs'
 import { VIEW, PANEL, FOCUS } from '../src/shared/states.mjs'
 
 test('the status line counts a jump’s pages as they land', () => {
@@ -271,4 +271,18 @@ test('a browser search is the engine’s search page with the query encoded, Goo
   assert.equal(browserSearchUrl('x', 'bing'), 'https://www.bing.com/search?q=x')
   assert.equal(browserSearchUrl('x', 'altavista'), 'https://www.google.com/search?q=x', 'an unknown engine is Google')
   assert.equal(browserSearchUrl('   ', 'google'), '', 'nothing to search')
+})
+
+test('a search sent to the browser is explained a few times, naming the settings key', () => {
+  assert.equal(BROWSER_FALLBACK_HINTS, 3)
+  assert.match(browserFallbackHint('ctrl+s'), /searched in your browser/)
+  assert.match(browserFallbackHint('ctrl+s'), /set up SearXNG .*ctrl\+s → Search/)
+  assert.match(browserFallbackHint('ctrl+o'), /ctrl\+o → Search/, 'a rebound settings key is the one named')
+  assert.match(browserFallbackHint(''), /ctrl\+s → Search/)
+  assert.ok(browserFallbackHint('ctrl+s').length <= 80, 'short enough for the status line')
+  assert.equal(readBrowserHints(''), 0, 'no file yet')
+  assert.equal(readBrowserHints('{"version":1,"browserFallback":2}'), 2)
+  assert.equal(readBrowserHints('{"browserFallback":-1}'), 0)
+  assert.equal(readBrowserHints('{"browserFallback":"2"}'), 0)
+  assert.equal(readBrowserHints('not json'), 0)
 })

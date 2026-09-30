@@ -6,6 +6,7 @@ import qs.Commons
 import qs.Ui
 import "settings/settings.mjs" as SettingsLib
 import "shared/vim/keybinds.mjs" as Keybinds
+import "search/search.mjs" as SearchLib
 import "shared/states.mjs" as States
 import "shared/pixels.mjs" as Pixels
 import "shared/terminal.mjs" as Terminal
@@ -35,6 +36,9 @@ Item {
   property string focusArea: States.FOCUS.FIELD  // who has the keyboard
   property string setupReason: ""              // what the backend said when the instance was down
   property string notice: ""                   // what a key just did, on the status line for a beat
+  property string hint: ""                     // a note on the status line until the next thing typed
+  property bool browserHintPending: false      // a search just went to the browser: say why on the next open
+  property int browserHints: 0                 // how many times that was said (hints.json)
   property bool keysOpen: false                // the ctrl+k lookup is over the card
   property string keysReturnTo: ""             // the focusArea it was opened from
   property bool introPending: false            // the welcome page is not finished: opening shows it
@@ -86,11 +90,14 @@ Item {
       return
     }
     view = States.VIEW.SEARCH                  // never reopen into settings or setup
+    hint = browserHintPending ? SearchLib.browserFallbackHint(config.settings.settingsKey) : ""
+    browserHintPending = false
     focusSearch(fieldMode)                     // first launch inherits the field's insert default
   }
 
   function close () {
     opened = false
+    hint = ""
     keysOpen = false
     session.cancel()
   }
@@ -138,8 +145,16 @@ Item {
   function searchWithoutEngine (reason) {
     const query = session.lastQuery
     engine.checkPresent(present => {
-      if (present || !query) askToStartEngine(reason)
-      else commands.browserSearch(query)
+      if (present || !query) {
+        askToStartEngine(reason)
+        return
+      }
+      if (browserHints < SearchLib.BROWSER_FALLBACK_HINTS) {
+        browserHintPending = true
+        browserHints = browserHints + 1
+        hints.write(JSON.stringify({ version: 1, browserFallback: browserHints }) + "\n")
+      }
+      commands.browserSearch(query)
     })
   }
 
@@ -260,6 +275,14 @@ Item {
   ConfigStore { id: config }
 
   HistoryStore { id: queries }
+
+  // How many times a search sent to the browser was explained on the next open.
+  JsonFile {
+    id: hints
+
+    name: "omaseek/hints.json"
+    onLoaded: text => root.browserHints = SearchLib.readBrowserHints(text)
+  }
 
   // The first time omaseek is loaded it opens itself, on the welcome page: a
   // fresh install has no SearXNG and no SUPER + d, and an icon that appeared
@@ -442,6 +465,7 @@ Item {
     // asks for suggestions: a question, or the bar rewritten by a walk or the
     // list, never leaves for SearXNG's autocompleter.
     function onTextChanged () {
+      root.hint = ""                            // read, or not wanted: what is typed next matters more
       if (!commands.applyingHistory) commands.historyIndex = -1
       if (commands.applyingHistory || commands.applyingSuggestion) return
       if (suggestions.active) suggestions.type(root.input.text)

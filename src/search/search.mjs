@@ -218,6 +218,25 @@ const BROWSER_SEARCH_URLS = {
   bing: 'https://www.bing.com/search?q='
 }
 
+// Enter sends a search to the browser while SearXNG is not set up, and says
+// why on the next open — only the first few times, so it teaches without nagging.
+export const BROWSER_FALLBACK_HINTS = 3
+
+/** The line the next open shows after a search went to the browser. */
+export function browserFallbackHint (settingsKey) {
+  return `searched in your browser · set up SearXNG to search here: ${settingsKey || 'ctrl+s'} → Search`
+}
+
+/** hints.json -> how many times the hint was shown; 0 when absent or unreadable. */
+export function readBrowserHints (text) {
+  try {
+    const count = JSON.parse(String(text || '')).browserFallback
+    return Number.isInteger(count) && count > 0 ? count : 0
+  } catch (error) {
+    return 0
+  }
+}
+
 /** The query as a search in the browser, on `engine` (Google if unknown); '' when blank. */
 export function browserSearchUrl (query, engine) {
   const text = cleanQuery(query)

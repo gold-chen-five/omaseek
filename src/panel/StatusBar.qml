@@ -29,6 +29,7 @@ StatusLine {
   detail: host.findPrompt ? host.findPrompt
     : chat.clearArmed ? SearchLib.confirmClearText(clearKeyText, ai.sessionCount)
     : host.notice ? host.notice
+    : host.hint && host.view === States.VIEW.SEARCH ? host.hint
     : SearchLib.statusText({
       view: host.view,
       panelMode: host.panelMode,
