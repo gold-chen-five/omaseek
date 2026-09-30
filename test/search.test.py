@@ -183,8 +183,10 @@ class SearchBackendTests(unittest.TestCase):
     def test_the_endpoint_test_times_each_engine_on_its_own(self):
         report = self.run_search("--test")
         self.assertTrue(report["ok"])
-        # One query per configured engine, so each one's time is its own.
-        asked = [params.get("engines") for params in FakeSearxng.requests]
+        # One query per configured engine, so each one's time is its own. Only
+        # the test's own query counts: a request an earlier test started in
+        # parallel can still land on this shared server after setUp cleared it.
+        asked = [params.get("engines") for params in FakeSearxng.requests if params.get("q") == "searxng"]
         self.assertEqual(asked, ["google cse", "bing", "brave", "duckduckgo"], "one query each")
         rows = {name: answer["rows"] for name, answer in report["engines"].items()}
         self.assertEqual(rows, {"google cse": 0, "bing": 5, "brave": 10, "duckduckgo": 0})
