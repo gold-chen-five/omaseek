@@ -238,8 +238,14 @@ export function browserFallbackHint (settingsKey) {
  * hints.json -> how many times each was shown; 0 when absent or unreadable.
  * Counted under names of their own: counts an earlier omaseek kept for other
  * messages (setupPrompts, browserFallback) do not use these up.
+ *
+ * The counts belong to one install: `install` is the plugin folder's identity
+ * (installId), which an update keeps and a reinstall — a new folder — does
+ * not, so a reinstall starts them afresh. A file that names no install yet, as
+ * written before this, is taken as this one's; so is any when `installId` is
+ * unknown.
  */
-export function readHints (text) {
+export function readHints (text, installId = '') {
   let data = null
   try {
     data = JSON.parse(String(text || ''))
@@ -247,7 +253,15 @@ export function readHints (text) {
     data = null
   }
   const count = value => Number.isInteger(value) && value > 0 ? value : 0
+  const another = Boolean(installId) && typeof data?.install === 'string' && data.install !== installId
+  if (another) return { setupPages: 0, browserHints: 0 }
   return { setupPages: count(data?.setupPages), browserHints: count(data?.browserHints) }
+}
+
+/** `stat -c %i:%W` of the plugin folder -> its identity, or '' when unreadable. */
+export function installIdOf (statOutput) {
+  const text = String(statOutput || '').trim()
+  return /^\d+:\d+$/.test(text) ? text : ''
 }
 
 /** The query as a search in the browser, on `engine` (Google if unknown); '' when blank. */

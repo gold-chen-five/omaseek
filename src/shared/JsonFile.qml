@@ -13,19 +13,13 @@ import Quickshell.Io
 Item {
   id: file
 
-  // "config" or "data": which XDG root. "plugin": this plugin's own folder,
-  // for what belongs to one install — `omarchy plugin remove` deletes the
-  // folder, so a reinstall starts it afresh, while an update (a fast-forward of
-  // the checkout) keeps it.
-  property string base: "data"
+  property string base: "data"                 // "config" or "data": which XDG root
   property string name: ""                     // "omaseek/sessions.json"
   property bool watch: false                   // re-read when something else writes it
 
   readonly property string root: base === "config"
     ? (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config"))
-    : base === "plugin"
-      ? Qt.resolvedUrl("../..").toString().replace(/^file:\/\//, "").replace(/\/$/, "")
-      : (Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") + "/.local/share"))
+    : (Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") + "/.local/share"))
   readonly property string path: root + "/" + name
   readonly property string dir: path.replace(/\/[^\/]*$/, "")
 

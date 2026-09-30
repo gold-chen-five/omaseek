@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { describeError, normalizeRow, mergeResults, statusText, modeLabel, confirmClearText, pageJumpTarget, passageForQuestion, cleanQuery, browserSearchUrl, browserFallbackHint, readHints, setupPath, SETUP_PROMPTS, BROWSER_FALLBACK_HINTS } from '../src/search/search.mjs'
+import { describeError, normalizeRow, mergeResults, statusText, modeLabel, confirmClearText, pageJumpTarget, passageForQuestion, cleanQuery, browserSearchUrl, browserFallbackHint, readHints, installIdOf, setupPath, SETUP_PROMPTS, BROWSER_FALLBACK_HINTS } from '../src/search/search.mjs'
 import { VIEW, PANEL, FOCUS } from '../src/shared/states.mjs'
 
 test('the status line counts a jump’s pages as they land', () => {
@@ -287,4 +287,20 @@ test('without SearXNG, the next open shows the setup page three times, then a hi
     'counts an earlier version kept for other messages start these afresh')
   assert.deepEqual(readHints('{"setupPages":-1,"browserHints":"2"}'), { setupPages: 0, browserHints: 0 })
   assert.deepEqual(readHints('not json'), { setupPages: 0, browserHints: 0 })
+})
+
+test('the counts belong to one install: an update keeps them, a reinstall starts them afresh', () => {
+  const file = install => JSON.stringify({ version: 3, install, setupPages: 3, browserHints: 2 })
+  assert.deepEqual(readHints(file('1234:1700000000'), '1234:1700000000'), { setupPages: 3, browserHints: 2 },
+    'an update: the same plugin folder')
+  assert.deepEqual(readHints(file('1234:1700000000'), '5678:1800000000'), { setupPages: 0, browserHints: 0 },
+    'a reinstall: a new folder, even with the removal missed')
+  assert.deepEqual(readHints('{"version":2,"setupPages":3,"browserHints":1}', '5678:1800000000'), { setupPages: 3, browserHints: 1 },
+    'a file from before installs were named is this install’s, so updating to this keeps it')
+  assert.deepEqual(readHints(file('1234:1700000000'), ''), { setupPages: 3, browserHints: 2 },
+    'the folder could not be read: nothing is reset on a guess')
+  assert.equal(installIdOf('1234:1700000000\n'), '1234:1700000000')
+  assert.equal(installIdOf('1234:0'), '1234:0', 'no birth time on this filesystem: the inode alone')
+  assert.equal(installIdOf(''), '')
+  assert.equal(installIdOf("stat: cannot statx 'x': No such file or directory"), '')
 })

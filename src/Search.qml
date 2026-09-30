@@ -1,4 +1,5 @@
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import QtQuick
@@ -39,6 +40,8 @@ Item {
   property string hint: ""                     // a note on the status line until the next thing typed
   property bool browserHintPending: false      // a search just went to the browser: say why on the next open
   property int browserHints: 0                 // how many times that was said (hints.json)
+  property string hintsText: ""                // hints.json as read, until the install it belongs to is known
+  property string installId: ""                // this install's plugin folder, as bin/stat names it (search.mjs)
   property int setupPages: 0                 // how many times a search sent to the browser led to the setup page (hints.json)
   property bool setupPending: false            // one just did: the next open shows the page
   property bool setupNotSetUp: false           // the setup page is about SearXNG never set up, not stopped
@@ -177,7 +180,7 @@ Item {
   }
 
   function saveHints () {
-    hints.write(JSON.stringify({ version: 2, setupPages: setupPages, browserHints: browserHints }) + "\n")
+    hints.write(JSON.stringify({ version: 3, install: installId, setupPages: setupPages, browserHints: browserHints }) + "\n")
   }
 
   // The instance is down: ask to start it rather than show an error.
@@ -313,19 +316,39 @@ Item {
   HistoryStore { id: queries }
 
   // How many times a search sent to the browser for want of SearXNG led to the
-  // setup page, and to the hint. Kept in the plugin's folder, so removing
-  // omaseek forgets them and a reinstall shows the page again; an update keeps
-  // them.
+  // setup page, and to the hint — for this install (installProbe below).
   JsonFile {
     id: hints
 
-    base: "plugin"
-    name: ".state/hints.json"
+    name: "omaseek/hints.json"
     onLoaded: text => {
-      const counts = SearchLib.readHints(text)
-      root.setupPages = counts.setupPages
-      root.browserHints = counts.browserHints
+      root.hintsText = text
+      root.readHintCounts()
     }
+  }
+
+  // Which install this is: the plugin folder, by inode and birth time. An
+  // update keeps the folder; `omarchy plugin remove` deletes it, so a reinstall
+  // is a new one and the counts above start afresh, even when the removal
+  // happened with the shell not running. Nothing is written into the folder —
+  // Omarchy reloads a plugin whenever a file in it changes.
+  Process {
+    id: installProbe
+
+    running: true
+    command: ["stat", "-c", "%i:%W", Qt.resolvedUrl("..").toString().replace(/^file:\/\//, "").replace(/\/$/, "")]
+    stdout: StdioCollector {
+      onStreamFinished: {
+        root.installId = SearchLib.installIdOf(text)
+        root.readHintCounts()
+      }
+    }
+  }
+
+  function readHintCounts () {
+    const counts = SearchLib.readHints(hintsText, installId)
+    setupPages = counts.setupPages
+    browserHints = counts.browserHints
   }
 
   // The first time omaseek is loaded it opens itself, on the welcome page: a
