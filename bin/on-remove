@@ -24,6 +24,7 @@ STAGE="$XDG_RUNTIME_DIR/omaseek-removal"
 MANIFEST="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins/$PLUGIN_ID/manifest.json"
 # The panel's record of having shown the welcome page (Search.qml's first run).
 FIRST_RUN="${XDG_DATA_HOME:-$HOME/.local/share}/omaseek/first-run.json"
+HINTS="${XDG_DATA_HOME:-$HOME/.local/share}/omaseek/hints.json"
 DECIDED="$STAGE/searxng-decided"     # bin/uninstall already asked
 HERE=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
@@ -44,8 +45,9 @@ case "${1:-}" in
     [[ -e $MANIFEST ]] && exit 0                 # disabled or reloaded, not removed
 
     # Removed: a reinstall is a first install again — the welcome page, and
-    # the bar icon put in its place, happen on the first run only.
-    rm -f "$FIRST_RUN"
+    # the bar icon put in its place, happen on the first run only, and the
+    # setup page and hint after a search sent to the browser count afresh.
+    rm -f "$FIRST_RUN" "$HINTS"
 
     # Only a fresh answer counts, so a failed bin/uninstall cannot silence a later removal.
     if [[ -n $(find "$DECIDED" -mmin -2 2>/dev/null) ]]; then
