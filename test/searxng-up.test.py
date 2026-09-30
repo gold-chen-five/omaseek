@@ -41,6 +41,15 @@ class SearxngUpdateTests(unittest.TestCase):
             command=${1:-}
             shift || true
 
+            # The host port a run or create publishes on; 8888 unless a test's
+            # container says otherwise.
+            record_port() {
+              local arg
+              for arg in "$@"; do
+                [[ $arg != 127.0.0.1:*:8080 ]] || { arg=${arg#127.0.0.1:}; printf '%s\n' "${arg%:8080}" > "$state/container_port"; }
+              done
+            }
+
             record_image() {
               printf '%s\n' "$1" > "$state/container_ref"
               if [[ $1 == *searxng/searxng[:@]* ]]; then
@@ -73,7 +82,9 @@ class SearxngUpdateTests(unittest.TestCase):
               inspect|container)
                 [[ ${1:-} != inspect ]] || shift
                 [[ -f $state/exists ]]
-                if [[ $* == *Config.Image* ]]; then cat "$state/container_ref"; else cat "$state/container_image"; fi
+                if [[ $* == *PortBindings* ]]; then
+                  if [[ -f $state/container_port ]]; then cat "$state/container_port"; else echo 8888; fi
+                elif [[ $* == *Config.Image* ]]; then cat "$state/container_ref"; else cat "$state/container_image"; fi
                 ;;
               image)
                 case ${1:-} in
@@ -88,7 +99,7 @@ class SearxngUpdateTests(unittest.TestCase):
                 ;;
               rm)
                 [[ ${!#} == omaseek-searxng ]] || rm -f "$state/user_container"
-                rm -f "$state/exists" "$state/running" "$state/container_image" "$state/labelled"
+                rm -f "$state/exists" "$state/running" "$state/container_image" "$state/labelled" "$state/container_port"
                 if [[ -f $state/signal_every_remove ]]; then
                   kill -TERM "$PPID"
                   /bin/sleep 0.05
@@ -103,6 +114,7 @@ class SearxngUpdateTests(unittest.TestCase):
                 [[ ! -f $state/fail_run_new || $image != *searxng/searxng[:@]* ]] || exit 43
                 touch "$state/exists" "$state/running"
                 [[ $* != *"--label omaseek=searxng"* ]] || touch "$state/labelled"
+                record_port "$@"
                 record_image "$image"
                 ;;
               create)
@@ -111,6 +123,7 @@ class SearxngUpdateTests(unittest.TestCase):
                 touch "$state/exists"
                 rm -f "$state/running"
                 [[ $* != *"--label omaseek=searxng"* ]] || touch "$state/labelled"
+                record_port "$@"
                 record_image "$image"
                 ;;
               start)
@@ -147,6 +160,10 @@ class SearxngUpdateTests(unittest.TestCase):
             if [[ ${{2:-}} == port-check ]]; then
               [[ -f $state/port_taken ]]
               exit
+            fi
+            # A port nothing answers on, for a container that never comes up there.
+            if [[ -f $state/dead_port && ${{2:-}} == *":$(<"$state/dead_port")" ]]; then
+              exit 1
             fi
             if [[ -f $state/fail_health_for_new && -f $state/container_image ]]; then
               current=$(<"$state/container_image")
@@ -628,6 +645,99 @@ class SearxngUpdateTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("rm -f omaseek-searxng", self.commands())
+
+    def test_a_moved_port_recreates_the_container_there_from_the_same_image(self):
+        self.arrange_container("sha256:pinned", "sha256:pinned", ref=PINNED)
+        self.write_searxng_url("http://localhost:8899")
+
+        result = self.run_mode("start")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        commands = self.commands()
+        self.assertIn("rm -f omaseek-searxng", commands)
+        run = next(c for c in commands if c.startswith("run -d"))
+        self.assertIn("-p 127.0.0.1:8899:8080", run)
+        self.assertTrue(run.endswith(PINNED), run)
+        self.assertFalse(any(c.startswith("pull") for c in commands))
+        self.assertEqual((self.state / "container_port").read_text().strip(), "8899")
+        self.assertTrue((self.state / "labelled").exists())
+
+    def test_a_container_made_from_a_tag_moves_by_its_image_id(self):
+        # An older omaseek's `:latest`: the ID is the same bytes, and cannot be pulled.
+        self.arrange_container("sha256:old", "sha256:new")
+        self.write_searxng_url("http://localhost:8899")
+
+        result = self.run_mode("start")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        run = next(c for c in self.commands() if c.startswith("run -d"))
+        self.assertTrue(run.endswith(" sha256:old"), run)
+        self.assertFalse(any(c.startswith("pull") for c in self.commands()))
+
+    def test_a_stopped_container_on_an_old_port_is_moved_and_started(self):
+        self.arrange_container("sha256:pinned", "sha256:pinned", running=False, ref=PINNED)
+        self.write_searxng_url("http://localhost:8899")
+
+        result = self.run_mode("start")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.state / "container_port").read_text().strip(), "8899")
+        self.assertTrue((self.state / "running").exists())
+
+    def test_the_same_port_leaves_the_container_as_it_is(self):
+        self.arrange_container("sha256:pinned", "sha256:pinned", ref=PINNED)
+        self.write_searxng_url("http://localhost:8888")
+
+        result = self.run_mode("start")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        verbs = {command.split()[0] for command in self.commands()}
+        self.assertFalse(verbs & {"rm", "run", "create"}, self.commands())
+
+    def test_a_taken_new_port_leaves_the_container_on_the_old_one(self):
+        self.arrange_container("sha256:pinned", "sha256:pinned", ref=PINNED)
+        (self.state / "port_taken").touch()
+        self.write_searxng_url("http://localhost:8899")
+
+        result = self.run_mode("start")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("already listens on", result.stderr)
+        self.assertIn("left on port 8888", result.stderr)
+        verbs = {command.split()[0] for command in self.commands()}
+        self.assertFalse(verbs & {"rm", "run", "create"}, self.commands())
+        self.assertTrue((self.state / "running").exists())
+
+    def test_a_container_that_does_not_answer_on_the_new_port_goes_back(self):
+        for running in (True, False):
+            with self.subTest(running=running):
+                for leftover in ("clock", "running", "container_port"):
+                    (self.state / leftover).unlink(missing_ok=True)
+                self.arrange_container("sha256:pinned", "sha256:pinned", running=running, ref=PINNED)
+                (self.state / "dead_port").write_text("8899\n", encoding="utf-8")
+                self.write_searxng_url("http://localhost:8899")
+
+                result = self.run_mode("start")
+
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("did not answer on port 8899", result.stderr)
+                self.assertIn("back on port 8888", result.stderr)
+                self.assertEqual((self.state / "container_port").read_text().strip(), "8888")
+                self.assertEqual((self.state / "running").exists(), running)
+                self.assertTrue((self.state / "labelled").exists())
+
+    def test_an_interrupted_move_puts_the_container_back_on_the_old_port(self):
+        self.arrange_container("sha256:pinned", "sha256:pinned", ref=PINNED)
+        (self.state / "signal_after_remove").touch()
+        self.write_searxng_url("http://localhost:8899")
+
+        result = self.run_mode("start")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("interrupted", result.stderr)
+        self.assertEqual((self.state / "container_port").read_text().strip(), "8888")
+        self.assertTrue((self.state / "running").exists())
+        self.assertTrue((self.state / "labelled").exists())
 
     def test_the_users_own_searxng_container_is_never_touched(self):
         (self.state / "user_container").touch()

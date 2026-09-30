@@ -394,6 +394,22 @@ run_container() {
   "${docker[@]}" run -d "${container_args[@]}" "$1" >/dev/null && created
 }
 
+# The host port $NAME publishes SearXNG on, from how it was created, so a
+# stopped container answers too. Empty when it cannot be read.
+published_port() {
+  "${docker[@]}" inspect \
+    --format '{{range (index .HostConfig.PortBindings "8080/tcp")}}{{.HostPort}}{{end}}' \
+    "$NAME" 2>/dev/null || true
+}
+
+# container_args, publishing on port $1 instead.
+publish_on() {
+  local i
+  for i in "${!container_args[@]}"; do
+    [[ ${container_args[$i]} != 127.0.0.1:*:8080 ]] || container_args[$i]="127.0.0.1:$1:8080"
+  done
+}
+
 port_taken() {
   python3 - port-check "$PORT" <<'PROBE' 2>/dev/null
 import socket, sys
@@ -549,6 +565,56 @@ update_image() {
   fi
 }
 
+# Puts $NAME back as it was before move_port: the same image, on its old port,
+# running or stopped as it was.
+restore_port() {
+  local image=$1 old_port=$2 was_running=$3 reason=$4
+  trap '' HUP INT TERM
+  warn "$reason — putting $NAME back on port $old_port"
+  ! (exists) || "${docker[@]}" rm -f "$NAME" >/dev/null 2>&1 || true
+  publish_on "$old_port"
+  if [[ $was_running == true ]]; then
+    run_container "$image" && die "$reason; $NAME is back on port $old_port"
+  else
+    create_container "$image" && die "$reason; $NAME is back on port $old_port, stopped"
+  fi
+  die "$reason, and $NAME could not be put back on port $old_port"
+}
+
+# A container keeps the port it was created with, so searxng_url moved to
+# another port means recreating it there: the same image, so nothing is pulled
+# and the digest it runs stays the one agreed to. What holds the new port is
+# left alone, as on a first start, and a container that does not come up on it
+# is put back on the old one.
+move_port() {
+  local old_port=$1 image ref was_running=false
+  running && was_running=true
+  if port_taken; then
+    die "searxng_url moved SearXNG to port $PORT, but something already listens on
+       127.0.0.1:$PORT, and omaseek leaves what it did not create alone. $NAME
+       was left on port $old_port."
+  fi
+  # By digest when it was created by one: immutable, and already here. An
+  # older omaseek's container made from a tag is recreated from its image ID,
+  # which names the same bytes and can never be pulled.
+  ref=$("${docker[@]}" inspect --format '{{.Config.Image}}' "$NAME")
+  if [[ $ref == *@sha256:* ]]; then
+    image=$ref
+  else
+    image=$("${docker[@]}" inspect --format '{{.Image}}' "$NAME")
+  fi
+
+  say "moving $NAME from port $old_port to $PORT"
+  trap 'restore_port "$image" "$old_port" "$was_running" "interrupted"' HUP INT TERM
+  "${docker[@]}" rm -f "$NAME" >/dev/null
+  publish_on "$PORT"
+  run_container "$image" ||
+    restore_port "$image" "$old_port" "$was_running" "could not create $NAME on port $PORT"
+  wait_until_ready ||
+    restore_port "$image" "$old_port" "$was_running" "$NAME did not answer on port $PORT"
+  trap - HUP INT TERM
+}
+
 if [[ $MODE == --stop ]]; then
   running || { say "$NAME is not running"; exit 0; }
   "${docker[@]}" stop "$NAME" >/dev/null
@@ -617,6 +683,12 @@ else
   grep -q '^outgoing:' "$SETTINGS" ||
     warn "$SETTINGS has no 'outgoing:' block — searches wait the default 3s on
        slow engines. See the SearXNG section of the README to trim that."
+fi
+
+if exists; then
+  old_port=$(published_port)
+  # Anything but one plain port — unreadable, or bound twice — is left as it is.
+  [[ ! $old_port =~ ^[0-9]+$ || $old_port == "$PORT" ]] || move_port "$old_port"
 fi
 
 if running; then
