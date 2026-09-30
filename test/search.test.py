@@ -226,6 +226,18 @@ class SearchBackendTests(unittest.TestCase):
         self.assertEqual(self.run_search("--suggest", "you")["suggestions"], [])
         self.assertEqual(len(FakeSearxng.requests), before, "the typed text stays on this machine")
 
+    def test_only_an_unreachable_instance_on_this_machine_offers_setup(self):
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            closed = probe.getsockname()[1]
+        for url, setup in ((f"http://localhost:{closed}", True),
+                           (f"http://127.0.0.2:{closed}", False)):
+            with self.subTest(url=url):
+                self.configure({"searxng_url": url})
+                report = self.run_search("rust")
+                self.assertEqual(report["error"], "network")
+                self.assertEqual(report.get("setup", False), setup)
+
     def test_a_malformed_offset_is_a_usage_error_not_a_crash(self):
         report = self.run_search("--next", json.dumps({"query": "rust", "s": "three"}))
         self.assertEqual(report["error"], "usage")

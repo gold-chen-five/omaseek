@@ -6,9 +6,16 @@ import json
 import os
 import re
 import sys
+import urllib.parse
 
 
 SEARXNG_DEFAULT_URL = "http://localhost:8888"
+
+# The hosts bin/searxng-up's container answers on: it is published on 127.0.0.1
+# only — not even ::1, and `localhost` reaches it by falling back to IPv4 — so
+# an instance anywhere else is the reader's own, not one setup can create.
+# bin/searxng-up keeps the same list.
+LOCAL_HOSTS = ("localhost", "127.0.0.1")
 
 
 # Short: this sits behind a keypress. SearXNG's own outgoing.request_timeout
@@ -129,6 +136,14 @@ def configured_url(config):
     if isinstance(url, str) and url.strip():
         return url.strip().rstrip("/")
     return SEARXNG_DEFAULT_URL
+
+
+def is_local_url(url):
+    """Whether url names an instance on this machine, the only kind setup makes."""
+    try:
+        return urllib.parse.urlparse(url).hostname in LOCAL_HOSTS
+    except ValueError:
+        return False
 
 
 def configured_engines(config):

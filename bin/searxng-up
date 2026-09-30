@@ -37,18 +37,28 @@ LABEL=omaseek=searxng
 # The host port comes from searxng_url in the panel's config.json — the same key
 # the backend reads — and 8888 when it is absent or unparsable. Another service
 # may already hold 8888 (a proxy, say), so the port is the reader's to move.
+# A searxng_url on another host is an instance the reader runs themselves: the
+# container here is published on 127.0.0.1 only (not ::1), so it could never
+# answer there, and REMOTE_HOST names that host so nothing is created or started for it.
+# LOCAL_HOSTS in backend/omaseek/search/config.py is the same list.
 CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/omaseek/config.json"
-PORT=$(python3 - "$CONFIG_FILE" <<'PY' 2>/dev/null || true
+REMOTE_HOST=""
+PORT=""
+IFS=' ' read -r PORT REMOTE_HOST < <(python3 - "$CONFIG_FILE" <<'PY' 2>/dev/null || true
 import json, sys, urllib.parse
 try:
     url = json.load(open(sys.argv[1])).get("searxng_url")
+    parsed = urllib.parse.urlparse(url.strip())
+    host, port = parsed.hostname, parsed.port
 except Exception:
-    url = None
-port = urllib.parse.urlparse(url).port if isinstance(url, str) else None
-print(port or "")
+    host = port = None
+if host and host not in ("localhost", "127.0.0.1"):
+    print("-", "".join(c for c in host if c.isprintable()) or "another host")
+else:
+    print(port or "-")
 PY
-)
-PORT=${PORT:-8888}
+) || true
+[[ $PORT =~ ^[0-9]+$ ]] || PORT=8888
 PINNED_TAG=2026.9.25-d8ae3abd5
 PINNED_DIGEST=sha256:38ed750807fb00c26047e51896b50f83e7843d120d9e65f950770305f62c7111
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omaseek"
@@ -161,6 +171,19 @@ case "$MODE" in
     ;;
   *) die "$usage" ;;
 esac
+
+# Creating, starting or updating a container serves only a searxng_url on this
+# machine. Stopping and removing one still work, so a container made before
+# searxng_url moved elsewhere can be cleaned up.
+if [[ -n $REMOTE_HOST ]]; then
+  case "$MODE" in
+    start|--update|--use)
+      die "searxng_url in $CONFIG_FILE points to $REMOTE_HOST, a SearXNG omaseek
+       does not manage, so there is nothing to set up here. To have omaseek run
+       one on this machine, remove searxng_url or point it at localhost."
+      ;;
+  esac
+fi
 
 # Every mode past here may write state: a symlinked state path stops it before
 # anything is done, not halfway through.

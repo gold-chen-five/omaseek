@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import json
 import os
 import pathlib
 import subprocess
@@ -583,6 +584,50 @@ class SearxngUpdateTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         run = next(c for c in self.commands() if c.startswith("run -d"))
         self.assertIn("-p 127.0.0.1:8888:8080", run)
+
+    def write_searxng_url(self, url):
+        config = self.base / "config" / "omaseek"
+        config.mkdir(parents=True, exist_ok=True)
+        (config / "config.json").write_text(json.dumps({"searxng_url": url}), encoding="utf-8")
+
+    def logged(self):
+        log = self.state / "log"
+        return log.read_text(encoding="utf-8").splitlines() if log.exists() else []
+
+    def test_a_searxng_url_on_another_host_is_not_set_up_here(self):
+        (self.state / "remote_image").write_text("sha256:pinned\n", encoding="utf-8")
+        self.write_searxng_url("http://192.168.1.5:9000")
+
+        for mode in ("start", "--update", "--use"):
+            with self.subTest(mode=mode):
+                args = [mode, "docker"] if mode == "--use" else [mode]
+                result = subprocess.run([str(SCRIPT), *args], cwd=ROOT, env=self.env, text=True,
+                                        capture_output=True, check=False)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("points to 192.168.1.5", result.stderr)
+        verbs = {command.split()[0] for command in self.logged()}
+        self.assertFalse(verbs & {"run", "create", "start", "pull", "rm"}, self.logged())
+
+    def test_a_loopback_address_other_than_127_0_0_1_is_not_this_container(self):
+        # Published on 127.0.0.1 alone, the container answers on neither of these.
+        for url, host in (("http://127.0.0.2:8899", "127.0.0.2"), ("http://[::1]:8899", "::1")):
+            with self.subTest(url=url):
+                self.write_searxng_url(url)
+
+                result = self.run_mode("start")
+
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(f"points to {host},", result.stderr)
+        self.assertFalse(any(c.startswith("run -d") for c in self.logged()))
+
+    def test_a_container_left_from_before_a_remote_searxng_url_can_still_be_removed(self):
+        self.arrange_container("sha256:pinned", "sha256:pinned")
+        self.write_searxng_url("https://search.example.com")
+
+        result = self.run_mode("--down")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("rm -f omaseek-searxng", self.commands())
 
     def test_the_users_own_searxng_container_is_never_touched(self):
         (self.state / "user_container").touch()

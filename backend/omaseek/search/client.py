@@ -7,7 +7,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from .config import CURRENT, ICON_ENDPOINT, SUGGEST_TIMEOUT, SearchError, TIMEOUT
+from .config import CURRENT, ICON_ENDPOINT, SUGGEST_TIMEOUT, SearchError, TIMEOUT, is_local_url
 
 
 def fetch(base, query, pageno):
@@ -38,8 +38,11 @@ def fetch_payload(base, query, pageno, engines=None):
             )
         raise SearchError("http", f"SearXNG returned HTTP {exc.code}")
     except urllib.error.URLError as exc:
+        # Setup can start only the instance it creates on this machine; one the
+        # reader runs elsewhere is theirs to bring back.
         raise SearchError(
-            "network", f"SearXNG is not reachable at {base} ({exc.reason})", setup=True
+            "network", f"SearXNG is not reachable at {base} ({exc.reason})",
+            setup=is_local_url(base),
         )
     except TimeoutError:
         raise SearchError("network", f"SearXNG timed out after {TIMEOUT}s")

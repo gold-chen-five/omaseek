@@ -58,6 +58,12 @@ labelled `omaseek=searxng`, and images it pulled itself — so a SearXNG you run
 yourself is never stopped, replaced or removed. If one already holds port 8888,
 setup stops and says so.
 
+To use another port or another SearXNG, set `searxng_url` in
+`~/.config/omaseek/config.json`. On `localhost` (say
+`"searxng_url": "http://localhost:8899"`) omaseek's own container moves to that
+port. Any other host is an instance you run yourself: omaseek searches it as it
+is and sets nothing up for it.
+
 **Asking** uses whichever agent CLI you have — `claude`, `codex`, `crush`,
 `opencode`, `gemini`, `hermes`, `copilot`, `cursor-agent`.
 
