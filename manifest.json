@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "omaseek",
   "name": "Omaseek",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "gold_chen_five",
   "description": "Web search and AI, with vim keybindings, through your own SearXNG",
   "kinds": [
