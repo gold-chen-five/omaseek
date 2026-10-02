@@ -20,8 +20,7 @@ Item {
     property int confirms: 0
     property int cancels: 0
     property int ups: 0
-    property string lastEngine: "none"
-    onConfirmed: engine => { confirms++; lastEngine = engine }
+    onConfirmed: confirms++
     onCancelled: cancels++
     onSteppedUp: ups++
   }
@@ -31,36 +30,29 @@ Item {
     when: windowShown
 
     function init() {
-      prompt.confirms = 0; prompt.cancels = 0; prompt.ups = 0; prompt.lastEngine = "none"
+      prompt.confirms = 0; prompt.cancels = 0; prompt.ups = 0
       bar.forceActiveFocus()
     }
 
-    function test_not_set_up_offers_podman_or_docker() {
-      compare(prompt.buttons, ["Not now", "Podman", "Docker"])
+    function test_not_set_up_offers_one_searxng_button() {
+      compare(prompt.buttons, ["Not now", "SearXNG"], "the terminal asks Podman or Docker")
       prompt.notSetUp = false
       compare(prompt.buttons, ["Not now", "Start it"], "stopped: start it as it was made")
       prompt.notSetUp = true
     }
 
-    function test_each_engine_button_sends_its_engine_and_l_stops_at_the_end() {
+    function test_h_and_l_choose_and_enter_takes_it() {
       prompt.open()
       tryVerify(() => prompt.activeFocus)
-      compare(prompt.selectedIndex, 1, "lands on Podman")
-      keyClick(Qt.Key_Return)
-      compare(prompt.lastEngine, "podman")
+      compare(prompt.selectedIndex, 1, "lands on SearXNG")
       keyClick("l")
-      compare(prompt.selectedIndex, 2)
+      compare(prompt.selectedIndex, 1, "l stops at the end")
+      keyClick("h")
+      compare(prompt.selectedIndex, 0)
       keyClick("l")
-      compare(prompt.selectedIndex, 2, "l stops at Docker")
       keyClick(Qt.Key_Return)
-      compare(prompt.lastEngine, "docker")
-      keyClick(Qt.Key_Tab)
-      compare(prompt.selectedIndex, 0, "tab goes round")
-      prompt.notSetUp = false
-      prompt.open()
-      keyClick(Qt.Key_Return)
-      compare(prompt.lastEngine, "", "Start it names no engine")
-      prompt.notSetUp = true
+      compare(prompt.confirms, 1)
+      compare(prompt.cancels, 0)
     }
 
     function test_the_page_leaves_the_keyboard_in_the_bar_until_asked() {
@@ -70,7 +62,7 @@ Item {
       compare(prompt.confirms, 0, "Enter in the bar is not the page's")
       prompt.open()                                  // what j or down from the bar does
       tryVerify(() => prompt.activeFocus)
-      compare(prompt.selectedIndex, 1, "and lands on Podman")
+      compare(prompt.selectedIndex, 1, "and lands on SearXNG")
     }
 
     function test_k_and_up_go_back_to_the_bar() {
@@ -92,7 +84,7 @@ Item {
       compare(prompt.cancels, 1, "Enter on Not now")
       keyClick("l")
       keyClick(Qt.Key_Return)
-      compare(prompt.confirms, 1, "Enter on Podman")
+      compare(prompt.confirms, 1, "Enter on SearXNG")
       keyClick(Qt.Key_Escape)
       compare(prompt.cancels, 2, "esc is Not now")
     }

@@ -12,10 +12,9 @@ Item {
   // browser, and the page says so, and where to set it up later.
   property bool notSetUp: false
   property string setupPath: ""              // search.mjs setupPath: where Settings sets it up
-  // Never set up: which engine to set it up with. Stopped: start it again,
+  // Never set up: the terminal asks Podman or Docker. Stopped: start it again,
   // with the engine it was made with.
-  readonly property var buttons: notSetUp ? ["Not now", "Podman", "Docker"] : ["Not now", "Start it"]
-  readonly property var engines: notSetUp ? ["", "podman", "docker"] : ["", ""]
+  readonly property var buttons: ["Not now", notSetUp ? "SearXNG" : "Start it"]
   property color foreground: Color.menu.text
   property color accent: Color.menu.selectedText
   property string fontFamily: Style.font.menuFamily
@@ -24,13 +23,13 @@ Item {
   property int selectedIndex: 1
   property color selectedBackground: Color.menu.selectedBackground
 
-  signal confirmed(string engine)             // "podman" or "docker" from a choice, "" to start as it was
+  signal confirmed()
   signal cancelled()
   signal steppedUp()                         // k or up: back to the bar above, the page still showing
 
   function activate (index) {
     if (index === 0) prompt.cancelled()
-    else prompt.confirmed(prompt.engines[index] || "")
+    else prompt.confirmed()
   }
 
   // h and l stop at either end; tab goes round.
@@ -41,7 +40,7 @@ Item {
   }
 
   function open () {
-    selectedIndex = 1                          // land on Podman, or Start it, every time
+    selectedIndex = 1                          // land on SearXNG, or Start it, every time
     Qt.callLater(() => prompt.forceActiveFocus())
   }
 
@@ -112,9 +111,9 @@ Item {
       width: parent.width
       textFormat: Text.PlainText
       text: prompt.notSetUp
-          ? "Set it up with Podman or Docker? Podman is recommended: it runs SearXNG without root. "
-            + "A terminal opens and runs bin/searxng-up; if the one you choose is not installed, it "
-            + "offers to install it first. The first run downloads about 200 MB."
+          ? "Set it up now? A terminal opens and asks whether to run it with Podman (recommended: "
+            + "no root) or Docker, offers to install the one you pick if it is missing, and downloads "
+            + "about 200 MB."
           : "Start it now? A terminal opens and runs bin/searxng-up. With Docker, it may ask for "
             + "your password."
       color: prompt.foreground

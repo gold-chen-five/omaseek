@@ -22,13 +22,12 @@ export function searchRows (settings, state, version, engineName = '') {
     },
     {
       key: 'searxngRunWith',
-      type: 'choice',
-      confirm: true,                         // h and l choose, Enter takes it: it opens a terminal
+      type: 'action',
       label: 'Run SearXNG with',
-      hint: 'Podman runs it without root (recommended). Changing this opens a terminal that sets SearXNG up there, or moves it — asking before it removes anything, and offering to install the engine if it is missing',
-      options: ['podman', 'docker'],
-      value: engineName === 'docker' ? 'docker' : 'podman',
-      busy: engineName === ''               // not heard from bin/searxng-up yet
+      // Picked in the terminal Change opens, as on first setup.
+      hint: (engineName ? engineName + ' — ' : '') + 'Change opens a terminal that asks Podman (recommended: no root) or Docker, and moves SearXNG there, asking before it removes anything',
+      action: 'choose',
+      button: 'Change'
     },
     {
       key: 'engineUpdate',

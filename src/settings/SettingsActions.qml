@@ -16,13 +16,6 @@ Item {
   function change (key, value) {
     // Not a setting: the key that opens omaseek lives in the Hyprland bindings,
     // so a new one is written there, in a terminal that asks first.
-    // Not a setting either: which engine runs SearXNG is bin/searxng-up's to
-    // record, once it has set SearXNG up there or moved it.
-    // Nothing until it is known which runs it now, and nothing for the same one.
-    if (key === "searxngRunWith") {
-      if (engine.engineName && value !== engine.engineName) engine.useEngine(value)
-      return
-    }
     if (key === "shortcut" || key === "shortcutKey") {
       if (shortcut.choose(value)) shortcut.add()
       return
@@ -35,6 +28,10 @@ Item {
   function run (key, action) {
     if (key === "stream") {
       config.change("stream", action === "on")
+      return
+    }
+    if (key === "searxngRunWith" && action === "choose") {
+      engine.chooseEngine()
       return
     }
     if (key === "engineUpdate" && action === "update") {

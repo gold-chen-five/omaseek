@@ -8,9 +8,8 @@ import { DEFAULT_OPEN_KEY } from '../settings/hyprkey.mjs'
 
 /**
  * The steps, as the page lists them. Each has `buttons`, [{ action, label }]:
- * `start:podman` and `start:docker` set SearXNG up with that engine, `add`
- * binds (or changes) the key, `rebind` opens the field to type another key.
- * None when done, checking, or not ours.
+ * `start` sets SearXNG up, `add` binds (or changes) the key, `rebind` opens
+ * the field to type another key. None when done, checking, or not ours.
  */
 export function welcomeSteps (engineState, shortcutStatus) {
   return [engineStep(engineState), keyStep(shortcutStatus)]
@@ -23,11 +22,9 @@ function engineStep (engineState) {
     title: 'SearXNG, the search engine',
     detail: engineState === 'unknown' ? 'checking whether it is running…'
       : running ? 'running on this machine — searches go through it'
-      : 'runs on your own machine. Set it up with Podman (recommended: no root once installed) or Docker; a terminal opens, offers to install the one you pick if it is missing, and downloads about 200 MB',
+      : 'runs on your own machine. SearXNG opens a terminal that asks Podman (recommended: no root) or Docker, offers to install the one you pick if it is missing, and downloads about 200 MB',
     done: running,
-    buttons: engineState === 'stopped'
-      ? [{ action: 'start:podman', label: 'Podman' }, { action: 'start:docker', label: 'Docker' }]
-      : []
+    buttons: engineState === 'stopped' ? [{ action: 'start', label: 'SearXNG' }] : []
   }
 }
 

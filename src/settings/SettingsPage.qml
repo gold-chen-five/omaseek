@@ -18,16 +18,6 @@ FocusScope {
   readonly property var rows: SettingsLib.filterRows(rowState.rows, filterText)
   property bool pendingG: false              // g awaiting its second key: gg, gn, gi
   property int cursor: 0
-  // A choice that sets something off (Run SearXNG with, `confirm` on its row)
-  // is chosen first and taken with Enter: h and l move this, not the value.
-  property string pendingKey: ""
-  property var pendingValue: null
-
-  function clearPending () {
-    pendingKey = ""
-    pendingValue = null
-  }
-
   property int editingIndex: -1              // which text row is being typed into
   property int dropdownIndex: -1             // which choice row has its list open
   property int refusedIndex: -1              // a key just refused, and why, until the cursor moves
@@ -71,7 +61,6 @@ FocusScope {
   implicitHeight: layout.implicitHeight
 
   onCursorChanged: {
-    clearPending()                           // leaving a confirm choice keeps what it was
     refusedIndex = -1
     keptContentY = -1                        // the reader moved; nothing to put back
     Qt.callLater(ensureCursorVisible)
@@ -204,38 +193,15 @@ FocusScope {
     const row = rows[cursor]
     if (!row) return
     // A choice still waiting on what it is now (Run SearXNG with) is not changed blind.
-    if (row.type === "choice" && !row.busy && row.confirm === true) choose(row, delta)
-    else if (row.type === "choice" && !row.busy) changed(row.key, SettingsLib.cycle(row, delta))
+    if (row.type === "choice" && !row.busy) changed(row.key, SettingsLib.cycle(row, delta))
     else if (row.type === "toggle" && !row.busy && (delta > 0) !== (row.value === true)) activated(row.key, row.action)
   }
 
-  // h and l on a `confirm` choice: the option chosen moves, the value stays —
-  // back on the value itself, nothing is chosen.
-  function choose (row, delta) {
-    const from = pendingKey === row.key ? pendingValue : row.value
-    const next = SettingsLib.cycle({ options: row.options, value: from }, delta)
-    if (String(next) === String(row.value)) clearPending()
-    else {
-      pendingKey = row.key
-      pendingValue = next
-    }
-  }
-
-  // Enter on a `confirm` choice takes what h and l chose.
-  function confirmChoice (row) {
-    if (pendingKey !== row.key) return
-    const value = pendingValue
-    clearPending()
-    changed(row.key, value)
-  }
-
-  // A choice row has nothing to open: h and l change it — or, with `confirm`,
-  // choose, and Enter takes the choice.
+  // A choice row has nothing to open: h and l change it.
   function press () {
     const row = rows[cursor]
     if (!row) return
-    if (row.type === "choice" && row.confirm === true) { if (!row.busy) confirmChoice(row) }
-    else if (row.type === "text") beginEdit(cursor)
+    if (row.type === "text") beginEdit(cursor)
     else if (row.type === "toggle") { if (!row.busy) activated(row.key, row.action) }
     else if (row.type === "action") { if (!row.busy) activated(row.key, row.action) }
     else if (row.control === "dropdown") dropdownIndex = cursor
@@ -258,9 +224,7 @@ FocusScope {
       event.accepted = true
       return
     }
-    if (event.key === Qt.Key_Escape && pendingKey !== "") {
-      clearPending()                           // esc keeps what it was, before it leaves
-    } else if (event.key === Qt.Key_Escape || (chord !== "" && (chord === page.settingsChord || chord === "C-,"))) {
+    if (event.key === Qt.Key_Escape || (chord !== "" && (chord === page.settingsChord || chord === "C-,"))) {
       closed()
     } else if (chord !== "" && chord === page.keysChord) {
       keysRequested()

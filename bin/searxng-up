@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Create or start the SearXNG instance this panel searches through. Idempotent.
 #
-#   ./bin/searxng-up          create or start it, and wait until it answers
+#   ./bin/searxng-up          create or start it, and wait until it answers;
+#                             never set up, it first asks Podman or Docker
+#   ./bin/searxng-up --choose ask Podman or Docker, then as --use with the answer
 #   ./bin/searxng-up --stop   stop it, keeping the container
 #   ./bin/searxng-up --down   stop and remove the container (config is kept)
 #   ./bin/searxng-up --update offer the newest image by its digest, and switch on a yes
@@ -124,7 +126,7 @@ state_read() {
   cat -- "$1"
 }
 
-usage="usage: $0 [--stop|--down|--update|--purge|--present|--hint|--engine|--use podman|docker]"
+usage="usage: $0 [--stop|--down|--update|--purge|--present|--hint|--engine|--choose|--use podman|docker]"
 
 # "<dated tag> <digest>", as --update writes it and bin/search --newest-image prints it.
 valid_choice() { [[ $1 =~ ^[0-9]{4}\.[0-9]{1,2}\.[0-9]{1,2}-[0-9a-f]{7,40}\ sha256:[0-9a-f]{64}$ ]]; }
@@ -178,7 +180,7 @@ IMAGE=$REPO@$DIGEST
 MODE=${1:-start}
 USE=""
 case "$MODE" in
-  start|--stop|--down|--update|--purge|--present|--hint|--engine) (( $# <= 1 )) || die "$usage" ;;
+  start|--stop|--down|--update|--purge|--present|--hint|--engine|--choose) (( $# <= 1 )) || die "$usage" ;;
   --use)
     (( $# == 2 )) || die "$usage"
     USE=$2
@@ -192,7 +194,7 @@ esac
 # searxng_url moved elsewhere can be cleaned up.
 if [[ -n $REMOTE_HOST ]]; then
   case "$MODE" in
-    start|--update|--use)
+    start|--update|--use|--choose)
       die "searxng_url in $CONFIG_FILE points to $REMOTE_HOST, a SearXNG omaseek
        does not manage, so there is nothing to set up here. To have omaseek run
        one on this machine, remove searxng_url or point it at localhost."
@@ -259,6 +261,36 @@ offer_install() {
   sudo pacman -S --needed "$package" || die "installing $package failed — nothing else was changed"
   hash -r
   command -v "$package" >/dev/null || die "$package was installed but is not on PATH — open a new terminal and run this again"
+}
+
+# Sets CHOICE to podman or docker, as the reader picks it in this terminal:
+# Podman first, as it runs SearXNG without root, unless SearXNG already runs
+# with Docker. Without gum, a numbered list; no answer takes the first.
+choose_engine() {
+  local first=podman second=docker pick="" name label labels=()
+  [[ $recorded == docker ]] && { first=docker second=podman; }
+  for name in "$first" "$second"; do
+    label=$name
+    [[ $name == podman ]] && label+=" — runs SearXNG without root (recommended)"
+    [[ $name == docker ]] && label+=" — may ask for your password"
+    command -v "$name" >/dev/null || label+=" · not installed: offered for install"
+    labels+=("$label")
+  done
+  if [[ -t 0 ]] && command -v gum >/dev/null; then
+    pick=$(gum choose --header "Run SearXNG with:" "${labels[@]}") ||
+      die "nothing was chosen, and nothing was changed"
+  else
+    say "Run SearXNG with:"
+    printf '  1) %s\n  2) %s\n' "${labels[@]}"
+    read -r -p "1 or 2 [1]: " pick || true
+    case "$pick" in
+      ""|1) pick=${labels[0]} ;;
+      2) pick=${labels[1]} ;;
+      *) die "'$pick' is not 1 or 2 — nothing was changed" ;;
+    esac
+  fi
+  CHOICE=${pick%% *}
+  [[ $CHOICE == podman || $CHOICE == docker ]] || die "nothing was chosen, and nothing was changed"
 }
 
 # Sets docker=(...) to the command that reaches $1: podman as it is, docker
@@ -342,6 +374,15 @@ remove_all() {
   done < <(pulled_of "$ENGINE")
 }
 
+# --choose, or the first setup from a terminal: the reader picks the engine.
+# OMASEEK_ENGINE, or an engine already recorded, answers for a plain start.
+if [[ $MODE == --choose ]] ||
+   [[ $MODE == start && -z ${OMASEEK_ENGINE:-} && $recorded != podman && $recorded != docker && -t 0 ]]; then
+  choose_engine
+  USE=$CHOICE
+  MODE=start
+fi
+
 if [[ -n $USE ]]; then
   other=docker
   [[ $USE == docker ]] && other=podman
@@ -349,7 +390,7 @@ if [[ -n $USE ]]; then
   # container; a stopped docker daemon is not started just to be emptied.
   if used_engine "$other" && command -v "$other" >/dev/null &&
      { [[ $other == podman ]] || systemctl is-active --quiet docker; }; then
-    # A switch in Settings is one keypress: nothing is removed without a yes.
+    # Nothing is removed without a yes, even after picking the engine.
     confirm "Move SearXNG from $other to $USE? omaseek's container and the images it pulled under $other are removed; $CONFIG_DIR is kept." ||
       die "nothing was changed — SearXNG stays with $other"
     ENGINE=$other

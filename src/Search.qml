@@ -423,7 +423,7 @@ Item {
   // The welcome page's steps: each terminal ends by bringing the panel back to
   // the page, since whoever pressed them may not know another way in yet.
   readonly property string comeBackCommand: Terminal.summonCommand(manifest?.id ?? "omaseek")
-  function setUpEngine (name) { engine.start(comeBackCommand, name) }
+  function setUpEngine () { engine.start(comeBackCommand) }
   function addShortcut () { shortcut.add(comeBackCommand) }
   function chooseShortcut (key) { shortcut.choose(key) }
 

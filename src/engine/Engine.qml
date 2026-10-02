@@ -72,14 +72,13 @@ Item {
 
   // `comeBack`, from the welcome page, is the command that brings the panel
   // back once the terminal is done with (terminal.mjs).
-  // `engine`, from a Podman or Docker button: set up there. Anything but those
-  // two names is ignored rather than passed on — see run().
-  function start (comeBack, engine) { run(isEngine(engine) ? ["--use", engine] : [], comeBack) }
+  // Never set up, bin/searxng-up asks Podman or Docker in the terminal.
+  function start (comeBack) { run([], comeBack) }
   function stop () { run(["--stop"]) }
   function updateImage () { run(["--update"]) }
-  // Settings' choice: set SearXNG up with that engine, or move it there — the
-  // script asks before it removes anything from the other.
-  function useEngine (engine) { if (isEngine(engine)) run(["--use", engine]) }
+  // Settings' Change: the terminal asks Podman or Docker, and moves SearXNG
+  // there — asking before it removes anything from the other.
+  function chooseEngine () { run(["--choose"]) }
 
   function isEngine (name) { return name === "podman" || name === "docker" }
 

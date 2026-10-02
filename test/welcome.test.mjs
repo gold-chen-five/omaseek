@@ -8,14 +8,14 @@ const free = { ok: true, state: 'free', key: 'SUPER + d' }
 const bound = { ok: true, state: 'bound', key: 'SUPER + d', managed: true }
 const actions = step => step.buttons.map(button => button.action)
 
-test('a fresh machine has both steps to do: SearXNG with Podman or Docker, the key with Add and Change key, then Start', () => {
+test('a fresh machine has both steps to do, the key with Add and Change key, then Start', () => {
   const steps = welcomeSteps('stopped', free)
   assert.deepEqual(steps.map(step => [step.key, step.done]), [['searxng', false], ['shortcut', false]])
   assert.match(steps[0].detail, /200 MB/)
-  assert.match(steps[0].detail, /Podman \(recommended/)
-  assert.deepEqual(steps[0].buttons.map(button => button.label), ['Podman', 'Docker'])
+  assert.deepEqual(steps[0].buttons, [{ action: 'start', label: 'SearXNG' }], 'one button: the terminal asks Podman or Docker')
+  assert.match(steps[0].detail, /asks Podman \(recommended: no root\) or Docker/)
   assert.equal(steps[1].title, 'SUPER + d, to open omaseek from anywhere')
-  assert.deepEqual(welcomeButtons(steps), ['start:podman', 'start:docker', 'add', 'rebind', 'finish'])
+  assert.deepEqual(welcomeButtons(steps), ['start', 'add', 'rebind', 'finish'])
 })
 
 test('a step already done offers only what can still change: the key omaseek wrote', () => {

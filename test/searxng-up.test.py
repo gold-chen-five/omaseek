@@ -894,6 +894,74 @@ class SearxngUpdateTests(unittest.TestCase):
         self.assertTrue((self.state / "exists").exists(), "the docker container is untouched")
         self.assertNotIn("rm -f omaseek-searxng", self.commands())
 
+    def test_choose_takes_the_engine_picked_in_the_terminal(self):
+        self.with_podman(engine=None)
+        (self.state / "local_image").write_text("sha256:pinned\n", encoding="utf-8")  # what docker run pulls
+
+        result = self.run_mode("--choose", answer="2\n")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("1) podman — runs SearXNG without root (recommended)", result.stdout)
+        self.assertIn("2) docker", result.stdout)
+        self.assertTrue((self.state / "running").exists(), "set up under docker")
+        self.assertEqual(self.commands(self.pstate), [], "podman was not touched")
+        self.assertEqual(self.engine_file().read_text().strip(), "docker")
+
+    def test_choose_with_no_answer_takes_podman(self):
+        self.with_podman(engine=None)
+
+        result = self.run_mode("--choose", answer="\n")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue((self.pstate / "running").exists())
+        self.assertEqual(self.engine_file().read_text().strip(), "podman")
+
+    def test_choose_lists_the_engine_in_use_first(self):
+        self.with_podman(engine=None)
+        (self.state / "local_image").write_text("sha256:pinned\n", encoding="utf-8")  # what docker run pulls
+        self.engine_file().parent.mkdir(parents=True)
+        self.engine_file().write_text("docker\n", encoding="utf-8")
+
+        result = self.run_mode("--choose", answer="\n")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("1) docker", result.stdout)
+        self.assertEqual(self.engine_file().read_text().strip(), "docker", "Enter keeps it")
+        self.assertEqual(self.commands(self.pstate), [], "podman was not touched")
+
+    def test_choose_refuses_anything_but_1_or_2(self):
+        self.with_podman(engine=None)
+
+        result = self.run_mode("--choose", answer="podman; rm -rf ~\n")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("nothing was changed", result.stderr)
+        self.assertEqual(self.commands(), [])
+        self.assertEqual(self.commands(self.pstate), [])
+        self.assertFalse(self.engine_file().exists())
+
+    def test_choose_offers_to_install_the_engine_picked(self):
+        self.path_without("podman")
+        self.fake_installers()
+        self.env["FAKE_PODMAN_STATE"] = str(self.pstate)
+        (self.pstate / "local_image").write_text("sha256:pinned\n", encoding="utf-8")
+
+        result = self.run_mode("--choose", answer="1\ny\n")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("not installed: offered for install", result.stdout)
+        self.assertIn("sudo pacman -S --needed podman", self.installer_log().read_text())
+        self.assertEqual(self.engine_file().read_text().strip(), "podman")
+
+    def test_a_plain_start_without_a_terminal_does_not_ask(self):
+        self.with_podman(engine=None)
+
+        result = self.run_mode("start", answer="2\n")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("Run SearXNG with", result.stdout)
+        self.assertEqual(self.engine_file().read_text().strip(), "podman", "the default, as before")
+
     def test_an_unknown_engine_is_refused(self):
         self.env["OMASEEK_ENGINE"] = "lxc"
 
