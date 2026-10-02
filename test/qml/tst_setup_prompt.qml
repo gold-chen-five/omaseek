@@ -20,7 +20,8 @@ Item {
     property int confirms: 0
     property int cancels: 0
     property int ups: 0
-    onConfirmed: confirms++
+    property string lastEngine: "none"
+    onConfirmed: engine => { confirms++; lastEngine = engine }
     onCancelled: cancels++
     onSteppedUp: ups++
   }
@@ -30,14 +31,35 @@ Item {
     when: windowShown
 
     function init() {
-      prompt.confirms = 0; prompt.cancels = 0; prompt.ups = 0
+      prompt.confirms = 0; prompt.cancels = 0; prompt.ups = 0; prompt.lastEngine = "none"
       bar.forceActiveFocus()
     }
 
-    function test_not_set_up_offers_not_now_or_set_it_up() {
-      compare(prompt.buttons, ["Not now", "Set it up"])
+    function test_not_set_up_offers_podman_or_docker() {
+      compare(prompt.buttons, ["Not now", "Podman", "Docker"])
       prompt.notSetUp = false
-      compare(prompt.buttons, ["Not now", "Start it"], "stopped rather than never set up")
+      compare(prompt.buttons, ["Not now", "Start it"], "stopped: start it as it was made")
+      prompt.notSetUp = true
+    }
+
+    function test_each_engine_button_sends_its_engine_and_l_stops_at_the_end() {
+      prompt.open()
+      tryVerify(() => prompt.activeFocus)
+      compare(prompt.selectedIndex, 1, "lands on Podman")
+      keyClick(Qt.Key_Return)
+      compare(prompt.lastEngine, "podman")
+      keyClick("l")
+      compare(prompt.selectedIndex, 2)
+      keyClick("l")
+      compare(prompt.selectedIndex, 2, "l stops at Docker")
+      keyClick(Qt.Key_Return)
+      compare(prompt.lastEngine, "docker")
+      keyClick(Qt.Key_Tab)
+      compare(prompt.selectedIndex, 0, "tab goes round")
+      prompt.notSetUp = false
+      prompt.open()
+      keyClick(Qt.Key_Return)
+      compare(prompt.lastEngine, "", "Start it names no engine")
       prompt.notSetUp = true
     }
 
@@ -48,7 +70,7 @@ Item {
       compare(prompt.confirms, 0, "Enter in the bar is not the page's")
       prompt.open()                                  // what j or down from the bar does
       tryVerify(() => prompt.activeFocus)
-      compare(prompt.selectedIndex, 1, "and lands on Set it up")
+      compare(prompt.selectedIndex, 1, "and lands on Podman")
     }
 
     function test_k_and_up_go_back_to_the_bar() {
@@ -70,7 +92,7 @@ Item {
       compare(prompt.cancels, 1, "Enter on Not now")
       keyClick("l")
       keyClick(Qt.Key_Return)
-      compare(prompt.confirms, 1, "Enter on Set it up")
+      compare(prompt.confirms, 1, "Enter on Podman")
       keyClick(Qt.Key_Escape)
       compare(prompt.cancels, 2, "esc is Not now")
     }

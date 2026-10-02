@@ -249,3 +249,13 @@ test('a free key gets a button to add it, and a field for another key below', ()
   assert.equal(shortcutRows({ ok: true, state: 'bound', key: 'SUPER + S', managed: false }).length, 1, 'a line you wrote: no field')
   assert.equal(shortcutRows(null).length, 1, 'still checking')
 })
+
+test('Run SearXNG with shows the engine in use, and waits until it is known', () => {
+  const runWith = engineName => settingsRows(readSettings(''), 'stopped', null, null, null, null, null, null, null, engineName).find(r => r.key === 'searxngRunWith')
+  assert.deepEqual(runWith('docker').options, ['podman', 'docker'])
+  assert.equal(runWith('docker').value, 'docker')
+  assert.equal(runWith('podman').value, 'podman')
+  assert.equal(runWith('docker').busy, false)
+  assert.equal(runWith('').busy, true, 'not heard from bin/searxng-up yet: h and l leave it alone')
+  assert.match(runWith('podman').hint, /asking before it removes anything/)
+})

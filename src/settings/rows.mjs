@@ -14,10 +14,10 @@ import { DEFAULT_OPEN_KEY, OPEN_KEY_RULE, normalizeHyprKey } from './hyprkey.mjs
  * instance answers, not a stored setting. `test` is the last endpoint test, and
  * `version` the last version check; null before either ran.
  */
-export function settingsRows (settings, engine = 'unknown', agents = null, catalog = null, test = null, version = null, speed = null, translateCatalog = null, shortcut = null) {
+export function settingsRows (settings, engine = 'unknown', agents = null, catalog = null, test = null, version = null, speed = null, translateCatalog = null, shortcut = null, engineName = '') {
   const state = ENGINE_STATES.indexOf(engine) === -1 ? 'unknown' : engine
   return [].concat(
-    [{ type: 'section', label: 'Search' }], searchRows(settings, state, version),
+    [{ type: 'section', label: 'Search' }], searchRows(settings, state, version, engineName),
     [{ type: 'section', label: 'Ask' }], askRows(settings, agents, catalog),
     [{ type: 'section', label: 'Translate' }], translateRows(settings, agents, translateCatalog),
     [{ type: 'section', label: 'Display' }], displayRows(settings),

@@ -182,7 +182,7 @@ BorderSurface {
       notSetUp: panelCard.host.setupNotSetUp
       setupPath: SearchLib.setupPath(panelCard.config.settings.settingsKey)
 
-      onConfirmed: panelCard.engine.start()
+      onConfirmed: engine => panelCard.engine.start("", engine)
       onCancelled: panelCard.host.closeSetup()
       onSteppedUp: panelCard.host.focusSearch("normal")
     }
@@ -199,7 +199,7 @@ BorderSurface {
       accent: panelCard.host.accent
       fontFamily: panelCard.host.fontFamily
 
-      onEngineRequested: panelCard.host.setUpEngine()
+      onEngineRequested: engine => panelCard.host.setUpEngine(engine)
       onShortcutRequested: panelCard.host.addShortcut()
       onKeyChosen: key => panelCard.host.chooseShortcut(key)
       onFinished: panelCard.host.finishIntro()

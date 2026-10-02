@@ -238,9 +238,12 @@ class SearxngUpdateTests(unittest.TestCase):
         (self.state / "local_image").write_text((local or previous) + "\n", encoding="utf-8")
         (self.state / "remote_image").write_text(latest + "\n", encoding="utf-8")
 
-    def run_mode(self, mode):
-        return subprocess.run([str(SCRIPT), mode], cwd=ROOT, env=self.env, text=True,
-                              capture_output=True, check=False)
+    # stdin is the answer a question gets: empty, so no, unless a test says
+    # otherwise — never the terminal the tests run in, where a yes could reach
+    # a real sudo.
+    def run_mode(self, mode, *args, answer=""):
+        return subprocess.run([str(SCRIPT), mode, *args], cwd=ROOT, env=self.env, text=True,
+                              input=answer, capture_output=True, check=False)
 
     def run_update(self, close_stderr=False, answer="y\n"):
         command = [str(SCRIPT), "--update"]
@@ -618,8 +621,7 @@ class SearxngUpdateTests(unittest.TestCase):
         for mode in ("start", "--update", "--use"):
             with self.subTest(mode=mode):
                 args = [mode, "docker"] if mode == "--use" else [mode]
-                result = subprocess.run([str(SCRIPT), *args], cwd=ROOT, env=self.env, text=True,
-                                        capture_output=True, check=False)
+                result = self.run_mode(*args)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn("points to 192.168.1.5", result.stderr)
         verbs = {command.split()[0] for command in self.logged()}
@@ -825,16 +827,72 @@ class SearxngUpdateTests(unittest.TestCase):
 
         self.assertEqual(self.run_mode("--engine").stdout.strip(), "docker")
 
-    def test_with_neither_engine_podman_is_recommended_first(self):
+    def test_with_neither_engine_podman_is_offered_and_no_changes_nothing(self):
         self.path_without("podman", "docker")
+        self.fake_installers()
 
         result = self.run_mode("start")
 
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("neither Podman nor Docker is installed", result.stderr)
-        podman = result.stderr.index("sudo pacman -S podman")
-        self.assertLess(podman, result.stderr.index("sudo pacman -S docker"), "Podman comes first")
-        self.assertIn("Recommended (rootless", result.stderr)
+        # The question itself shows only in a terminal (read -p); the answer here is no.
+        self.assertIn("podman is not installed, and nothing was changed", result.stderr)
+        self.assertIn("sudo pacman -S podman", result.stderr, "and how to, by hand")
+        self.assertFalse(self.installer_log().exists(), "no answer is no: nothing ran")
+
+    def fake_installers(self):
+        """sudo and pacman in the test PATH, recording what they were asked; pacman
+        'installs' podman by linking the fake one in. Never the real ones."""
+        tools = pathlib.Path(self.env["PATH"])
+        log = self.installer_log()
+        for name in ("sudo", "pacman"):
+            (tools / name).unlink(missing_ok=True)
+        (tools / "sudo").write_text(f'#!/usr/bin/env bash\nprintf "sudo %s\\n" "$*" >> {log}\nexec "$@"\n')
+        (tools / "pacman").write_text(
+            f'#!/usr/bin/env bash\nprintf "pacman %s\\n" "$*" >> {log}\n'
+            f'[[ " $* " == *" podman "* ]] && ln -sf {self.fake_bin}/podman {tools}/podman\nexit 0\n')
+        for name in ("sudo", "pacman"):
+            (tools / name).chmod(0o755)
+
+    def installer_log(self):
+        return self.base / "installers.log"
+
+    def test_a_chosen_engine_that_is_missing_is_installed_on_yes(self):
+        self.path_without("podman")
+        self.fake_installers()
+        self.env["FAKE_PODMAN_STATE"] = str(self.pstate)
+        (self.pstate / "local_image").write_text("sha256:pinned\n", encoding="utf-8")
+
+        result = self.run_mode("--use", "podman", answer="y\n")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.installer_log().read_text().splitlines(),
+                         ["sudo pacman -S --needed podman", "pacman -S --needed podman"],
+                         "the one fixed package, through the reader's own sudo")
+        self.assertTrue((self.pstate / "running").exists(), "and SearXNG was then set up with it")
+        self.assertEqual(self.engine_file().read_text().strip(), "podman")
+
+    def test_a_no_to_the_install_changes_nothing(self):
+        self.path_without("podman")
+        self.fake_installers()
+
+        result = self.run_mode("--use", "podman", answer="n\n")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("nothing was changed", result.stderr)
+        self.assertFalse(self.installer_log().exists())
+        self.assertFalse(self.engine_file().exists(), "not even the engine is recorded")
+
+    def test_moving_to_another_engine_asks_before_removing_anything(self):
+        self.arrange_container("sha256:old", "sha256:old")
+        self.record_pulled(f"docker {PINNED}")
+        self.with_podman(engine=None)
+
+        result = self.run_mode("--use", "podman", answer="n\n")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("nothing was changed — SearXNG stays with docker", result.stderr)
+        self.assertTrue((self.state / "exists").exists(), "the docker container is untouched")
+        self.assertNotIn("rm -f omaseek-searxng", self.commands())
 
     def test_an_unknown_engine_is_refused(self):
         self.env["OMASEEK_ENGINE"] = "lxc"
@@ -851,8 +909,7 @@ class SearxngUpdateTests(unittest.TestCase):
 
         result = self.run_mode("--use")
         self.assertNotEqual(result.returncode, 0, "--use needs an engine")
-        result = subprocess.run([str(SCRIPT), "--use", "podman"], cwd=ROOT, env=self.env, text=True,
-                                capture_output=True, check=False)
+        result = self.run_mode("--use", "podman", answer="y\n")
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("rm -f omaseek-searxng", self.commands())

@@ -10,6 +10,9 @@ Item {
 
   // What the last probe or search saw: unknown | running | stopped.
   property string state: "unknown"
+  // The engine bin/searxng-up uses — the one SearXNG was made with, else the
+  // one it would choose — as the last probe heard it: podman | docker | "".
+  property string engineName: ""
   // The last endpoint test, as bin/search --test answered it; null before one ran.
   property var test: null
   // The last timed search, as bin/search --time answered it; null before one ran.
@@ -47,6 +50,7 @@ Item {
   // /healthz touches no upstream engine, so this is cheap to ask.
   function probe () {
     state = "unknown"
+    engineProcess.start([engine.scriptPath, "--engine"])
     statusProcess.start([engine.backendPath, "--status"])
     version = { checking: true }
     versionProcess.start([engine.backendPath, "--version"])
@@ -68,18 +72,28 @@ Item {
 
   // `comeBack`, from the welcome page, is the command that brings the panel
   // back once the terminal is done with (terminal.mjs).
-  function start (comeBack) { run("", comeBack) }
-  function stop () { run(" --stop") }
-  function updateImage () { run(" --update") }
+  // `engine`, from a Podman or Docker button: set up there. Anything but those
+  // two names is ignored rather than passed on — see run().
+  function start (comeBack, engine) { run(isEngine(engine) ? ["--use", engine] : [], comeBack) }
+  function stop () { run(["--stop"]) }
+  function updateImage () { run(["--update"]) }
+  // Settings' choice: set SearXNG up with that engine, or move it there — the
+  // script asks before it removes anything from the other.
+  function useEngine (engine) { if (isEngine(engine)) run(["--use", engine]) }
+
+  function isEngine (name) { return name === "podman" || name === "docker" }
 
   // In a terminal: Docker may ask for sudo, and the first pull is worth watching.
-  function run (flag, comeBack) {
+  // The script and its arguments go in as arguments ("$0" "$@"), never spliced
+  // into the shell text, so no value can become a command.
+  function run (args, comeBack) {
     launching()
     state = "unknown"                          // whatever it was, it is changing
     Quickshell.execDetached([
       "xdg-terminal-exec", "bash", "-c",
-      engine.scriptPath + flag + "; " + Terminal.terminalEnding(comeBack)
-    ])
+      '"$0" "$@"; ' + Terminal.terminalEnding(comeBack),
+      engine.scriptPath
+    ].concat(args))
   }
 
   JsonProcess {
@@ -117,6 +131,22 @@ Item {
       const done = engine.presentCallback
       engine.presentCallback = null
       if (done) done(exitCode === 0)
+    }
+  }
+
+  Process {
+    id: engineProcess
+
+    function start (command) {
+      running = false
+      engineProcess.command = command
+      running = true
+    }
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const name = String(text || "").trim()
+        engine.engineName = engine.isEngine(name) ? name : ""
+      }
     }
   }
 

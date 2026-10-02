@@ -76,6 +76,18 @@ say()  { printf '\033[1m==>\033[0m %s\n' "$*" || true; }
 warn() { printf '\033[33m warn:\033[0m %s\n' "$*" >&2 || true; }
 die()  { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 
+# A yes from the reader, No unless they say otherwise; without a terminal to
+# ask in, the answer is no.
+confirm() {
+  if [[ -t 0 ]] && command -v gum >/dev/null; then
+    gum confirm --default=false "$1"          # Enter keeps what runs
+  else
+    local reply=""
+    read -r -p "$1 [y/N] " reply || true
+    [[ $reply == [yY]* ]]
+  fi
+}
+
 # omaseek's state lives in a directory of its own, and no write there follows a
 # symlink: the directory or a file in it being one is refused, and every file
 # is written as a new file beside it and renamed over it, which replaces a link
@@ -129,7 +141,8 @@ if [[ -n $chosen ]]; then
 fi
 
 # OMASEEK_ENGINE, then the engine the container was created with, then Podman
-# when it is installed.
+# when it is installed, Docker when only that is, and Podman — offered for
+# install — when neither is.
 recorded=$(state_read "$ENGINE_FILE")
 case "${OMASEEK_ENGINE:-}" in
   podman|docker) ENGINE=$OMASEEK_ENGINE ;;
@@ -137,7 +150,9 @@ case "${OMASEEK_ENGINE:-}" in
     case "$recorded" in
       podman|docker) ENGINE=$recorded ;;
       *)
-        if command -v podman >/dev/null; then ENGINE=podman; else ENGINE=docker; fi
+        if command -v podman >/dev/null; then ENGINE=podman
+        elif command -v docker >/dev/null; then ENGINE=docker
+        else ENGINE=podman; fi
         ;;
     esac
     ;;
@@ -232,21 +247,30 @@ if [[ $MODE == --present ]]; then
   exit
 fi
 
+# The engine the reader chose, installed on a yes. The package is one of two
+# fixed names, never taken from input; it comes from the official repositories,
+# in this terminal, with the reader's own password; --needed leaves an
+# installed one alone. No, or no terminal to ask in, changes nothing.
+offer_install() {
+  local package=$1
+  [[ $package == podman || $package == docker ]] || die "not an engine omaseek installs: $package"
+  confirm "$package is not installed. Install it now? (sudo pacman -S --needed $package)" ||
+    die "$package is not installed, and nothing was changed — install it with:  sudo pacman -S $package"
+  sudo pacman -S --needed "$package" || die "installing $package failed — nothing else was changed"
+  hash -r
+  command -v "$package" >/dev/null || die "$package was installed but is not on PATH — open a new terminal and run this again"
+}
+
 # Sets docker=(...) to the command that reaches $1: podman as it is, docker
-# directly or through sudo.
+# directly or through sudo. An engine not installed is offered for install.
 connect() {
   if [[ $1 == podman ]]; then
-    command -v podman >/dev/null || die "podman is not installed — sudo pacman -S podman"
+    command -v podman >/dev/null || offer_install podman
     docker=(podman)
     podman info >/dev/null 2>&1 || die "podman cannot run containers as you — see: podman info"
     return
   fi
-  if ! command -v docker >/dev/null; then
-    command -v podman >/dev/null && die "docker is not installed — sudo pacman -S docker, or use Podman: $0 --use podman"
-    die "neither Podman nor Docker is installed.
-       Recommended (rootless, no sudo afterwards): sudo pacman -S podman
-       Or Docker:                                  sudo pacman -S docker"
-  fi
+  command -v docker >/dev/null || offer_install docker
   docker=(docker)
   if ! docker info >/dev/null 2>&1; then
     if ! systemctl is-active --quiet docker; then
@@ -325,15 +349,15 @@ if [[ -n $USE ]]; then
   # container; a stopped docker daemon is not started just to be emptied.
   if used_engine "$other" && command -v "$other" >/dev/null &&
      { [[ $other == podman ]] || systemctl is-active --quiet docker; }; then
+    # A switch in Settings is one keypress: nothing is removed without a yes.
+    confirm "Move SearXNG from $other to $USE? omaseek's container and the images it pulled under $other are removed; $CONFIG_DIR is kept." ||
+      die "nothing was changed — SearXNG stays with $other"
     ENGINE=$other
     connect "$other"
     say "removing SearXNG from $other"
     remove_all
   fi
-  state_write "$ENGINE_FILE" "$USE
-"
   ENGINE=$USE REPO=$(repo_of "$USE") IMAGE=$(repo_of "$USE")@$DIGEST
-  say "omaseek now runs SearXNG with $USE"
   MODE=start
 fi
 
@@ -358,6 +382,12 @@ if [[ $MODE == --purge ]]; then
 fi
 
 connect "$ENGINE"
+# Recorded only once it is reachable: a no to installing it leaves the old one.
+if [[ -n $USE ]]; then
+  state_write "$ENGINE_FILE" "$USE
+"
+  say "omaseek now runs SearXNG with $USE"
+fi
 
 container_args=(
   --name "$NAME"
@@ -473,15 +503,6 @@ restore_interrupted() {
   exit "$status"
 }
 
-confirm() {
-  if [[ -t 0 ]] && command -v gum >/dev/null; then
-    gum confirm --default=false "$1"          # Enter keeps what runs
-  else
-    local reply=""
-    read -r -p "$1 [y/N] " reply || true
-    [[ $reply == [yY]* ]]
-  fi
-}
 
 # Remembered only once the new image runs, or is ready to: a failed switch
 # leaves start, purge and the next update on the image that was restored.

@@ -50,10 +50,14 @@ offering to set it up; the next three, a line on the status bar says so. Set it
 up from that page, the welcome page or Settings
 (`ctrl+s` → Search → SearXNG),
 or run `bin/searxng-up`. Once omaseek has made it, a search while it is stopped
-offers to start it again. `bin/searxng-up` starts the `searxng/searxng` container
-image on `127.0.0.1:8888` — with rootless Podman when it is installed, so
-nothing runs as root, and with Docker otherwise and writes `~/.config/searxng/settings.yml` with the
-JSON API on. The image is pinned by digest to a build reviewed with this
+offers to start it again. You choose the engine — **Podman** (recommended:
+rootless, so nothing runs as root) or **Docker** — on the setup page, the
+welcome page, or Settings → Search → Run SearXNG with. If the one you pick is
+not installed, the setup terminal offers to install it (`pacman`, with your
+password, after you say yes). `bin/searxng-up` then starts the
+`searxng/searxng` container image on `127.0.0.1:8888` and writes
+`~/.config/searxng/settings.yml` with the JSON API on. Switching engines later
+moves SearXNG, and asks before it removes anything from the old one. The image is pinned by digest to a build reviewed with this
 release, so no moving tag decides what runs. SearXNG is a rolling release, so
 Settings → **Update SearXNG** shows the newest build and its digest, and
 switches to exactly that one only when you say yes. To move an existing Docker

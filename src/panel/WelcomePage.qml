@@ -27,7 +27,7 @@ Item {
   property string keyError: ""                 // why the typed key was refused
   property string preferred: ""                // the button to land on once the probe answers
 
-  signal engineRequested()                     // Set up: bin/searxng-up in a terminal
+  signal engineRequested(string engine)        // Podman or Docker: bin/searxng-up with it, in a terminal
   signal shortcutRequested()                   // Add, or Change to: bin/keybind --add in a terminal
   signal keyChosen(string key)                 // another key, normalized: check it
   signal finished()                            // Start searching, or esc
@@ -51,7 +51,7 @@ Item {
   }
 
   function activate (action) {
-    if (action === "start") page.engineRequested()
+    if (action === "start:podman" || action === "start:docker") page.engineRequested(action.slice("start:".length))
     else if (action === "add") page.shortcutRequested()
     else if (action === "rebind") editKey()
     else page.finished()

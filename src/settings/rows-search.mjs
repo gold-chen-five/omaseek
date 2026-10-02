@@ -6,7 +6,7 @@ import { readEngines, readLanguage } from './config.mjs'
 import { endpointTestText, searchSpeedText, versionText } from './reports.mjs'
 
 /** SearXNG on or off, its update, and what it searches in: language, page size. */
-export function searchRows (settings, state, version) {
+export function searchRows (settings, state, version, engineName = '') {
   const running = state === 'running'
   const rows = [
     {
@@ -19,6 +19,15 @@ export function searchRows (settings, state, version) {
       action: running ? 'stop' : 'start',   // what flipping it does
       busy: state === 'unknown',            // the probe has not answered yet
       value: running
+    },
+    {
+      key: 'searxngRunWith',
+      type: 'choice',
+      label: 'Run SearXNG with',
+      hint: 'Podman runs it without root (recommended). Changing this opens a terminal that sets SearXNG up there, or moves it — asking before it removes anything, and offering to install the engine if it is missing',
+      options: ['podman', 'docker'],
+      value: engineName === 'docker' ? 'docker' : 'podman',
+      busy: engineName === ''               // not heard from bin/searxng-up yet
     },
     {
       key: 'engineUpdate',

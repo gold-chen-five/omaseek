@@ -12,7 +12,10 @@ Item {
   // browser, and the page says so, and where to set it up later.
   property bool notSetUp: false
   property string setupPath: ""              // search.mjs setupPath: where Settings sets it up
-  readonly property var buttons: ["Not now", notSetUp ? "Set it up" : "Start it"]
+  // Never set up: which engine to set it up with. Stopped: start it again,
+  // with the engine it was made with.
+  readonly property var buttons: notSetUp ? ["Not now", "Podman", "Docker"] : ["Not now", "Start it"]
+  readonly property var engines: notSetUp ? ["", "podman", "docker"] : ["", ""]
   property color foreground: Color.menu.text
   property color accent: Color.menu.selectedText
   property string fontFamily: Style.font.menuFamily
@@ -21,17 +24,24 @@ Item {
   property int selectedIndex: 1
   property color selectedBackground: Color.menu.selectedBackground
 
-  signal confirmed()
+  signal confirmed(string engine)             // "podman" or "docker" from a choice, "" to start as it was
   signal cancelled()
   signal steppedUp()                         // k or up: back to the bar above, the page still showing
 
   function activate (index) {
     if (index === 0) prompt.cancelled()
-    else prompt.confirmed()
+    else prompt.confirmed(prompt.engines[index] || "")
+  }
+
+  // h and l stop at either end; tab goes round.
+  function move (delta, wrap) {
+    const count = prompt.buttons.length
+    const next = prompt.selectedIndex + delta
+    prompt.selectedIndex = wrap ? (next + count) % count : Math.max(0, Math.min(count - 1, next))
   }
 
   function open () {
-    selectedIndex = 1                          // land on "Start it" every time
+    selectedIndex = 1                          // land on Podman, or Start it, every time
     Qt.callLater(() => prompt.forceActiveFocus())
   }
 
@@ -43,10 +53,12 @@ Item {
       prompt.cancelled()
     } else if (event.key === Qt.Key_Up || event.text === "k") {
       prompt.steppedUp()
-    } else if (event.key === Qt.Key_Left || event.key === Qt.Key_Right
-               || event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab
-               || event.text === "h" || event.text === "l") {
-      prompt.selectedIndex = prompt.selectedIndex === 0 ? 1 : 0
+    } else if (event.key === Qt.Key_Left || event.text === "h") {
+      prompt.move(-1, false)
+    } else if (event.key === Qt.Key_Right || event.text === "l") {
+      prompt.move(1, false)
+    } else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
+      prompt.move(event.key === Qt.Key_Tab ? 1 : -1, true)
     } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter
                || event.key === Qt.Key_Space) {
       prompt.activate(prompt.selectedIndex)
@@ -99,9 +111,12 @@ Item {
     Text {
       width: parent.width
       textFormat: Text.PlainText
-      text: (prompt.notSetUp ? "Set it up now?" : "Start it now?")
-          + " A terminal opens and runs bin/searxng-up. The first "
-          + "run downloads about 200 MB and asks for your password."
+      text: prompt.notSetUp
+          ? "Set it up with Podman or Docker? Podman is recommended: it runs SearXNG without root. "
+            + "A terminal opens and runs bin/searxng-up; if the one you choose is not installed, it "
+            + "offers to install it first. The first run downloads about 200 MB."
+          : "Start it now? A terminal opens and runs bin/searxng-up. With Docker, it may ask for "
+            + "your password."
       color: prompt.foreground
       opacity: 0.75
       font.family: prompt.fontFamily

@@ -192,7 +192,8 @@ FocusScope {
   function cycle (delta) {
     const row = rows[cursor]
     if (!row) return
-    if (row.type === "choice") changed(row.key, SettingsLib.cycle(row, delta))
+    // A choice still waiting on what it is now (Run SearXNG with) is not changed blind.
+    if (row.type === "choice" && !row.busy) changed(row.key, SettingsLib.cycle(row, delta))
     else if (row.type === "toggle" && !row.busy && (delta > 0) !== (row.value === true)) activated(row.key, row.action)
   }
 

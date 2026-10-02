@@ -53,7 +53,7 @@ Item {
 
   readonly property Item input: card.field
   readonly property var settingsRows: SettingsLib.settingsRows(config.settings, engine.state, ai.agents, ai.models,
-    engine.test, engine.version, engine.speed, translator.models, shortcut.status)
+    engine.test, engine.version, engine.speed, translator.models, shortcut.status, engine.engineName)
   // Every panel key, parsed, by action id; and the keys the field reads in
   // normal mode beyond vim's (L, H, U, gt, gT). Each falls back to its default.
   readonly property var chords: Keybinds.panelChords(config.settings)
@@ -423,7 +423,7 @@ Item {
   // The welcome page's steps: each terminal ends by bringing the panel back to
   // the page, since whoever pressed them may not know another way in yet.
   readonly property string comeBackCommand: Terminal.summonCommand(manifest?.id ?? "omaseek")
-  function setUpEngine () { engine.start(comeBackCommand) }
+  function setUpEngine (name) { engine.start(comeBackCommand, name) }
   function addShortcut () { shortcut.add(comeBackCommand) }
   function chooseShortcut (key) { shortcut.choose(key) }
 
