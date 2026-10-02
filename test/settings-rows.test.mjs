@@ -7,7 +7,7 @@ import {
   readSettings, writeSettings, settingsRows, cycle, normalizeSequence, ENGINE_STATES,
   LAUNCHER_CHOICES, DEFAULT_AGENT,
   PAGE_SIZE_CHOICES, DEFAULTS, checkRow, FIXED_KEYS, changeSetting, selectedModel,
-  ENGINE_CHOICES, DEFAULT_ENGINES, LANGUAGE_CHOICES, toggleEngine, endpointTestText, searchSpeedText, versionText, nextAgent, translateAgentOf, SAME_AS_ASK, shortcutRow,
+  ENGINE_CHOICES, DEFAULT_ENGINES, LANGUAGE_CHOICES, toggleEngine, endpointTestText, searchSpeedText, versionText, nextAgent, translateAgentOf, SAME_AS_ASK, shortcutRow, shortcutRows,
   filterRows
 } from '../src/settings/settings.mjs'
 import { ACTIONS, settingKey } from '../src/shared/vim/keybinds.mjs'
@@ -235,4 +235,17 @@ test('a choice of more than four options is a dropdown: as chips they run over t
   }
   const suggestions = settingsRows(readSettings('')).find(row => row.key === 'searchSuggestions')
   assert.equal(suggestions.control, 'dropdown')
+})
+
+test('a free key gets a button to add it, and a field for another key below', () => {
+  const [add, other] = shortcutRows({ ok: true, state: 'free', key: 'SUPER + d' })
+  assert.deepEqual([add.key, add.type, add.action, add.button], ['shortcut', 'action', 'add', 'Add SUPER + d'])
+  assert.deepEqual([other.key, other.type, other.normalize, other.label], ['shortcutKey', 'text', 'hyprkey', 'Or another key'])
+  const [ours, change] = shortcutRows({ ok: true, state: 'bound', key: 'SUPER + S', managed: true })
+  assert.deepEqual([ours.type, change.label], ['info', 'Change to'])
+  const [taken, choose] = shortcutRows({ ok: true, state: 'taken', key: 'SUPER + D', holder: 'o.bind("SUPER + D", "Notes", "obsidian")' })
+  assert.match(taken.hint, /already opens Notes$/)
+  assert.equal(choose.label, 'Choose a key')
+  assert.equal(shortcutRows({ ok: true, state: 'bound', key: 'SUPER + S', managed: false }).length, 1, 'a line you wrote: no field')
+  assert.equal(shortcutRows(null).length, 1, 'still checking')
 })

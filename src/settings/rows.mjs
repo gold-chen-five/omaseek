@@ -21,7 +21,7 @@ export function settingsRows (settings, engine = 'unknown', agents = null, catal
     [{ type: 'section', label: 'Ask' }], askRows(settings, agents, catalog),
     [{ type: 'section', label: 'Translate' }], translateRows(settings, agents, translateCatalog),
     [{ type: 'section', label: 'Display' }], displayRows(settings),
-    [{ type: 'section', label: 'Keys' }], [shortcutRow(shortcut)], keyRows(settings),
+    [{ type: 'section', label: 'Keys' }], shortcutRows(shortcut), keyRows(settings),
     // The engine switches sit below the keys: they are set once, when a search
     // feels slow, while every row above is changed more often.
     [{ type: 'section', label: 'Engines' }], engineRows(settings, test, speed),
@@ -63,6 +63,33 @@ export function shortcutRow (status) {
     unreadable: 'could not read your Hyprland bindings — the bar icon opens it'
   }
   return Object.assign(row, { type: 'info', hint: hints[state] || hints.unreadable })
+}
+
+/**
+ * The rows the Keys section opens with: what the key is now — with a button to
+ * add it when it is free — and, wherever omaseek can act on it, a field to type
+ * another key instead.
+ */
+export function shortcutRows (status) {
+  const first = shortcutRow(status)
+  if (first.type !== 'text') return [first]
+  const state = status.state
+  const key = first.value
+  const head = { key: 'shortcut', label: 'Open omaseek with' }
+  const rows = state === 'free'
+    ? [Object.assign(head, { type: 'action', action: 'add', button: 'Add ' + key, hint: `${key} is free — a terminal shows the line it adds and asks first` })]
+    : [Object.assign(head, { type: 'info', hint: state === 'taken' ? first.hint.replace(/ — type another key$/, '') : `${key} opens omaseek` })]
+  rows.push({
+    key: 'shortcutKey',
+    type: 'text',
+    normalize: 'hyprkey',
+    label: state === 'free' ? 'Or another key' : state === 'taken' ? 'Choose a key' : 'Change to',
+    hint: state === 'bound' ? 'type a key, Enter changes it; a terminal shows the change and asks'
+      : 'type a key, Enter adds it; a terminal shows the line and asks',
+    placeholder: DEFAULT_OPEN_KEY,
+    value: ''
+  })
+  return rows
 }
 
 /** The escape sequence, then a row per rebindable key, in ACTIONS' order. */

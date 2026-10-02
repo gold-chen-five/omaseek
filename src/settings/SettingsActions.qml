@@ -16,7 +16,7 @@ Item {
   function change (key, value) {
     // Not a setting: the key that opens omaseek lives in the Hyprland bindings,
     // so a new one is written there, in a terminal that asks first.
-    if (key === "shortcut") {
+    if (key === "shortcut" || key === "shortcutKey") {
       if (shortcut.choose(value)) shortcut.add()
       return
     }
