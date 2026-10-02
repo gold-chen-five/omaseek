@@ -18,5 +18,6 @@ QtObject {
     property string menuFamily: "monospace"
   }
   function selectionFillFor(foreground, accent) { return accent }
+  function controlFill() { return "transparent" }
   function space(value) { return value }
 }

@@ -1,3 +1,5 @@
 module qs.Ui
 Button 1.0 Button.qml
 BorderSurface 1.0 BorderSurface.qml
+TextField 1.0 TextField.qml
+ToggleSwitch 1.0 ToggleSwitch.qml

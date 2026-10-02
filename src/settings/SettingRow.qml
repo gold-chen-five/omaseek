@@ -20,6 +20,8 @@ Rectangle {
   readonly property bool isSection: modelData.type === "section"
   readonly property bool isInfo: modelData.type === "info"
   readonly property bool hasCursor: index === settingRow.owner.cursor && !isSection && !isInfo && !settingRow.owner.filterFocused
+  // A `confirm` choice chosen with h and l, waiting for Enter.
+  readonly property bool pending: settingRow.owner.pendingKey !== "" && settingRow.owner.pendingKey === modelData.key
   readonly property bool isChoice: modelData.type === "choice"
   readonly property bool isAction: modelData.type === "action"
   readonly property bool isDropdown: isChoice && modelData.control === "dropdown"
@@ -67,14 +69,24 @@ Rectangle {
       text: String(modelData)
       bordered: true
       active: String(modelData) === String(settingRow.modelData.value)
+      selected: settingRow.pending && String(modelData) === String(settingRow.owner.pendingValue)
       foreground: settingRow.owner.foreground
       accent: settingRow.owner.accent
       fontFamily: settingRow.owner.fontFamily
       fontSize: Style.font.bodySmall
 
+      // A `confirm` choice: a click chooses, a click on the chosen one takes it.
       onClicked: {
-        settingRow.owner.cursor = settingRow.index
-        settingRow.owner.changed(settingRow.modelData.key, modelData)
+        const owner = settingRow.owner
+        const row = settingRow.modelData
+        owner.cursor = settingRow.index
+        if (row.confirm !== true) owner.changed(row.key, modelData)
+        else if (row.busy || String(modelData) === String(row.value)) owner.clearPending()
+        else if (settingRow.pending && String(modelData) === String(owner.pendingValue)) owner.confirmChoice(row)
+        else {
+          owner.pendingKey = row.key
+          owner.pendingValue = modelData
+        }
       }
     }
   }
@@ -126,7 +138,10 @@ Rectangle {
           width: parent.width
           textFormat: Text.PlainText
           // Section rows have no hint; an undefined binding warns on every repaint.
-          text: settingRow.refused ? settingRow.owner.refusal : (settingRow.modelData.hint || "")
+          text: settingRow.refused ? settingRow.owner.refusal
+            : settingRow.pending ? "enter: " + settingRow.modelData.label.toLowerCase() + " " + settingRow.owner.pendingValue
+              + " · esc keeps " + settingRow.modelData.value
+            : (settingRow.modelData.hint || "")
           color: settingRow.refused ? Color.urgent : settingRow.owner.foreground
           opacity: settingRow.refused ? 1 : 0.55
           font.family: settingRow.owner.fontFamily
