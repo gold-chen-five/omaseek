@@ -12,7 +12,7 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "bin" / "searxng-up"
-PINNED = "searxng/searxng@sha256:38ed750807fb00c26047e51896b50f83e7843d120d9e65f950770305f62c7111"
+PINNED = "searxng/searxng@sha256:a07a5cd2da2c63d66e559f9e4d3a3db106cfc6c32fb0ac70abe91cc28bcd7350"
 NEWEST_TAG = "2026.9.30-abcdef123"
 NEWEST_DIGEST = "sha256:" + "b" * 64
 NEWEST = "searxng/searxng@" + NEWEST_DIGEST
@@ -467,7 +467,7 @@ class SearxngUpdateTests(unittest.TestCase):
         result = self.run_update(answer="n\n")
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("current: 2026.9.25-d8ae3abd5", result.stdout)
+        self.assertIn("current: 2026.9.30-a9d990033", result.stdout)
         self.assertIn(f"newest:  {NEWEST_TAG}  ({NEWEST_DIGEST})", result.stdout)
         verbs = [command.split()[0] for command in self.commands()]
         self.assertNotIn("pull", verbs)
